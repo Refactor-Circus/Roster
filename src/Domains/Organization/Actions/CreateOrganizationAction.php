@@ -6,15 +6,14 @@ namespace RefactorCircus\Roster\Domains\Organization\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Concerns\ManagesMemberships;
 use RefactorCircus\Roster\Domains\Organization\Concerns\OrganizationRules;
+use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationCreatedActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationCreatingActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Support\Slugs;
 use RefactorCircus\Roster\Support\Users;
 
@@ -26,20 +25,6 @@ final class CreateOrganizationAction
     public function __construct(private readonly Users $users) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        $users = app(Users::class);
-
-        return [
-            'name' => ['required', 'string', 'max:255'],
-            'slug' => ['sometimes', 'nullable', 'string', 'alpha_dash', 'max:255', Rule::unique('roster_organizations', 'slug')],
-            'owner' => ['sometimes', 'nullable', Rule::exists($users->table(), $users->routeKeyName())],
-        ] + self::settingsRules();
-    }
-
-    /**
      * Create an organization; its owner, if any, becomes its first member.
      *
      * `owner` is the owning user's route key. Pass a user model as `$owner`
@@ -47,15 +32,13 @@ final class CreateOrganizationAction
      * owner until ownership is transferred to a member (as with
      * organizations synced from external systems); personal organizations
      * always need one.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(array $data, ?Model $owner = null, bool $personal = false): OrganizationModel
+    public function execute(CreateOrganizationData $data, ?Model $owner = null, bool $personal = false): OrganizationModel
     {
         OrganizationCreatingActionEvent::dispatch($data);
 
-        if ($owner === null && ($data['owner'] ?? null) !== null) {
-            $owner = $this->users->findOrFail($data['owner']);
+        if ($owner === null && $data->owner !== null) {
+            $owner = $this->users->findOrFail($data->owner);
         }
 
         if ($owner === null && $personal) {
@@ -63,9 +46,9 @@ final class CreateOrganizationAction
         }
 
         $organization = DB::transaction(function () use ($data, $owner, $personal): OrganizationModel {
-            $name = (string) $data['name'];
-            $slug = is_string($data['slug'] ?? null) && $data['slug'] !== ''
-                ? $data['slug']
+            $name = $data->name;
+            $slug = $data->slug !== null && $data->slug !== ''
+                ? $data->slug
                 : Slugs::unique($name, OrganizationModel::query());
 
             $organization = OrganizationModel::query()->create([
@@ -73,11 +56,11 @@ final class CreateOrganizationAction
                 'slug' => $slug,
                 'owner_id' => $owner?->getKey(),
                 'personal' => $personal,
-                'auto_join' => (bool) ($data['auto_join'] ?? false),
-                'provisioned_status' => (string) ($data['provisioned_status'] ?? UserStatus::Active->value),
+                'auto_join' => $data->autoJoin,
+                'provisioned_status' => $data->provisionedStatus->value,
             ]);
 
-            $this->syncDomains($organization, (array) ($data['domains'] ?? []));
+            $this->syncDomains($organization, $data->domains);
 
             if ($owner !== null) {
                 $this->join($organization, $owner, $personal ? MembershipSource::Personal : MembershipSource::Direct);

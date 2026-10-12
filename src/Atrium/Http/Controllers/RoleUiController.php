@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Domains\Permission\Actions\ListPermissionsAction;
+use RefactorCircus\Roster\Domains\Permission\Data\ListPermissionsData;
 use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
 use RefactorCircus\Roster\Domains\Role\Actions\CreateRoleAction;
 use RefactorCircus\Roster\Domains\Role\Actions\DeleteRoleAction;
@@ -17,6 +17,10 @@ use RefactorCircus\Roster\Domains\Role\Actions\ListRolesAction;
 use RefactorCircus\Roster\Domains\Role\Actions\RevokeRoleAction;
 use RefactorCircus\Roster\Domains\Role\Actions\ShowRoleAction;
 use RefactorCircus\Roster\Domains\Role\Actions\UpdateRoleAction;
+use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
+use RefactorCircus\Roster\Domains\Role\Data\CreateRoleData;
+use RefactorCircus\Roster\Domains\Role\Data\ListRolesData;
+use RefactorCircus\Roster\Domains\Role\Data\UpdateRoleData;
 use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
@@ -34,8 +38,9 @@ final class RoleUiController
 
     public function index(Request $request): View
     {
-        $filters = $request->validate(ListRolesAction::rules());
-        $within = $this->authorizeList('roster.roles.view', Scopes::fromInput($filters['organization'] ?? null));
+        $filters = ListRolesData::from($request->query());
+        $scope = Scopes::fromInput($filters->organization);
+        $within = $this->authorizeList('roster.roles.view', $scope);
 
         /** @var view-string $view */
         $view = 'roster::ui.roles.index';
@@ -43,8 +48,10 @@ final class RoleUiController
         return view($view, [
             'roles' => app(ListRolesAction::class)->execute($filters, $within)->withQueryString(),
             'filters' => $filters,
+            // Where new roles go: the filtered organization, or global.
+            'newRoleScope' => $scope,
             'scopes' => RoleScope::cases(),
-            'permissions' => app(ListPermissionsAction::class)->execute(['per_page' => 200])->items(),
+            'permissions' => app(ListPermissionsAction::class)->execute(new ListPermissionsData(perPage: 200))->items(),
         ]);
     }
 
@@ -52,7 +59,7 @@ final class RoleUiController
     {
         $this->authorizeScreen('roster.roles.manage', Scopes::fromInput($request->input('organization')));
 
-        $role = app(CreateRoleAction::class)->execute($request->validate(CreateRoleAction::rules()), $this->actor($request));
+        $role = app(CreateRoleAction::class)->execute(CreateRoleData::from($request->all()), $this->actor($request));
 
         return redirect()
             ->route('atrium.roster.roles.show', $role->id)
@@ -69,7 +76,7 @@ final class RoleUiController
 
         return view($view, [
             'role' => app(ShowRoleAction::class)->execute($model),
-            'permissions' => app(ListPermissionsAction::class)->execute(['per_page' => 200])->items(),
+            'permissions' => app(ListPermissionsAction::class)->execute(new ListPermissionsData(perPage: 200))->items(),
         ]);
     }
 
@@ -80,7 +87,7 @@ final class RoleUiController
 
         $request->merge(['permissions' => (array) $request->input('permissions', [])]);
 
-        app(UpdateRoleAction::class)->execute($model, $request->validate(UpdateRoleAction::rules()), $this->actor($request));
+        app(UpdateRoleAction::class)->execute($model, UpdateRoleData::from($request->all()), $this->actor($request));
 
         return redirect()
             ->route('atrium.roster.roles.show', $model->id)
@@ -104,7 +111,7 @@ final class RoleUiController
         $target = $this->users->findOrFail($user);
         $this->authorizeScreen('roster.roles.assign', Scopes::fromInput($request->input('organization'), $request->input('team')));
 
-        app(AssignRoleAction::class)->execute($target, $request->validate(AssignRoleAction::rules()), $this->actor($request));
+        app(AssignRoleAction::class)->execute($target, AssignRoleData::from($request->all()), $this->actor($request));
 
         return redirect()
             ->route('atrium.roster.users.show', $target->getRouteKey())
@@ -127,12 +134,5 @@ final class RoleUiController
     private function find(string $id): RoleModel
     {
         return RoleModel::query()->whereKey($id)->firstOrFail();
-    }
-
-    private function actor(Request $request): ?Model
-    {
-        $user = $request->user();
-
-        return $user instanceof Model ? $user : null;
     }
 }

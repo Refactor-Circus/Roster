@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\RemoveMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Actions\RemoveTeamMemberAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 
 function permissions(): Permissions
 {
@@ -29,9 +32,9 @@ it('seeds the built-in permissions and roles', function (): void {
 it('unions global, organization and team roles by scope', function (): void {
     $acme = organization();
     $ada = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $ada->getRouteKey()]);
-    $ops = app(CreateTeamAction::class)->execute($acme, ['name' => 'Ops']);
-    app(AddTeamMemberAction::class)->execute($ops, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
+    $ops = app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'));
+    app(AddTeamMemberAction::class)->execute($ops, new AddTeamMemberData(user: $ada->getRouteKey()));
     grant($ada, 'lead', team: $ops);
     RoleAssignmentModel::query()->create(['role_id' => roleWith(['roster.users.view'])->id, 'user_id' => $ada->getKey()]);
 
@@ -80,9 +83,9 @@ it('honours configured super-admin emails only once verified', function (): void
 it('revokes scoped roles when a member leaves', function (): void {
     $acme = organization();
     $ada = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $ada->getRouteKey()]);
-    $ops = app(CreateTeamAction::class)->execute($acme, ['name' => 'Ops']);
-    app(AddTeamMemberAction::class)->execute($ops, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
+    $ops = app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'));
+    app(AddTeamMemberAction::class)->execute($ops, new AddTeamMemberData(user: $ada->getRouteKey()));
     grant($ada, 'lead', team: $ops);
 
     app(RemoveTeamMemberAction::class)->execute($ops, $ada);
@@ -100,7 +103,7 @@ it('assigns no default role when disabled', function (): void {
     $acme = organization();
     $ada = user();
 
-    app(AddMemberAction::class)->execute($acme, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
 
     expect(RoleAssignmentModel::query()->where('user_id', $ada->getKey())->count())->toBe(0);
 });

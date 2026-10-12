@@ -11,9 +11,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\TeamFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * A group of organization members. Slugs are unique within the organization.
@@ -27,14 +29,19 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
  */
 final class TeamModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<TeamFactory> */
     use HasFactory;
 
     use HasUlids;
 
-    protected $table = 'roster_teams';
-
     protected $fillable = ['organization_id', 'name', 'slug'];
+
+    public function getTable(): string
+    {
+        return Tables::name('teams');
+    }
 
     /**
      * @return BelongsTo<OrganizationModel, $this>
@@ -57,7 +64,7 @@ final class TeamModel extends Model
      */
     public function memberships(): BelongsToMany
     {
-        return $this->belongsToMany(MembershipModel::class, 'roster_team_members', 'team_id', 'membership_id')->withTimestamps();
+        return $this->belongsToMany(MembershipModel::class, Tables::name('team_members'), 'team_id', 'membership_id')->withTimestamps();
     }
 
     public function hasMember(Model $user): bool

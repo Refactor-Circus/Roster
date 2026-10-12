@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Role\Mcp\Requests\ShowRoleMcpRequest;
+use RefactorCircus\Roster\Domains\Role\Resources\RoleResource;
 
 #[Description('Show a role with its permissions.')]
 final class ShowRoleTool extends Tool
@@ -24,5 +25,10 @@ final class ShowRoleTool extends Tool
         return [
             'role' => $schema->string()->description('The role id.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return RoleResource::structuredSchema($schema);
     }
 }

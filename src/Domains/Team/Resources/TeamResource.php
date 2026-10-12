@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Team\Resources;
 
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Resources\UserSummaryResource;
@@ -16,6 +18,21 @@ use RefactorCircus\Roster\Domains\User\Resources\UserSummaryResource;
  */
 final class TeamResource extends JsonResource
 {
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'slug' => $schema->string()->required(),
+            'name' => $schema->string()->required(),
+            'organization' => $schema->string()->nullable()->required(),
+            'members_count' => $schema->integer()->description('When counted.'),
+            'members' => $schema->array()->items($schema->object(UserSummaryResource::schema($schema)))->description('When loaded: at most the first 100 members, oldest first; list the organization\'s members with `team` for all of them.'),
+            'created_at' => $schema->string()->nullable()->required(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

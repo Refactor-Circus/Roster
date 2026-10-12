@@ -36,4 +36,20 @@ abstract class TransferMcpRequest extends Request
     {
         return $this->resolvedTransfer ??= TransferModel::query()->whereKey($this->get('transfer'))->firstOrFail();
     }
+
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    protected function transferRules(): array
+    {
+        return ['transfer' => ['required', 'string']];
+    }
+
+    /**
+     * Every transfer tool names its transfer.
+     */
+    protected function rules(): array
+    {
+        return $this->transferRules();
+    }
 }

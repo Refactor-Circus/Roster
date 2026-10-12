@@ -10,14 +10,6 @@ use RefactorCircus\Roster\Domains\User\Events\UserShownActionEvent;
 
 final class ShowUserAction
 {
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
     public function execute(Model $user): Model
     {
         UserShowingActionEvent::dispatch($user);

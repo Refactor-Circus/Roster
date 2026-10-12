@@ -11,6 +11,7 @@ use RefactorCircus\Roster\Domains\Invitation\Mcp\Tools\RevokeInvitationTool;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Invitation\Notifications\InvitationNotification;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\AddMemberTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\CreateOrganizationTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\DeleteOrganizationTool;
@@ -24,6 +25,7 @@ use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\TransferOwnershipTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\UpdateOrganizationTool;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 use RefactorCircus\Roster\Domains\Team\Mcp\Tools\AddTeamMemberTool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Tools\CreateTeamTool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Tools\DeleteTeamTool;
@@ -44,7 +46,7 @@ it('lists organizations, members, teams and invitations with parity, including e
     ]);
 
     $organization = organization();
-    app(CreateTeamAction::class)->execute($organization, ['name' => 'Ops']);
+    app(CreateTeamAction::class)->execute($organization, new CreateTeamData(name: 'Ops'));
 
     mcpTool(ListOrganizationsTool::class)->assertOk()->assertStructuredContent(httpData('roster.organizations.index')['data'] === [] ? [] : [
         'data' => httpData('roster.organizations.index')['data'],
@@ -99,7 +101,7 @@ it('manages an organization with parity to the http payload', function (): void 
 it('manages teams with parity to the http payload', function (): void {
     $organization = organization();
     $ada = user();
-    app(AddMemberAction::class)->execute($organization, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($organization, new AddMemberData(user: $ada->getRouteKey()));
     $args = ['organization' => $organization->slug];
 
     mcpTool(CreateTeamTool::class, $args + ['name' => 'Ops'])

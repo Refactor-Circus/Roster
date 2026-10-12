@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Keystone\Data\Missing;
 use RefactorCircus\Roster\Domains\Organization\Actions\RemoveMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Concerns\ManagesMemberships;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
@@ -23,7 +24,12 @@ use RefactorCircus\Roster\Domains\User\Actions\DeactivateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\ReactivateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Data\DeactivateUserData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -106,7 +112,7 @@ final class ScimUsers
 
             if ($user === null) {
                 // The organization decides whether its new accounts need approval.
-                $user = app(CreateUserAction::class)->execute(['name' => $this->name($data, $email), 'email' => $email, 'status' => $organization->provisioned_status]);
+                $user = app(CreateUserAction::class)->execute(new CreateUserData(email: $email, name: $this->name($data, $email), status: UserStatus::from($organization->provisioned_status)));
                 $created = true;
             }
 
@@ -141,20 +147,21 @@ final class ScimUsers
         $email = $this->email($data);
 
         return DB::transaction(function () use ($scimUser, $user, $data, $email): ScimUserModel {
-            $changes = [];
+            $emailChanged = strcasecmp((string) $this->users->email($user), $email) !== 0;
 
-            if (strcasecmp((string) $this->users->email($user), $email) !== 0) {
+            if ($emailChanged) {
                 $this->guardDomain($email);
-                $changes['email'] = $email;
             }
 
             $name = $this->name($data, $email);
+            $nameChanged = $this->users->column('name') !== null && $this->users->name($user) !== $name;
 
-            if ($this->users->column('name') !== null && $this->users->name($user) !== $name) {
-                $changes['name'] = $name;
-            }
+            $changes = new UpdateUserData(
+                name: $nameChanged ? $name : new Missing,
+                email: $emailChanged ? $email : new Missing,
+            );
 
-            if ($changes !== []) {
+            if ($emailChanged || $nameChanged) {
                 try {
                     app(UpdateUserAction::class)->execute($user, $changes);
                 } catch (ValidationException $exception) {
@@ -230,7 +237,7 @@ final class ScimUsers
         $deactivate = $scimUser->created_by_scim && $orphaned && $this->users->status($user) === UserStatus::Active;
 
         if ($deactivate) {
-            app(DeactivateUserAction::class)->execute($user, ['reason' => __('roster::roster.scim_deprovisioned', ['organization' => $organization->name])]);
+            app(DeactivateUserAction::class)->execute($user, new DeactivateUserData(reason: __('roster::roster.scim_deprovisioned', ['organization' => $organization->name])));
         }
 
         $scimUser->update(['active' => false, 'deactivated_by_scim' => $deactivate || $scimUser->deactivated_by_scim]);
@@ -265,7 +272,7 @@ final class ScimUsers
         $current = $this->users->profileIfExists($user)->display_name ?? $this->users->name($user);
 
         if ($display !== null && $display !== $current) {
-            app(UpdateProfileAction::class)->execute($user, ['display_name' => $display]);
+            app(UpdateProfileAction::class)->execute($user, new UpdateProfileData(displayName: $display));
         }
     }
 
@@ -413,7 +420,7 @@ final class ScimUsers
 
         return ScimGroupModel::query()
             ->where('organization_id', $this->organization()->getKey())
-            ->whereIn('team_id', $membership->teams()->pluck('roster_teams.id'))
+            ->whereIn('team_id', $membership->teams()->pluck(Tables::name('teams').'.id'))
             ->with('team')
             ->get()
             ->all();

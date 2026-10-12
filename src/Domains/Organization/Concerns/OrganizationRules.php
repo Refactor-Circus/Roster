@@ -6,11 +6,13 @@ namespace RefactorCircus\Roster\Domains\Organization\Concerns;
 
 use Illuminate\Database\Query\Builder;
 use Illuminate\Validation\Rule;
+use RefactorCircus\Roster\Domains\Organization\Models\OrganizationDomainModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 
 /**
- * Validation shared by the Actions that write an organization's settings.
+ * Validation shared by the Data objects that write an organization's
+ * settings, and the domain sync shared by their Actions.
  */
 trait OrganizationRules
 {
@@ -19,7 +21,7 @@ trait OrganizationRules
      */
     protected static function settingsRules(?OrganizationModel $organization = null): array
     {
-        $domain = Rule::unique('roster_organization_domains', 'domain');
+        $domain = Rule::unique(OrganizationDomainModel::class, 'domain');
 
         if ($organization !== null) {
             $domain->where(fn (Builder $query): Builder => $query->where('organization_id', '!=', $organization->getKey()));

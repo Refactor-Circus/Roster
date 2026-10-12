@@ -15,16 +15,20 @@ final class Scopes
 {
     public static function fromInput(mixed $organization, mixed $team = null): OrganizationModel|TeamModel|null
     {
-        if (! is_string($organization) || $organization === '') {
-            return null;
-        }
-
-        $model = OrganizationModel::query()->where('slug', $organization)->first();
+        $model = self::organization($organization);
 
         if ($model === null || ! is_string($team) || $team === '') {
             return $model;
         }
 
         return TeamModel::query()->where('organization_id', $model->getKey())->where('slug', $team)->first() ?? $model;
+    }
+
+    /**
+     * The organization a slug from input names, or null when it names none.
+     */
+    public static function organization(mixed $slug): ?OrganizationModel
+    {
+        return is_string($slug) && $slug !== '' ? OrganizationModel::query()->where('slug', $slug)->first() : null;
     }
 }

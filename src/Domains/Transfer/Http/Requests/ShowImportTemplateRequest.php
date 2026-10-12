@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Transfer\Http\Requests;
 
+use Illuminate\Validation\Rule;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ShowImportTemplateAction;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
@@ -33,7 +34,12 @@ final class ShowImportTemplateRequest extends Request
 
     public function rules(): array
     {
-        return ShowImportTemplateAction::rules();
+        return [
+            'type' => ['required', Rule::in(array_map(
+                fn (TransferType $type): string => $type->value,
+                array_filter(TransferType::cases(), fn (TransferType $type): bool => $type->isImport()),
+            ))],
+        ];
     }
 
     public function persist(): Response

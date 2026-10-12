@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Permission\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Permission\Actions\ListPermissionsAction;
+use RefactorCircus\Roster\Domains\Permission\Data\ListPermissionsData;
 use RefactorCircus\Roster\Domains\Permission\Resources\PermissionResource;
 use RefactorCircus\Roster\Http\Request;
 
@@ -18,11 +19,11 @@ final class IndexPermissionsRequest extends Request
 
     public function rules(): array
     {
-        return ListPermissionsAction::rules();
+        return ListPermissionsData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        return PermissionResource::collection(app(ListPermissionsAction::class)->execute($this->validated()))->response();
+        return PermissionResource::collection(app(ListPermissionsAction::class)->execute(ListPermissionsData::fromValidated($this->validated())))->response();
     }
 }

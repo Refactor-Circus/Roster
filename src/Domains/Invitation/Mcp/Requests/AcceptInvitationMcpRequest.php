@@ -6,16 +6,18 @@ namespace RefactorCircus\Roster\Domains\Invitation\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Invitation\Actions\AcceptInvitationAction;
+use RefactorCircus\Roster\Domains\Invitation\Data\AcceptInvitationData;
+use RefactorCircus\Roster\Domains\Invitation\Resources\InvitationResource;
 
 final class AcceptInvitationMcpRequest extends InvitationResponseMcpRequest
 {
     protected function rules(): array
     {
-        return AcceptInvitationAction::rules();
+        return AcceptInvitationData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        return $this->respondWithInvitation(app(AcceptInvitationAction::class)->execute($validated, $this->respondent()));
+        return (new InvitationResource(app(AcceptInvitationAction::class)->execute(AcceptInvitationData::fromValidated($validated), $this->respondent())))->toStructuredResponse();
     }
 }

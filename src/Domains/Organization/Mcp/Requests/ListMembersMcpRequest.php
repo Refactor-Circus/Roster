@@ -6,7 +6,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Actions\ListMembersAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Organization\Data\ListMembersData;
 use RefactorCircus\Roster\Domains\Organization\Resources\MemberResource;
 
 final class ListMembersMcpRequest extends OrganizationMcpRequest
@@ -16,27 +16,15 @@ final class ListMembersMcpRequest extends OrganizationMcpRequest
         return 'roster.members.view';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return ListMembersAction::rules() + $this->organizationRules();
+        return $this->organizationRules() + ListMembersData::rules($this->organization());
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $members = app(ListMembersAction::class)->execute($this->organization(), $this->without($validated, 'organization'));
+        $members = app(ListMembersAction::class)->execute($this->organization(), ListMembersData::fromValidated($validated));
 
-        return $this->structuredCollection(MemberResource::collection($members->items())->resolve(), [
-            'meta' => [
-                'current_page' => $members->currentPage(),
-                'last_page' => $members->lastPage(),
-                'per_page' => $members->perPage(),
-                'total' => $members->total(),
-            ],
-        ]);
+        return MemberResource::collection($members)->toStructuredResponse();
     }
 }

@@ -16,6 +16,7 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\User\Http\Middleware\EnsureUserIsActive;
 use RefactorCircus\Roster\Domains\User\Listeners\ApplyRegistrationStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * Users and their profiles, status and approval.
@@ -61,7 +62,7 @@ class UserServiceProvider extends ServiceProvider
 
         $model::resolveRelationUsing(
             'rosterOrganizations',
-            fn (Model $user) => $user->belongsToMany(OrganizationModel::class, 'roster_memberships', 'user_id', 'organization_id')->withTimestamps(),
+            fn (Model $user) => $user->belongsToMany(OrganizationModel::class, Tables::name('memberships'), 'user_id', 'organization_id')->withTimestamps(),
         );
     }
 }

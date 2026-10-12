@@ -8,6 +8,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 
 /**
  * A team is about to be created.
@@ -19,7 +20,6 @@ final class TeamCreatingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public OrganizationModel $organization,
-        /** @var array<string, mixed> */
-        public array $data,
+        public CreateTeamData $data,
     ) {}
 }

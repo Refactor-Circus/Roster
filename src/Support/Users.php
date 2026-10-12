@@ -22,6 +22,13 @@ use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
  */
 final class Users
 {
+    /**
+     * Whether each user model soft-deletes, read from its traits once.
+     *
+     * @var array<string, bool>
+     */
+    private array $softDeletes = [];
+
     public function __construct(private readonly Repository $config) {}
 
     /**
@@ -64,10 +71,12 @@ final class Users
     }
 
     /**
-     * The user with this email, ignoring case. A LIKE without wildcards
-     * matches case-insensitively and can use the email index (no leading
-     * wildcard); the exact comparison drops anything a `_` or `%` in the
-     * address let through. The one shared copy of this lookup.
+     * The user with this email, ignoring case. The address as given and its
+     * lowercase form are tried first with a plain equality the email index
+     * serves (Roster lowercases the addresses it writes); only a miss falls
+     * back to a case-insensitive comparison (CaseInsensitive), which on
+     * PostgreSQL wants an optional `lower(email)` expression index. The one
+     * shared copy of this lookup.
      */
     public function findByEmail(string $email): ?Model
     {
@@ -77,10 +86,52 @@ final class Users
             return null;
         }
 
-        return $this->query()
-            ->whereLike($column, $email)
-            ->get()
-            ->first(fn (Model $user): bool => strcasecmp((string) $this->email($user), $email) === 0);
+        $matches = fn (Model $user): bool => strcasecmp((string) $this->email($user), $email) === 0;
+
+        return $this->query()->whereIn($column, array_values(array_unique([$email, strtolower($email)])))->get()->first($matches)
+            ?? CaseInsensitive::where($this->query(), $column, $email)->get()->first($matches);
+    }
+
+    /**
+     * The users with these emails, ignoring case, keyed by lowercased email:
+     * findByEmail() for a whole batch, in a query per 500 addresses plus one
+     * case-insensitive query per 100 addresses not found as given.
+     *
+     * @param  array<int, string>  $emails
+     * @return array<string, Model>
+     */
+    public function findManyByEmail(array $emails): array
+    {
+        $column = $this->column('email');
+        $emails = array_values(array_unique(array_filter($emails, fn (string $email): bool => $email !== '')));
+        $wanted = array_values(array_unique(array_map(strtolower(...), $emails)));
+
+        if ($column === null || $wanted === []) {
+            return [];
+        }
+
+        $found = [];
+        $collect = function (iterable $users) use (&$found): void {
+            foreach ($users as $user) {
+                if ($user instanceof Model) {
+                    $found[strtolower((string) $this->email($user))] ??= $user;
+                }
+            }
+        };
+
+        foreach (array_chunk(array_values(array_unique([...$wanted, ...$emails])), 500) as $chunk) {
+            $collect($this->query()->whereIn($column, $chunk)->get());
+        }
+
+        foreach (array_chunk(array_values(array_diff($wanted, array_keys($found))), 100) as $chunk) {
+            $collect($this->query()->where(function (Builder $query) use ($chunk, $column): void {
+                foreach ($chunk as $email) {
+                    $query->orWhere(fn (Builder $one): Builder => CaseInsensitive::where($one, $column, $email));
+                }
+            })->get());
+        }
+
+        return array_intersect_key($found, array_flip($wanted));
     }
 
     /**
@@ -89,7 +140,9 @@ final class Users
      */
     public function softDeletes(): bool
     {
-        return in_array(SoftDeletes::class, class_uses_recursive($this->model()), true);
+        $model = $this->model();
+
+        return $this->softDeletes[$model] ??= in_array(SoftDeletes::class, class_uses_recursive($model), true);
     }
 
     /**

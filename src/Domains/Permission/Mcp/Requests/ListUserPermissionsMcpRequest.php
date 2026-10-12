@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Permission\Actions\ListUserPermissionsAction;
+use RefactorCircus\Roster\Domains\Permission\Data\ListUserPermissionsData;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\UserMcpRequest;
 
 final class ListUserPermissionsMcpRequest extends UserMcpRequest
@@ -24,13 +25,11 @@ final class ListUserPermissionsMcpRequest extends UserMcpRequest
 
     protected function rules(): array
     {
-        return ListUserPermissionsAction::rules() + $this->userRules();
+        return $this->userRules() + ListUserPermissionsData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['user']);
-
-        return Response::structured(['data' => app(ListUserPermissionsAction::class)->execute($this->targetUser(), $validated)]);
+        return Response::structured(['data' => app(ListUserPermissionsAction::class)->execute($this->targetUser(), ListUserPermissionsData::fromValidated($validated))]);
     }
 }

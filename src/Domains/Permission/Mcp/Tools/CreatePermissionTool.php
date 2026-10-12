@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Permission\Mcp\Requests\CreatePermissionMcpRequest;
+use RefactorCircus\Roster\Domains\Permission\Resources\PermissionResource;
 
 #[Description('Declare an app permission, e.g. invoices.edit, for roles to grant. Lower-case, dot-separated.')]
 final class CreatePermissionTool extends Tool
@@ -25,5 +26,10 @@ final class CreatePermissionTool extends Tool
             'name' => $schema->string()->description('Permission name, e.g. invoices.edit. Permanent.')->required(),
             'description' => $schema->string()->description('What it allows.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return PermissionResource::structuredSchema($schema);
     }
 }

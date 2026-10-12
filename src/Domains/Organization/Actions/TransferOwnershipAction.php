@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Roster\Domains\Organization\Data\TransferOwnershipData;
 use RefactorCircus\Roster\Domains\Organization\Events\OwnershipTransferredActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\OwnershipTransferringActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
@@ -17,23 +18,11 @@ final class TransferOwnershipAction
     public function __construct(private readonly Users $users) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'user' => ['required'],
-        ];
-    }
-
-    /**
      * Hand an organization to another of its members.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(OrganizationModel $organization, array $data): OrganizationModel
+    public function execute(OrganizationModel $organization, TransferOwnershipData $data): OrganizationModel
     {
-        $user = $this->users->findOrFail($data['user'] ?? null);
+        $user = $this->users->findOrFail($data->user);
 
         $this->guard($organization, $user);
 

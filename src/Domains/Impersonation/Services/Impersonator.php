@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use Illuminate\Http\Request;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StopImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StopImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 
 /**
@@ -52,7 +53,7 @@ final class Impersonator
         }
 
         if ($impersonation->ended_at === null) {
-            app(StopImpersonationAction::class)->execute($impersonation, ['why' => $why]);
+            app(StopImpersonationAction::class)->execute($impersonation, new StopImpersonationData(why: $why));
         }
 
         $impersonator = $impersonation->impersonator;

@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Actions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Concerns\ManagesMemberships;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Events\MemberAddedActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\MemberAddingActionEvent;
@@ -20,22 +21,9 @@ final class AddMemberAction
 
     public function __construct(private readonly Users $users) {}
 
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
+    public function execute(OrganizationModel $organization, AddMemberData $data): MembershipModel
     {
-        return [
-            'user' => ['required'],
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function execute(OrganizationModel $organization, array $data): MembershipModel
-    {
-        $user = $this->users->findOrFail($data['user'] ?? null);
+        $user = $this->users->findOrFail($data->user);
 
         if ($organization->membershipFor($user) !== null) {
             throw ValidationException::withMessages(['user' => __('roster::roster.already_a_member')]);

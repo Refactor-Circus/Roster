@@ -12,11 +12,11 @@
         </div>
 
         <x-atrium::card :title="__('roster::roster.members')">
-            @if ($team->memberships->isEmpty())
+            @if ($members->isEmpty())
                 <p class="text-sm">{{ __('roster::roster.no_members') }}</p>
             @else
                 <ul class="flex flex-col gap-2">
-                    @foreach ($team->memberships as $membership)
+                    @foreach ($members as $membership)
                         @if ($membership->user)
                             <li class="flex items-center justify-between gap-2">
                                 <span>{{ $directory->name($membership->user) ?? $directory->email($membership->user) }}</span>
@@ -31,6 +31,7 @@
                         @endif
                     @endforeach
                 </ul>
+                <x-atrium::pagination :paginator="$members" />
             @endif
 
             @rosterCan('roster.teams.manage', $team)
@@ -39,7 +40,7 @@
                 <x-atrium::form.select
                     name="user"
                     :label="__('roster::roster.add_member')"
-                    :options="collect($candidates->items())->filter(fn ($m) => $m->user)->mapWithKeys(fn ($m) => [$m->user->getRouteKey() => $directory->name($m->user) ?? $directory->email($m->user)])"
+                    :options="$candidates"
                     wrapper="w-64" />
                 <x-atrium::form.actions>
                     <x-atrium::icon-button icon="user-plus" :label="__('roster::roster.add_member')" variant="primary" type="submit" data-testid="add-team-member" />

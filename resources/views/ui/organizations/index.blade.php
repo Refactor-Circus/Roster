@@ -14,16 +14,16 @@
 
         <x-atrium::card>
             <form method="GET" action="{{ route('atrium.roster.organizations.index') }}" class="flex flex-wrap items-start gap-3">
-                <x-atrium::form.input name="search" :label="__('roster::roster.search')" :value="$filters['search'] ?? null" wrapper="w-64" />
-                <x-atrium::form.input name="source" :label="__('roster::roster.external_source')" :value="$filters['source'] ?? null" wrapper="w-40" />
-                <x-atrium::form.input name="external_id" :label="__('roster::roster.external_id')" :value="$filters['external_id'] ?? null" wrapper="w-48" />
-                <x-atrium::form.input name="account_number" :label="__('roster::roster.account_number')" :value="$filters['account_number'] ?? null" wrapper="w-48" />
+                <x-atrium::form.input name="search" :label="__('roster::roster.search')" :value="$filters->search" wrapper="w-64" />
+                <x-atrium::form.input name="source" :label="__('roster::roster.external_source')" :value="$filters->source" wrapper="w-40" />
+                <x-atrium::form.input name="external_id" :label="__('roster::roster.external_id')" :value="$filters->externalId" wrapper="w-48" />
+                <x-atrium::form.input name="account_number" :label="__('roster::roster.account_number')" :value="$filters->accountNumber" wrapper="w-48" />
                 <x-atrium::form.select
                     name="trashed"
                     :label="__('roster::roster.show')"
                     :placeholder="__('roster::roster.show_current')"
                     :options="['only' => __('roster::roster.show_deleted')]"
-                    :selected="$filters['trashed'] ?? null"
+                    :selected="$filters->trashed"
                     wrapper="w-40"
                     data-testid="show-filter" />
 

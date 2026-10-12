@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Permission\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Permission\Actions\ListPermissionsAction;
+use RefactorCircus\Roster\Domains\Permission\Data\ListPermissionsData;
 use RefactorCircus\Roster\Domains\Permission\Resources\PermissionResource;
 use RefactorCircus\Roster\Mcp\Request;
 
@@ -18,20 +19,13 @@ final class ListPermissionsMcpRequest extends Request
 
     protected function rules(): array
     {
-        return ListPermissionsAction::rules();
+        return ListPermissionsData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $permissions = app(ListPermissionsAction::class)->execute($validated);
+        $permissions = app(ListPermissionsAction::class)->execute(ListPermissionsData::fromValidated($validated));
 
-        return $this->structuredCollection(PermissionResource::collection($permissions->items())->resolve(), [
-            'meta' => [
-                'current_page' => $permissions->currentPage(),
-                'last_page' => $permissions->lastPage(),
-                'per_page' => $permissions->perPage(),
-                'total' => $permissions->total(),
-            ],
-        ]);
+        return PermissionResource::collection($permissions)->toStructuredResponse();
     }
 }

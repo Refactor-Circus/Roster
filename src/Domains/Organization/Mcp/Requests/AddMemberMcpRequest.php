@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Organization\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Organization\Resources\MemberResource;
 
 final class AddMemberMcpRequest extends OrganizationMcpRequest
@@ -17,20 +16,15 @@ final class AddMemberMcpRequest extends OrganizationMcpRequest
         return 'roster.members.manage';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return AddMemberAction::rules() + $this->organizationRules();
+        return $this->organizationRules() + AddMemberData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $membership = app(AddMemberAction::class)->execute($this->organization(), $this->without($validated, 'organization'));
+        $membership = app(AddMemberAction::class)->execute($this->organization(), AddMemberData::fromValidated($validated));
 
-        return Response::structured(['data' => (new MemberResource($membership))->resolve()]);
+        return (new MemberResource($membership))->toStructuredResponse();
     }
 }

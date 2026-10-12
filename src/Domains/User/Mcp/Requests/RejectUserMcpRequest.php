@@ -6,6 +6,8 @@ namespace RefactorCircus\Roster\Domains\User\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\User\Actions\RejectUserAction;
+use RefactorCircus\Roster\Domains\User\Data\RejectUserData;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class RejectUserMcpRequest extends UserMcpRequest
 {
@@ -16,13 +18,11 @@ final class RejectUserMcpRequest extends UserMcpRequest
 
     protected function rules(): array
     {
-        return RejectUserAction::rules() + $this->userRules();
+        return $this->userRules() + RejectUserData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['user']);
-
-        return $this->respond(app(RejectUserAction::class)->execute($this->targetUser(), $validated, $this->actor()));
+        return (new UserResource(app(RejectUserAction::class)->execute($this->targetUser(), RejectUserData::fromValidated($validated), $this->actor())))->toStructuredResponse();
     }
 }

@@ -6,8 +6,8 @@ namespace RefactorCircus\Roster\Domains\Team\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\OrganizationMcpRequest;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Actions\ListTeamsAction;
+use RefactorCircus\Roster\Domains\Team\Data\ListTeamsData;
 use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 
 final class ListTeamsMcpRequest extends OrganizationMcpRequest
@@ -17,27 +17,15 @@ final class ListTeamsMcpRequest extends OrganizationMcpRequest
         return 'roster.teams.view';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return ListTeamsAction::rules() + $this->organizationRules();
+        return $this->organizationRules() + ListTeamsData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $teams = app(ListTeamsAction::class)->execute($this->organization(), $this->without($validated, 'organization'));
+        $teams = app(ListTeamsAction::class)->execute($this->organization(), ListTeamsData::fromValidated($validated));
 
-        return $this->structuredCollection(TeamResource::collection($teams->items())->resolve(), [
-            'meta' => [
-                'current_page' => $teams->currentPage(),
-                'last_page' => $teams->lastPage(),
-                'per_page' => $teams->perPage(),
-                'total' => $teams->total(),
-            ],
-        ]);
+        return TeamResource::collection($teams)->toStructuredResponse();
     }
 }

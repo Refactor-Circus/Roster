@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Requests\UpdateTeamMcpRequest;
+use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesTeam;
 
 #[Description('Rename a team or change its slug. Only the fields given change.')]
@@ -28,5 +29,10 @@ final class UpdateTeamTool extends Tool
             'name' => $schema->string()->description('Display name.'),
             'slug' => $schema->string()->description('New slug, unique within the organization.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return TeamResource::structuredSchema($schema);
     }
 }

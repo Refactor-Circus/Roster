@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Role\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
+use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
 use RefactorCircus\Roster\Domains\Role\Resources\RoleAssignmentResource;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Http\Requests\UserRequest;
@@ -26,12 +27,12 @@ final class AssignRoleRequest extends UserRequest
 
     public function rules(): array
     {
-        return AssignRoleAction::rules();
+        return AssignRoleData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $assignment = app(AssignRoleAction::class)->execute($this->targetUser(), $this->validated(), $this->actor());
+        $assignment = app(AssignRoleAction::class)->execute($this->targetUser(), AssignRoleData::fromValidated($this->validated()), $this->actor());
 
         return (new RoleAssignmentResource($assignment))->response()->setStatusCode(201);
     }

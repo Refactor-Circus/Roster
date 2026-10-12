@@ -8,23 +8,26 @@ use RefactorCircus\Impex\Domains\Run\Models\RunModel;
 use RefactorCircus\Impex\Testing\Flows;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Actions\SyncOrganizationAction;
+use RefactorCircus\Roster\Domains\Organization\Data\SyncOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Actions\CancelTransferAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ConfirmImportAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartImportAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartImportData;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferStatus;
+use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use Workbench\App\Models\User;
 
 function startImport(string $type, string $csv, ?User $actor = null, ?string $organization = null): TransferModel
 {
-    return app(StartImportAction::class)->execute(array_filter([
-        'type' => $type,
-        'organization' => $organization,
-        'content' => $csv,
-    ]), $actor ?? user());
+    return app(StartImportAction::class)->execute(new StartImportData(
+        type: TransferType::from($type),
+        organization: $organization,
+        content: $csv,
+    ), $actor ?? user());
 }
 
 beforeEach(function (): void {
@@ -143,7 +146,7 @@ it('marks the transfer failed when its run fails', function (): void {
 });
 
 it('imports organizations from an external system', function (): void {
-    app(SyncOrganizationAction::class)->execute(['source' => 'erp', 'external_id' => 'C-1', 'name' => 'Initech', 'account_number' => 'A-1']);
+    app(SyncOrganizationAction::class)->execute(new SyncOrganizationData(source: 'erp', externalId: 'C-1', name: 'Initech', accountNumber: 'A-1'));
 
     $transfer = startImport('import_organizations', implode("\n", [
         'source,external_id,name,account_number,domains,owner',

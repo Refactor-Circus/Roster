@@ -27,11 +27,6 @@ abstract class InvitationResponseRequest extends Request
         return $this->actor() !== null;
     }
 
-    protected function failedAuthorization(): void
-    {
-        throw new AuthenticationException;
-    }
-
     protected function respondent(): Model
     {
         return $this->actor() ?? throw new AuthenticationException;

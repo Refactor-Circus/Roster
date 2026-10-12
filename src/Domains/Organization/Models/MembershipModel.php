@@ -10,9 +10,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\MembershipFactory;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -27,18 +29,23 @@ use RefactorCircus\Roster\Support\Users;
  */
 final class MembershipModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<MembershipFactory> */
     use HasFactory;
 
     use HasUlids;
-
-    protected $table = 'roster_memberships';
 
     protected $fillable = ['organization_id', 'user_id', 'source'];
 
     protected $attributes = [
         'source' => 'direct',
     ];
+
+    public function getTable(): string
+    {
+        return Tables::name('memberships');
+    }
 
     /**
      * @return BelongsTo<OrganizationModel, $this>
@@ -61,7 +68,7 @@ final class MembershipModel extends Model
      */
     public function teams(): BelongsToMany
     {
-        return $this->belongsToMany(TeamModel::class, 'roster_team_members', 'membership_id', 'team_id')->withTimestamps();
+        return $this->belongsToMany(TeamModel::class, Tables::name('team_members'), 'membership_id', 'team_id')->withTimestamps();
     }
 
     protected static function newFactory(): MembershipFactory

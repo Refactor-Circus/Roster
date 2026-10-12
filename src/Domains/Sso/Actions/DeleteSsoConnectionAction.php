@@ -12,14 +12,6 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 final class DeleteSsoConnectionAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Remove a connection and its linked identities. Accounts stay.
      */
     public function execute(SsoConnectionModel $connection): void

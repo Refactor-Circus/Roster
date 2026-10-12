@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Impersonation\Data\StartedImpersonation;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Events\ImpersonationStartedActionEvent;
 use RefactorCircus\Roster\Domains\Impersonation\Events\ImpersonationStartingActionEvent;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
@@ -30,28 +31,15 @@ final class StartImpersonationAction
     ) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'reason' => ['required', 'string', 'min:3', 'max:500'],
-            'organization' => ['sometimes', 'nullable', 'string'],
-        ];
-    }
-
-    /**
      * Issue a one-time link that lets `$actor` act as `$user`.
      *
      * The link only works in a browser signed in as `$actor`. Nobody can
      * impersonate themselves, an inactive user, a super-admin (unless they
      * are one), or anyone holding a permission they lack.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(Model $user, array $data, Model $actor): StartedImpersonation
+    public function execute(Model $user, StartImpersonationData $data, Model $actor): StartedImpersonation
     {
-        $organization = $this->organizationFrom($data['organization'] ?? null);
+        $organization = $this->organizationFrom($data->organization);
 
         $this->guard($user, $actor, $organization);
 
@@ -64,7 +52,7 @@ final class StartImpersonationAction
             'impersonator_id' => $actor->getKey(),
             'user_id' => $user->getKey(),
             'organization_id' => $organization?->getKey(),
-            'reason' => (string) $data['reason'],
+            'reason' => $data->reason,
             'token_hash' => hash('sha256', $token),
             'link_expires_at' => $linkExpires,
         ]));

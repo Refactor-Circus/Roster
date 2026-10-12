@@ -7,10 +7,12 @@ namespace RefactorCircus\Roster\Domains\Transfer\Http\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ListTransfersAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\ListTransfersData;
 use RefactorCircus\Roster\Domains\Transfer\Resources\TransferResource;
+use RefactorCircus\Roster\Domains\Transfer\Services\Transfers;
 use RefactorCircus\Roster\Http\Request;
+use RefactorCircus\Roster\Support\Scopes;
 
 /**
  * Everyone may list their own transfers. An organization's transfers need
@@ -25,9 +27,7 @@ final class IndexTransfersRequest extends Request
 
     protected function scope(): ?OrganizationModel
     {
-        $slug = $this->input('organization');
-
-        return is_string($slug) && $slug !== '' ? OrganizationModel::query()->where('slug', $slug)->first() : null;
+        return Scopes::organization($this->input('organization'));
     }
 
     protected function self(): ?Model
@@ -37,17 +37,11 @@ final class IndexTransfersRequest extends Request
 
     public function rules(): array
     {
-        return ListTransfersAction::rules();
+        return ListTransfersData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $actor = $this->actor();
-        $everyone = $this->scope() !== null || app(Authorizer::class)->check($actor, 'roster.users.view');
-
-        // Not everyone's: their own, plus those of the organizations they may see transfers in.
-        $organizations = $everyone ? [] : (app(Authorizer::class)->organizationsWith($actor, 'roster.members.view') ?? []);
-
-        return TransferResource::collection(app(ListTransfersAction::class)->execute($this->validated(), $everyone ? null : $actor, $organizations))->response();
+        return TransferResource::collection(app(ListTransfersAction::class)->execute(ListTransfersData::fromValidated($this->validated()), ...app(Transfers::class)->visibleTo($this->actor(), $this->scope())))->response();
     }
 }

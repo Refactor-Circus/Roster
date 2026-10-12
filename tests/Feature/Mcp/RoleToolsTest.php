@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Permission\Mcp\Tools\CreatePermissionTool;
 use RefactorCircus\Roster\Domains\Permission\Mcp\Tools\DeletePermissionTool;
 use RefactorCircus\Roster\Domains\Permission\Mcp\Tools\ListPermissionsTool;
@@ -53,7 +54,7 @@ it('manages roles with parity to the http payload', function (): void {
 it('assigns, lists and revokes roles', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $ada = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
     $admin = RoleModel::query()->where('slug', 'admin')->sole();
 
     mcpTool(AssignRoleTool::class, ['user' => $ada->getRouteKey(), 'role' => $admin->id, 'organization' => 'acme'])->assertOk();

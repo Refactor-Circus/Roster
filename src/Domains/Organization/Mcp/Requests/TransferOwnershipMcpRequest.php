@@ -6,7 +6,8 @@ namespace RefactorCircus\Roster\Domains\Organization\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Actions\TransferOwnershipAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Organization\Data\TransferOwnershipData;
+use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 
 final class TransferOwnershipMcpRequest extends OrganizationMcpRequest
 {
@@ -15,20 +16,13 @@ final class TransferOwnershipMcpRequest extends OrganizationMcpRequest
         return 'roster.organizations.transfer';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return TransferOwnershipAction::rules() + $this->organizationRules();
+        return $this->organizationRules() + TransferOwnershipData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $data = $this->without($validated, 'organization');
-
-        return $this->respondWithOrganization(app(TransferOwnershipAction::class)->execute($this->organization(), $data));
+        return (new OrganizationResource(app(TransferOwnershipAction::class)->execute($this->organization(), TransferOwnershipData::fromValidated($validated))))->toStructuredResponse();
     }
 }

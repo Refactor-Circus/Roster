@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\File;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ShowImportTemplateAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartImportAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartImportData;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferStatus;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Mcp\Tools\ShowImportTemplateTool;
@@ -23,11 +24,11 @@ it('refuses an untouched template, which has no rows', function (TransferType $t
     $owner = user();
     organization($owner, ['name' => 'Acme']);
 
-    $transfer = app(StartImportAction::class)->execute(array_filter([
-        'type' => $type->value,
-        'organization' => $type->needsOrganization() ? 'acme' : null,
-        'content' => app(ShowImportTemplateAction::class)->execute($type),
-    ]), $owner);
+    $transfer = app(StartImportAction::class)->execute(new StartImportData(
+        type: $type,
+        organization: $type->needsOrganization() ? 'acme' : null,
+        content: app(ShowImportTemplateAction::class)->execute($type),
+    ), $owner);
 
     expect($transfer->status)->toBe(TransferStatus::Failed)
         ->and($transfer->report['error'])->toContain('no rows to import');
@@ -36,7 +37,7 @@ it('refuses an untouched template, which has no rows', function (TransferType $t
 it('skips commented rows in a real import', function (): void {
     $owner = user();
 
-    $transfer = app(StartImportAction::class)->execute(['type' => 'import_users', 'content' => "email\n#skip@example.com\nada@example.com\n  # also skipped"], $owner);
+    $transfer = app(StartImportAction::class)->execute(new StartImportData(type: TransferType::ImportUsers, content: "email\n#skip@example.com\nada@example.com\n  # also skipped"), $owner);
 
     expect(collect($transfer->rows())->pluck('values.email')->all())->toBe(['ada@example.com'])
         ->and(User::query()->where('email', 'skip@example.com')->exists())->toBeFalse();

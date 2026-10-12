@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
 
 /**
  * An impersonation link is about to be issued.
@@ -19,7 +20,6 @@ final class ImpersonationStartingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public Model $user,
-        /** @var array<string, mixed> */
-        public array $data,
+        public StartImpersonationData $data,
     ) {}
 }

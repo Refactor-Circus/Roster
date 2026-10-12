@@ -21,11 +21,6 @@ final class DestroyTeamMemberRequest extends TeamRequest
         return $this->team();
     }
 
-    public function rules(): array
-    {
-        return RemoveTeamMemberAction::rules();
-    }
-
     public function persist(): Response
     {
         app(RemoveTeamMemberAction::class)->execute($this->team(), app(Users::class)->findOrFail($this->route('user')));

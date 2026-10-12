@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\TransferOwnershipMcpRequest;
+use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesOrganization;
 
 #[Description('Make another member the owner of an organization. The new owner must already be a member.')]
@@ -27,5 +28,10 @@ final class TransferOwnershipTool extends Tool
         return $this->organizationSchema($schema) + [
             'user' => $schema->string()->description('The id of the member who becomes owner.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return OrganizationResource::structuredSchema($schema);
     }
 }

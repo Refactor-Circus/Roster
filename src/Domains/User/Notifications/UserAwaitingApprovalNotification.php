@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\User\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -15,11 +16,19 @@ use RefactorCircus\Roster\Support\Users;
  * Tells an approver that someone is waiting for their account to be
  * accepted, with a link to their page in Atrium when it's installed.
  */
-final class UserAwaitingApprovalNotification extends Notification
+final class UserAwaitingApprovalNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public readonly Model $user) {}
+    /**
+     * Queued, and only once the surrounding transaction commits: a rolled-back
+     * change sends nothing, and a mail failure is retried by the queue rather
+     * than failing the request.
+     */
+    public function __construct(public readonly Model $user)
+    {
+        $this->afterCommit();
+    }
 
     /**
      * @return array<int, string>

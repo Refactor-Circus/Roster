@@ -9,22 +9,28 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use RefactorCircus\Roster\Domains\Invitation\Actions\CreateInvitationAction;
+use RefactorCircus\Roster\Domains\Invitation\Data\CreateInvitationData;
 use RefactorCircus\Roster\Domains\Organization\Concerns\ManagesMemberships;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Events\MemberAddedActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\MemberAddingActionEvent;
+use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
+use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
 use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 use RefactorCircus\Roster\Support\Users;
 use RuntimeException;
 
@@ -36,9 +42,70 @@ use RuntimeException;
  */
 final class MembersPlanner extends Planner
 {
+    /**
+     * What the last `plan()` looked up about the row's person, for `apply()`.
+     *
+     * @var array{user: Model|null, member: bool, newTeams: array<int, TeamModel>, newRole: bool}|null
+     */
+    private ?array $facts = null;
+
+    /**
+     * What prefetch() looked up for the preview's current batch, by
+     * lowercased email and user key; null outside a preview.
+     *
+     * @var array{emails: array<string, true>, users: array<string, Model>, memberships: array<string, MembershipModel>, roles: array<string, array<int, string>>, invited: array<string, true>}|null
+     */
+    private ?array $batch = null;
+
     use ManagesMemberships;
 
     public function __construct(private readonly Users $users) {}
+
+    /**
+     * The batch's accounts, their memberships with seats, their organization
+     * roles and the pending invitations: five queries for up to 500 rows.
+     */
+    public function prefetch(array $rows, TransferModel $transfer): void
+    {
+        $organization = $this->organization($transfer);
+        $emails = array_values(array_unique(array_filter(
+            array_map(fn (array $values): string => strtolower($values['email'] ?? ''), $rows),
+            fn (string $email): bool => filter_var($email, FILTER_VALIDATE_EMAIL) !== false,
+        )));
+
+        $users = $this->users->findManyByEmail($emails);
+        $keys = array_values(array_map(fn (Model $user): mixed => $user->getKey(), $users));
+        $memberships = [];
+        $roles = [];
+
+        if ($keys !== []) {
+            foreach ($organization->memberships()->whereIn('user_id', $keys)->with('teams')->get() as $membership) {
+                $memberships[(string) $membership->user_id] = $membership;
+            }
+
+            $assignments = RoleAssignmentModel::query()
+                ->where('organization_id', $organization->getKey())
+                ->whereNull('team_id')
+                ->whereIn('user_id', $keys)
+                ->get(['user_id', 'role_id']);
+
+            foreach ($assignments as $assignment) {
+                $roles[(string) $assignment->user_id][] = (string) $assignment->role_id;
+            }
+        }
+
+        $invited = $emails === [] ? [] : $organization->invitations()->pending()->whereIn('email', $emails)->pluck('email')
+            ->map(fn (mixed $email): string => strtolower((string) $email))
+            ->all();
+
+        $this->batch = [
+            'emails' => array_fill_keys($emails, true),
+            'users' => $users,
+            'memberships' => $memberships,
+            'roles' => $roles,
+            'invited' => array_fill_keys($invited, true),
+        ];
+    }
 
     public function plan(array $values, TransferModel $transfer, ?Model $actor): array
     {
@@ -69,11 +136,23 @@ final class MembersPlanner extends Planner
             }
         }
 
-        $user = $this->users->findByEmail($email);
+        $batch = $this->batch !== null && isset($this->batch['emails'][$email]) ? $this->batch : null;
+        $user = $batch !== null ? ($batch['users'][$email] ?? null) : $this->users->findByEmail($email);
+        $this->facts = ['user' => $user, 'member' => false, 'newTeams' => $teams, 'newRole' => $role !== null];
+        $membership = match (true) {
+            $user === null => null,
+            $batch !== null => $batch['memberships'][(string) $user->getKey()] ?? null,
+            default => $organization->membershipFor($user),
+        };
 
-        if ($user !== null && $organization->membershipFor($user) !== null) {
-            $newTeams = array_filter($teams, fn (TeamModel $team): bool => ! $team->hasMember($user));
-            $newRole = $role !== null && ! $this->holds($user, $role, $organization);
+        if ($user !== null && $membership !== null) {
+            $newTeams = array_values(array_filter($teams, fn (TeamModel $team): bool => $batch !== null
+                ? ! $membership->teams->contains($team)
+                : ! $team->hasMember($user)));
+            $newRole = $role !== null && ! ($batch !== null
+                ? in_array((string) $role->getKey(), $batch['roles'][(string) $user->getKey()] ?? [], true)
+                : $this->holds($user, $role, $organization));
+            $this->facts = ['user' => $user, 'member' => true, 'newTeams' => $newTeams, 'newRole' => $newRole];
 
             return $newTeams === [] && ! $newRole
                 ? $this->outcome(self::SKIP, __('roster::roster.import_already_member'))
@@ -90,66 +169,80 @@ final class MembersPlanner extends Planner
             return $this->outcome(self::ERROR, __('roster::roster.import_cannot_invite'));
         }
 
-        if ($organization->invitations()->pending()->where('email', $email)->exists()) {
+        if ($batch !== null ? isset($batch['invited'][$email]) : $organization->invitations()->pending()->where('email', $email)->exists()) {
             return $this->outcome(self::SKIP, __('roster::roster.invitation_already_pending'));
         }
 
         return $this->outcome(self::INVITE, __('roster::roster.import_outside_domains'));
     }
 
+    /**
+     * Applies what `plan()` found, reusing what it looked up (the user, their
+     * membership, seats and role) rather than querying for it again.
+     */
     public function apply(array $values, TransferModel $transfer, ?Model $actor): array
     {
+        $this->facts = null;
+        $this->batch = null;
         $plan = $this->plan($values, $transfer, $actor);
         $organization = $this->organization($transfer);
         $email = strtolower($values['email'] ?? '');
         [$teams] = $this->teams($transfer, $values['teams'] ?? '');
         $role = ($values['role'] ?? '') !== '' ? $this->role($transfer, $values['role']) : null;
+        $facts = $this->lookedUp();
 
-        if (in_array($plan['action'], [self::ERROR, self::SKIP], true)) {
+        if (in_array($plan['action'], [self::ERROR, self::SKIP], true) || $facts === null) {
             return $plan;
         }
 
         if ($plan['action'] === self::INVITE) {
-            app(CreateInvitationAction::class)->execute($organization, [
-                'email' => $email,
-                'teams' => array_map(fn (TeamModel $team): string => $team->slug, $teams),
-            ], $actor);
+            app(CreateInvitationAction::class)->execute($organization, new CreateInvitationData(
+                email: $email,
+                teams: array_map(fn (TeamModel $team): string => $team->slug, $teams),
+            ), $actor);
 
             return $plan;
         }
 
-        $user = $this->users->findByEmail($email);
+        $user = $facts['user'];
 
         if ($user === null) {
-            $user = app(CreateUserAction::class)->execute([
-                'name' => ($values['name'] ?? '') !== '' ? $values['name'] : Str::before($email, '@'),
-                'email' => $email,
-            ]);
+            $user = app(CreateUserAction::class)->execute(new CreateUserData(
+                email: $email,
+                name: ($values['name'] ?? '') !== '' ? $values['name'] : Str::before($email, '@'),
+            ));
         }
 
         if (($values['display_name'] ?? '') !== '') {
-            app(UpdateProfileAction::class)->execute($user, ['display_name' => $values['display_name']]);
+            app(UpdateProfileAction::class)->execute($user, new UpdateProfileData(displayName: $values['display_name']));
         }
 
         // AddMemberAction would record the membership as direct; join with
         // the import source but announce it the same way.
-        if ($organization->membershipFor($user) === null) {
+        if (! $facts['member']) {
             MemberAddingActionEvent::dispatch($organization, $user);
             $this->join($organization, $user, MembershipSource::Import);
             MemberAddedActionEvent::dispatch($organization, $user);
         }
 
-        foreach ($teams as $team) {
-            if (! $team->hasMember($user)) {
-                app(AddTeamMemberAction::class)->execute($team, ['user' => $user]);
-            }
+        // A new member holds no seat or organization role yet.
+        foreach ($facts['newTeams'] as $team) {
+            app(AddTeamMemberAction::class)->execute($team, new AddTeamMemberData(user: $user));
         }
 
-        if ($role !== null && ! $this->holds($user, $role, $organization)) {
-            app(AssignRoleAction::class)->execute($user, ['role' => $role->id, 'organization' => $organization->slug], $actor);
+        if ($role !== null && $facts['newRole']) {
+            app(AssignRoleAction::class)->execute($user, new AssignRoleData(role: (string) $role->id, organization: $organization), $actor);
         }
 
         return $plan;
+    }
+
+    /**
+     * @return array{user: Model|null, member: bool, newTeams: array<int, TeamModel>, newRole: bool}|null
+     */
+    private function lookedUp(): ?array
+    {
+        return $this->facts;
     }
 
     private function organization(TransferModel $transfer): OrganizationModel

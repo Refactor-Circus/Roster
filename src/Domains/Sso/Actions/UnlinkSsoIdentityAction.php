@@ -12,14 +12,6 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 final class UnlinkSsoIdentityAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Unlink an identity; signing in through that provider would then go
      * through the linking rules again.
      */

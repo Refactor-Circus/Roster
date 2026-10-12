@@ -1,7 +1,48 @@
 <?php
 
 declare(strict_types=1);
+
 use RefactorCircus\Roster\Atrium\Features\RosterSupportFeature;
+use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
+use RefactorCircus\Roster\Domains\Impersonation\Policies\ImpersonationPolicy;
+use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
+use RefactorCircus\Roster\Domains\Invitation\Policies\InvitationPolicy;
+use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
+use RefactorCircus\Roster\Domains\Organization\Models\OrganizationDomainModel;
+use RefactorCircus\Roster\Domains\Organization\Models\OrganizationLinkModel;
+use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Organization\Policies\MembershipPolicy;
+use RefactorCircus\Roster\Domains\Organization\Policies\OrganizationDomainPolicy;
+use RefactorCircus\Roster\Domains\Organization\Policies\OrganizationLinkPolicy;
+use RefactorCircus\Roster\Domains\Organization\Policies\OrganizationPolicy;
+use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
+use RefactorCircus\Roster\Domains\Permission\Policies\PermissionPolicy;
+use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
+use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
+use RefactorCircus\Roster\Domains\Role\Policies\RoleAssignmentPolicy;
+use RefactorCircus\Roster\Domains\Role\Policies\RolePolicy;
+use RefactorCircus\Roster\Domains\Scim\Models\ScimGroupModel;
+use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
+use RefactorCircus\Roster\Domains\Scim\Models\ScimUserModel;
+use RefactorCircus\Roster\Domains\Scim\Policies\ScimGroupPolicy;
+use RefactorCircus\Roster\Domains\Scim\Policies\ScimTokenPolicy;
+use RefactorCircus\Roster\Domains\Scim\Policies\ScimUserPolicy;
+use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
+use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
+use RefactorCircus\Roster\Domains\Sso\Policies\SsoConnectionPolicy;
+use RefactorCircus\Roster\Domains\Sso\Policies\SsoIdentityPolicy;
+use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
+use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Domains\Team\Policies\TeamMemberPolicy;
+use RefactorCircus\Roster\Domains\Team\Policies\TeamPolicy;
+use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
+use RefactorCircus\Roster\Domains\Transfer\Models\TransferRowModel;
+use RefactorCircus\Roster\Domains\Transfer\Policies\TransferPolicy;
+use RefactorCircus\Roster\Domains\Transfer\Policies\TransferRowPolicy;
+use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
+use RefactorCircus\Roster\Domains\User\Models\UserModel;
+use RefactorCircus\Roster\Domains\User\Policies\ProfilePolicy;
+use RefactorCircus\Roster\Domains\User\Policies\UserPolicy;
 
 return [
 
@@ -72,6 +113,16 @@ return [
     | roles.default_member:
     |                Slug of the organization role every new member gets.
     |                Null to give new members no role.
+    | permission_cache.ttl:
+    |                Seconds to keep the permission catalogue and each user's
+    |                role grants in the cache store between requests, so a
+    |                request's first permission check skips two queries. 0
+    |                (the default) keeps them per request only. Roster's own
+    |                Actions and model writes clear them; after writing roles,
+    |                assignments or permissions some other way, call
+    |                `Permissions::forgetCache()`.
+    | permission_cache.store:
+    |                The cache store to use; null for the default store.
     |
     */
 
@@ -81,6 +132,31 @@ return [
 
     'roles' => [
         'default_member' => 'member',
+    ],
+
+    'permission_cache' => [
+        'ttl' => 0,
+        'store' => null,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Auditing
+    |--------------------------------------------------------------------------
+    |
+    | Roster keeps no audit log of its own. With refactor-circus/keen
+    | installed, Keen records every change Roster makes, and Roster shows the
+    | history on its Atrium pages, its `GET /roster/history` route and its
+    | history MCP tool. Without Keen none of that exists.
+    |
+    | enabled: Set to false to keep Roster out of the audit log even while
+    |          Keen is installed: Keen records nothing of Roster's, and Roster
+    |          offers no history.
+    |
+    */
+
+    'audit' => [
+        'enabled' => true,
     ],
 
     /*
@@ -386,6 +462,93 @@ return [
         'features' => [
             RosterSupportFeature::class,
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Policies
+    |--------------------------------------------------------------------------
+    |
+    | The policy the Gate uses for each Roster model. Point a model at a class
+    | of your own (extending the bundled one, or not) to change who may do
+    | what; the bundled policies answer with Roster's permissions.
+    |
+    | Every check on Roster's JSON API, MCP tools and Atrium screens goes
+    | through these: permission `roster.{resource}.{verb}` asks the policy of
+    | the resource's model, by the camel-cased verb (`roster.users.manage-status`
+    | asks UserPolicy::manageStatus()), with the model's class, the
+    | organization or team the call is about, and the user it is about when
+    | everyone may do it to themselves. Resources: users (UserModel),
+    | organizations, members (MembershipModel), teams, invitations, roles,
+    | sso (SsoConnectionModel) and scim (ScimTokenModel). The other policies
+    | answer your own `$user->can('view', $record)` checks.
+    |
+    | Lists that show only what falls within the caller's organizations still
+    | work those out from Roster's permissions. Permissions blocked while
+    | impersonating are refused before any policy is asked. Remove an entry to
+    | check that resource by Roster's permissions alone.
+    |
+    */
+
+    'policies' => [
+        UserModel::class => UserPolicy::class,
+        ProfileModel::class => ProfilePolicy::class,
+        OrganizationModel::class => OrganizationPolicy::class,
+        OrganizationDomainModel::class => OrganizationDomainPolicy::class,
+        OrganizationLinkModel::class => OrganizationLinkPolicy::class,
+        MembershipModel::class => MembershipPolicy::class,
+        TeamModel::class => TeamPolicy::class,
+        TeamMemberModel::class => TeamMemberPolicy::class,
+        InvitationModel::class => InvitationPolicy::class,
+        RoleModel::class => RolePolicy::class,
+        PermissionModel::class => PermissionPolicy::class,
+        RoleAssignmentModel::class => RoleAssignmentPolicy::class,
+        ImpersonationModel::class => ImpersonationPolicy::class,
+        SsoConnectionModel::class => SsoConnectionPolicy::class,
+        SsoIdentityModel::class => SsoIdentityPolicy::class,
+        ScimTokenModel::class => ScimTokenPolicy::class,
+        ScimUserModel::class => ScimUserPolicy::class,
+        ScimGroupModel::class => ScimGroupPolicy::class,
+        TransferModel::class => TransferPolicy::class,
+        TransferRowModel::class => TransferRowPolicy::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tables
+    |--------------------------------------------------------------------------
+    |
+    | The table each of Roster's records is stored in. Set these before running
+    | the migrations: the migrations, models, validation rules and queries all
+    | read them. Keys left out keep their default.
+    |
+    | users:         Only used by RefactorCircus\Roster\Domains\User\Models\UserModel
+    |                and its opt-in migration; your own user model keeps its table.
+    |
+    */
+
+    'tables' => [
+        'users' => 'users',
+        'profiles' => 'roster_profiles',
+        'organizations' => 'roster_organizations',
+        'organization_domains' => 'roster_organization_domains',
+        'organization_links' => 'roster_organization_links',
+        'memberships' => 'roster_memberships',
+        'teams' => 'roster_teams',
+        'team_members' => 'roster_team_members',
+        'invitations' => 'roster_invitations',
+        'permissions' => 'roster_permissions',
+        'roles' => 'roster_roles',
+        'permission_role' => 'roster_permission_role',
+        'role_assignments' => 'roster_role_assignments',
+        'impersonations' => 'roster_impersonations',
+        'sso_connections' => 'roster_sso_connections',
+        'sso_identities' => 'roster_sso_identities',
+        'scim_tokens' => 'roster_scim_tokens',
+        'scim_users' => 'roster_scim_users',
+        'scim_groups' => 'roster_scim_groups',
+        'transfers' => 'roster_transfers',
+        'transfer_rows' => 'roster_transfer_rows',
     ],
 
     /*

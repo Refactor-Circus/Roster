@@ -6,6 +6,8 @@ namespace RefactorCircus\Roster\Domains\Sso\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Sso\Actions\UpdateSsoConnectionAction;
+use RefactorCircus\Roster\Domains\Sso\Data\UpdateSsoConnectionData;
+use RefactorCircus\Roster\Domains\Sso\Resources\SsoConnectionResource;
 
 final class UpdateSsoConnectionMcpRequest extends SsoConnectionMcpRequest
 {
@@ -16,13 +18,11 @@ final class UpdateSsoConnectionMcpRequest extends SsoConnectionMcpRequest
 
     protected function rules(): array
     {
-        return UpdateSsoConnectionAction::rules($this->connection()) + ['connection' => ['required', 'string']];
+        return $this->connectionRules() + UpdateSsoConnectionData::rules($this->connection());
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['connection']);
-
-        return $this->respondWithConnection(app(UpdateSsoConnectionAction::class)->execute($this->connection(), $validated));
+        return (new SsoConnectionResource(app(UpdateSsoConnectionAction::class)->execute($this->connection(), UpdateSsoConnectionData::fromValidated($validated))))->toStructuredResponse();
     }
 }

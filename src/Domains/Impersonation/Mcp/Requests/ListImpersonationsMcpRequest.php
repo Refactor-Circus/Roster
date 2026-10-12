@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Impersonation\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\ListImpersonationsAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\ListImpersonationsData;
 use RefactorCircus\Roster\Domains\Impersonation\Resources\ImpersonationResource;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
@@ -31,20 +32,13 @@ final class ListImpersonationsMcpRequest extends Request
 
     protected function rules(): array
     {
-        return ListImpersonationsAction::rules();
+        return ListImpersonationsData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $impersonations = app(ListImpersonationsAction::class)->execute($validated, $this->organizations());
+        $impersonations = app(ListImpersonationsAction::class)->execute(ListImpersonationsData::fromValidated($validated), $this->organizations());
 
-        return $this->structuredCollection(ImpersonationResource::collection($impersonations->items())->resolve(), [
-            'meta' => [
-                'current_page' => $impersonations->currentPage(),
-                'last_page' => $impersonations->lastPage(),
-                'per_page' => $impersonations->perPage(),
-                'total' => $impersonations->total(),
-            ],
-        ]);
+        return ImpersonationResource::collection($impersonations)->toStructuredResponse();
     }
 }

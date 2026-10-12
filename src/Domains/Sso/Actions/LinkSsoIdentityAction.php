@@ -16,14 +16,6 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 final class LinkSsoIdentityAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Link the identity a signed-in user just proved at their identity
      * provider to their account.
      */

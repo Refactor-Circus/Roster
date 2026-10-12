@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Concerns\ManagesMemberships;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
 use RefactorCircus\Roster\Domains\Team\Events\TeamMemberAddedActionEvent;
 use RefactorCircus\Roster\Domains\Team\Events\TeamMemberAddingActionEvent;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
@@ -20,23 +21,11 @@ final class AddTeamMemberAction
     public function __construct(private readonly Users $users) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'user' => ['required'],
-        ];
-    }
-
-    /**
      * Seat an organization member on one of its teams.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(TeamModel $team, array $data): TeamModel
+    public function execute(TeamModel $team, AddTeamMemberData $data): TeamModel
     {
-        $user = $this->users->resolve($data['user'] ?? null);
+        $user = $this->users->resolve($data->user);
 
         /** @var OrganizationModel $organization */
         $organization = $team->organization;

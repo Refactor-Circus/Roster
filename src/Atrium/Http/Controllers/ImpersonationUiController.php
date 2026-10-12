@@ -12,6 +12,9 @@ use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\ListImpersonationsAction;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StopImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\ListImpersonationsData;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StopImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Support\Scopes;
 use RefactorCircus\Roster\Support\Users;
@@ -28,8 +31,8 @@ final class ImpersonationUiController
 
     public function index(Request $request): View
     {
-        $filters = $request->validate(ListImpersonationsAction::rules());
-        $within = $this->authorizeList('roster.users.impersonate', Scopes::fromInput($filters['organization'] ?? null));
+        $filters = ListImpersonationsData::from($request->query());
+        $within = $this->authorizeList('roster.users.impersonate', Scopes::fromInput($filters->organization));
 
         /** @var view-string $view */
         $view = 'roster::ui.impersonations.index';
@@ -45,7 +48,7 @@ final class ImpersonationUiController
 
         $started = app(StartImpersonationAction::class)->execute(
             $this->users->findOrFail($user),
-            $request->validate(StartImpersonationAction::rules()),
+            StartImpersonationData::from($request->all()),
             $actor,
         );
 
@@ -56,10 +59,10 @@ final class ImpersonationUiController
     {
         $model = ImpersonationModel::query()->whereKey($impersonation)->firstOrFail();
         $actor = $request->user();
-        $own = $actor instanceof Model && (string) $model->impersonator_id === (string) $actor->getKey();
-        $this->authorizeScreen('roster.users.impersonate', $model->organization, $own ? $actor : null);
+        $actor = $actor instanceof Model ? $actor : null;
+        $this->authorizeScreen('roster.users.impersonate', $model->organization, $model->startedBy($actor) ? $actor : null);
 
-        app(StopImpersonationAction::class)->execute($model, ['why' => $own ? ImpersonationModel::ENDED_STOPPED : ImpersonationModel::ENDED_FORCED]);
+        app(StopImpersonationAction::class)->execute($model, new StopImpersonationData(why: $model->endReasonFor($actor)));
 
         return redirect()
             ->route('atrium.roster.impersonations.index')

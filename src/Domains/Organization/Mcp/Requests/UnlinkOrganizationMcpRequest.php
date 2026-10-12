@@ -6,7 +6,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Actions\UnlinkOrganizationAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 
 final class UnlinkOrganizationMcpRequest extends OrganizationMcpRequest
 {
@@ -15,18 +15,13 @@ final class UnlinkOrganizationMcpRequest extends OrganizationMcpRequest
         return 'roster.organizations.update';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return UnlinkOrganizationAction::rules() + $this->organizationRules() + ['source' => ['required', 'string']];
+        return $this->organizationRules() + ['source' => ['required', 'string']];
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        return $this->respondWithOrganization(app(UnlinkOrganizationAction::class)->execute($this->organization(), (string) $validated['source']));
+        return (new OrganizationResource(app(UnlinkOrganizationAction::class)->execute($this->organization(), (string) $validated['source'])))->toStructuredResponse();
     }
 }

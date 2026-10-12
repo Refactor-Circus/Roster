@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\User\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\User\Actions\DeactivateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\DeactivateUserData;
 use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class DeactivateUserRequest extends UserRequest
@@ -17,12 +18,12 @@ final class DeactivateUserRequest extends UserRequest
 
     public function rules(): array
     {
-        return DeactivateUserAction::rules();
+        return DeactivateUserData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $user = app(DeactivateUserAction::class)->execute($this->targetUser(), $this->validated(), $this->actor());
+        $user = app(DeactivateUserAction::class)->execute($this->targetUser(), DeactivateUserData::fromValidated($this->validated()), $this->actor());
 
         return (new UserResource($user))->response();
     }

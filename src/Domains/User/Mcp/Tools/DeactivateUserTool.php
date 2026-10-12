@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\DeactivateUserMcpRequest;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesUser;
 
 #[Description('Deactivate a user: the account is closed but kept, and can be reactivated. You cannot deactivate yourself.')]
@@ -27,5 +28,10 @@ final class DeactivateUserTool extends Tool
         return $this->userSchema($schema) + [
             'reason' => $schema->string()->description('Why, recorded on the profile.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return UserResource::structuredSchema($schema);
     }
 }

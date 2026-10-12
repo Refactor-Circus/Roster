@@ -7,7 +7,9 @@ require_once __DIR__.'/helpers.php';
 use Illuminate\Support\Facades\Event;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Scim\Actions\CreateScimTokenAction;
+use RefactorCircus\Roster\Domains\Scim\Data\CreateScimTokenData;
 use RefactorCircus\Roster\Domains\Scim\Models\ScimUserModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
@@ -107,7 +109,7 @@ it('deprovisions with Entra\'s capitalised ops and string booleans', function ()
 
 it('keeps accounts that belong to other organizations active', function (): void {
     $ada = user(['email' => 'ada@acme.test']);
-    app(AddMemberAction::class)->execute(organization(attributes: ['name' => 'Globex']), ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute(organization(attributes: ['name' => 'Globex']), new AddMemberData(user: $ada->getRouteKey()));
     $id = (string) scim('POST', '/Users', oktaUser())->json('id');
 
     scim('DELETE', '/Users/'.$id)->assertNoContent();
@@ -156,7 +158,7 @@ it('patches names and emails by path', function (): void {
 
 it('links the SSO identity from externalId when the token names a connection', function (): void {
     $connection = SsoConnectionModel::factory()->create(['organization_id' => $this->acme->id, 'slug' => 'acme-okta']);
-    [, $this->scimToken] = [null, app(CreateScimTokenAction::class)->execute($this->acme, ['name' => 'Okta SSO', 'sso_connection' => 'acme-okta'])->plain];
+    [, $this->scimToken] = [null, app(CreateScimTokenAction::class)->execute($this->acme, new CreateScimTokenData(name: 'Okta SSO', ssoConnection: 'acme-okta'))->plain];
 
     createAda();
 

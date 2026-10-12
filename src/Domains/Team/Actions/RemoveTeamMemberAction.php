@@ -18,14 +18,6 @@ final class RemoveTeamMemberAction
 {
     use ManagesMemberships;
 
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
     public function execute(TeamModel $team, Model $user): TeamModel
     {
         $seat = TeamMemberModel::query()

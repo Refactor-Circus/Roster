@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Atrium\Http\Controllers\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use RefactorCircus\Roster\Atrium\ScreenAccess;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
@@ -37,5 +38,23 @@ trait AuthorizesScreens
         abort_if($organizations === null || $organizations === [], 403);
 
         return $organizations;
+    }
+
+    /**
+     * The signed-in user, for Actions that guard against acting on yourself.
+     */
+    private function actor(Request $request): ?Model
+    {
+        $user = $request->user();
+
+        return $user instanceof Model ? $user : null;
+    }
+
+    /**
+     * The organization a screen's route names, by slug.
+     */
+    private function organization(string $slug): OrganizationModel
+    {
+        return OrganizationModel::query()->where('slug', $slug)->firstOrFail();
     }
 }

@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Requests\AddTeamMemberMcpRequest;
+use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesTeam;
 
 #[Description('Seat an organization member on a team. The user must already belong to the organization.')]
@@ -27,5 +28,10 @@ final class AddTeamMemberTool extends Tool
         return $this->teamSchema($schema) + [
             'user' => $schema->string()->description('The user id to seat.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return TeamResource::structuredSchema($schema);
     }
 }

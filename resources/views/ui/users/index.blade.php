@@ -15,14 +15,14 @@
 
         <x-atrium::card>
             <form method="GET" action="{{ route('atrium.roster.users.index') }}" class="flex flex-wrap items-start gap-3">
-                <x-atrium::form.input name="search" :label="__('roster::roster.search')" :value="$filters['search'] ?? null" wrapper="w-64" />
+                <x-atrium::form.input name="search" :label="__('roster::roster.search')" :value="$filters->search" wrapper="w-64" />
 
                 <x-atrium::form.select
                     name="status"
                     :label="__('roster::roster.status')"
                     :placeholder="__('roster::roster.all_statuses')"
                     :options="collect($statuses)->mapWithKeys(fn ($status) => [$status->value => $status->label()])"
-                    :selected="$filters['status'] ?? null"
+                    :selected="$filters->status?->value"
                     wrapper="w-48" />
 
                 @if ($softDeletes)
@@ -31,7 +31,7 @@
                         :label="__('roster::roster.show')"
                         :placeholder="__('roster::roster.show_current')"
                         :options="['only' => __('roster::roster.show_deleted')]"
-                        :selected="$filters['trashed'] ?? null"
+                        :selected="$filters->trashed"
                         wrapper="w-40"
                         data-testid="show-filter" />
                 @endif

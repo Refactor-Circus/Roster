@@ -7,8 +7,11 @@ namespace RefactorCircus\Roster\Transfers\Flows\Actions;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Keystone\Support\Surface;
+use RefactorCircus\Roster\Domains\Transfer\Events\ImportRowAppliedActionEvent;
+use RefactorCircus\Roster\Domains\Transfer\Events\ImportRowApplyingActionEvent;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferRowModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\PlanCache;
@@ -47,10 +50,28 @@ final class ApplyImportRow
 
         $this->context->transfer = $transfer;
 
+        // Both events fire as the importer, like the changes the row makes.
         try {
-            $outcome = $this->surface->using('import', fn (): array => app(Transfers::class)->planner($transfer)->apply($item['values'], $transfer, $actor));
-        } catch (ValidationException $exception) {
-            $outcome = ['action' => Planner::ERROR, 'reasons' => [(string) collect($exception->errors())->flatten()->first()]];
+            ImportRowApplyingActionEvent::dispatch($transfer, $item['line'], $item['values']);
+
+            // The row's changes and its recorded result commit together.
+            $outcome = DB::transaction(function () use ($item, $transfer, $actor): array {
+                try {
+                    $outcome = $this->surface->using('import', fn (): array => app(Transfers::class)->planner($transfer)->apply($item['values'], $transfer, $actor));
+                } catch (ValidationException $exception) {
+                    $outcome = ['action' => Planner::ERROR, 'reasons' => [(string) collect($exception->errors())->flatten()->first()]];
+                }
+
+                // Each row records its own result; retries just write it again.
+                TransferRowModel::query()
+                    ->where('transfer_id', $transfer->id)
+                    ->where('line', $item['line'])
+                    ->update(['result' => $outcome['action'], 'result_reasons' => json_encode($outcome['reasons'])]);
+
+                return $outcome;
+            });
+
+            ImportRowAppliedActionEvent::dispatch($transfer, $item['line'], $outcome);
         } finally {
             $this->context->transfer = null;
 
@@ -60,12 +81,6 @@ final class ApplyImportRow
                 $guard->forgetUser();
             }
         }
-
-        // Each row records its own result; retries just write it again.
-        TransferRowModel::query()
-            ->where('transfer_id', $transfer->id)
-            ->where('line', $item['line'])
-            ->update(['result' => $outcome['action'], 'result_reasons' => json_encode($outcome['reasons'])]);
 
         return ['line' => $item['line']] + $outcome;
     }

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Impersonation\Resources;
 
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\User\Resources\UserSummaryResource;
 
@@ -17,6 +19,26 @@ use RefactorCircus\Roster\Domains\User\Resources\UserSummaryResource;
  */
 final class ImpersonationResource extends JsonResource
 {
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'id' => $schema->string()->required(),
+            'user' => $schema->object(UserSummaryResource::schema($schema))->nullable()->required(),
+            'impersonator' => $schema->object(UserSummaryResource::schema($schema))->nullable()->required(),
+            'organization' => $schema->string()->nullable()->description('Organization slug.')->required(),
+            'reason' => $schema->string()->required(),
+            'active' => $schema->boolean()->required(),
+            'link_expires_at' => $schema->string()->required(),
+            'started_at' => $schema->string()->nullable()->required(),
+            'expires_at' => $schema->string()->nullable()->required(),
+            'ended_at' => $schema->string()->nullable()->required(),
+            'end_reason' => $schema->string()->nullable()->required(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

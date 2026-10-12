@@ -16,15 +16,10 @@ final class JoinByDomainMcpRequest extends UserMcpRequest
         return 'roster.users.update';
     }
 
-    protected function rules(): array
-    {
-        return JoinOrganizationsByDomainAction::rules() + $this->userRules();
-    }
-
     protected function handle(array $validated): ResponseFactory
     {
         $organizations = app(JoinOrganizationsByDomainAction::class)->execute($this->targetUser());
 
-        return $this->structuredCollection(OrganizationResource::collection($organizations)->resolve());
+        return OrganizationResource::collection($organizations)->toStructuredResponse();
     }
 }

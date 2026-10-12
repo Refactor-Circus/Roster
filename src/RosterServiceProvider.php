@@ -7,20 +7,20 @@ namespace RefactorCircus\Roster;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Config\Repository;
-use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Foundation\Exceptions\Handler;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use RefactorCircus\Keystone\Audit\AuditHooks;
 use RefactorCircus\Keystone\Audit\History;
+use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
 use RefactorCircus\Keystone\Packages\Package;
 use RefactorCircus\Keystone\Support\PackageServiceProvider;
 use RefactorCircus\Keystone\Support\Surface;
+use RefactorCircus\Roster\Atrium\RosterPlugin;
 use RefactorCircus\Roster\Atrium\ScreenAccess;
 use RefactorCircus\Roster\Console\Commands\PurgeDeletedCommand;
 use RefactorCircus\Roster\Domains\DomainServiceProvider;
@@ -28,13 +28,13 @@ use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Mcp\RosterServer;
 use RefactorCircus\Roster\Support\Audit;
 use RefactorCircus\Roster\Support\Users;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
- * Roster's package-wide wiring: config, views, translations, publish tags,
- * the MCP server, Cortex, the rate limiter and the Atrium extras. Each domain
- * under `Domains/` registers its own bindings, routes, listeners, commands
- * and morph aliases through its provider, listed in DomainServiceProvider.
+ * Roster's package-wide wiring: config, policies, views, translations,
+ * publish tags, the MCP server, Cortex, the rate limiter and the Atrium
+ * extras. Each domain under `Domains/` registers its own bindings, routes,
+ * listeners, commands and morph aliases through its provider, listed in
+ * DomainServiceProvider.
  *
  * Roster describes itself to refactor-circus/keystone in `definition()`, so the shared
  * base classes find its config, routes and MCP server by namespace.
@@ -80,10 +80,20 @@ class RosterServiceProvider extends PackageServiceProvider
         // Cortex is optional: agents get the Roster tools only when it is loaded.
         $this->registerCortex();
 
+        // Each model's policy, from `roster.policies`: Roster's own checks ask them.
+        $this->registerPolicies();
         $this->registerRateLimiter();
         $this->registerNotFoundResponses();
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'roster');
+
+        // The Atrium user-status widget's cached counts go stale with any
+        // change Roster makes to a user.
+        Event::listen(ActionFinishedEvent::class, function (ActionFinishedEvent $event): void {
+            if (str_starts_with($event::class, 'RefactorCircus\\Roster\\Domains\\User\\Events\\') && ! str_ends_with($event::class, 'ListedActionEvent') && ! str_ends_with($event::class, 'ShownActionEvent')) {
+                Cache::forget(RosterPlugin::STATUS_COUNTS_CACHE);
+            }
+        });
 
         // @rosterCan('roster.users.update', $scope, $self) ... @endrosterCan:
         // the screens' own check, so a control shows only when its action is allowed.
@@ -127,6 +137,11 @@ class RosterServiceProvider extends PackageServiceProvider
         $this->publishesMigrations([
             __DIR__.'/../database/migrations/users' => database_path('migrations'),
         ], 'roster-users-migration');
+
+        // Opt-in: a lower(email) expression index for PostgreSQL users tables.
+        $this->publishesMigrations([
+            __DIR__.'/../database/migrations/email-index' => database_path('migrations'),
+        ], 'roster-email-index-migration');
     }
 
     /**
@@ -145,22 +160,25 @@ class RosterServiceProvider extends PackageServiceProvider
     }
 
     /**
-     * Teach the suite-wide audit log (refactor-circus/keen) about Roster's models and
-     * events, whether or not it is installed. Reading the whole log needs
-     * Roster's global `roster.audit.view` unless the application defines
-     * `viewAuditLog` itself; checked once the application has booted, so a
-     * definition in its own providers wins.
+     * While Roster audits (refactor-circus/keen installed, `roster.audit.enabled`
+     * on), teach the audit log about Roster's models and events, and let
+     * Roster's global `roster.audit.view` read the whole log unless the
+     * application defines `viewAuditLog` itself. Decided once every provider
+     * has booted, so whether Keen is installed is known and an application's
+     * own definition wins.
      */
     private function registerAudit(): void
     {
-        $this->app->make(Audit::class)->register($this->app->make(AuditHooks::class));
-
         $this->app->booted(function (): void {
-            if (Gate::has(History::ABILITY)) {
+            if (! $this->package()->audits()) {
                 return;
             }
 
-            Gate::define(History::ABILITY, fn (Model $user, mixed ...$arguments): bool => $this->app->make(Authorizer::class)->check($user, 'roster.audit.view'));
+            $this->app->make(Audit::class)->register($this->app->make(AuditHooks::class));
+
+            if (! Gate::has(History::ABILITY)) {
+                Gate::define(History::ABILITY, fn (Model $user, mixed ...$arguments): bool => $this->app->make(Authorizer::class)->check($user, 'roster.audit.view'));
+            }
         });
     }
 
@@ -180,30 +198,6 @@ class RosterServiceProvider extends PackageServiceProvider
             $user = $request->user();
 
             return Limit::perMinute((int) $perMinute)->by($user instanceof Model ? 'user:'.$user->getKey() : 'ip:'.$request->ip());
-        });
-    }
-
-    /**
-     * Missing records on Roster's own routes answer a plain 404. Laravel's
-     * default message names the model class, which callers need not see.
-     */
-    private function registerNotFoundResponses(): void
-    {
-        $this->callAfterResolving(ExceptionHandler::class, function (mixed $handler): void {
-            // Apps that swap in their own handler keep Laravel's responses.
-            if (! $handler instanceof Handler) {
-                return;
-            }
-
-            $handler->renderable(function (NotFoundHttpException $exception, Request $request): ?JsonResponse {
-                $name = $request->route()?->getName();
-
-                if (! is_string($name) || ! str_starts_with($name, 'roster.') || ! $exception->getPrevious() instanceof ModelNotFoundException) {
-                    return null;
-                }
-
-                return new JsonResponse(['message' => __('roster::roster.not_found')], 404);
-            });
         });
     }
 }

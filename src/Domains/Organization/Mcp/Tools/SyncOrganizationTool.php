@@ -9,7 +9,9 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Roster\Domains\Organization\Data\OrganizationSyncResult;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\SyncOrganizationMcpRequest;
+use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 
 #[Description('Create or update one organization from its record in an external system (ERP, CRM, ...), matched by source + external_id. Only the fields given are written; the result says created, updated or unchanged. A new organization has no owner unless one is given.')]
 final class SyncOrganizationTool extends Tool
@@ -32,5 +34,10 @@ final class SyncOrganizationTool extends Tool
             'owner' => $schema->string()->description('Owner user id; applied only when the organization has no owner yet.'),
             'organization' => $schema->string()->description('On the first sync, the slug of an existing organization to link instead of creating one.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return OrganizationResource::structuredSchema($schema) + ['outcome' => $schema->string()->enum([OrganizationSyncResult::CREATED, OrganizationSyncResult::UPDATED, OrganizationSyncResult::UNCHANGED])->required()];
     }
 }

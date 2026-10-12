@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 
 /**
@@ -21,7 +22,6 @@ final class RoleAssigningActionEvent implements ActionStartingEvent
     public function __construct(
         public Model $user,
         public RoleModel $role,
-        /** @var array<string, mixed> */
-        public array $data,
+        public AssignRoleData $data,
     ) {}
 }

@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\Organization\Events\ContextSwitchedActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\ContextSwitchingActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
@@ -18,25 +19,12 @@ final class SwitchContextAction
     public function __construct(private readonly Users $users) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'organization' => ['required', 'string'],
-            'team' => ['sometimes', 'nullable', 'string'],
-        ];
-    }
-
-    /**
      * Make an organization (by slug), and optionally one of its teams, the
      * user's current context. The user must belong to both.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(Model $user, array $data): Model
+    public function execute(Model $user, SwitchContextData $data): Model
     {
-        $organization = OrganizationModel::query()->where('slug', $data['organization'] ?? null)->first();
+        $organization = OrganizationModel::query()->where('slug', $data->organization)->first();
 
         if ($organization === null || $organization->membershipFor($user) === null) {
             throw ValidationException::withMessages(['organization' => __('roster::roster.not_a_member')]);
@@ -44,8 +32,8 @@ final class SwitchContextAction
 
         $team = null;
 
-        if (is_string($data['team'] ?? null) && $data['team'] !== '') {
-            $team = TeamModel::query()->where('organization_id', $organization->getKey())->where('slug', $data['team'])->first();
+        if ($data->team !== null && $data->team !== '') {
+            $team = TeamModel::query()->where('organization_id', $organization->getKey())->where('slug', $data->team)->first();
 
             if ($team === null || ! $team->hasMember($user)) {
                 throw ValidationException::withMessages(['team' => __('roster::roster.not_on_team')]);

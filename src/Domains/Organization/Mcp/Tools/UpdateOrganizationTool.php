@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\UpdateOrganizationMcpRequest;
+use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesOrganization;
 
 #[Description('Update an organization\'s name, slug, auto-join setting or domains. Only the fields given change.')]
@@ -28,5 +29,10 @@ final class UpdateOrganizationTool extends Tool
             'name' => $schema->string()->description('Display name.'),
             'slug' => $schema->string()->description('New URL identifier.'),
         ] + $this->organizationSettingsSchema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return OrganizationResource::structuredSchema($schema);
     }
 }

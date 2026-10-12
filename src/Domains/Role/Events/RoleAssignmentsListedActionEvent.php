@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Role\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
+use RefactorCircus\Roster\Domains\Role\Data\ListRoleAssignmentsData;
 
 /**
  * Role assignments have been listed.
@@ -17,7 +18,6 @@ final class RoleAssignmentsListedActionEvent implements ActionFinishedEvent
     use SerializesModels;
 
     public function __construct(
-        /** @var array<string, mixed> */
-        public array $filters,
+        public ListRoleAssignmentsData $filters,
     ) {}
 }

@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\RejectUserMcpRequest;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesUser;
 
 #[Description('Reject an account awaiting approval: it is deactivated with the reason (kept, not deleted), and can be reactivated later.')]
@@ -27,5 +28,10 @@ final class RejectUserTool extends Tool
         return $this->userSchema($schema) + [
             'reason' => $schema->string()->description('Why, recorded on the profile and told to the user.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return UserResource::structuredSchema($schema);
     }
 }

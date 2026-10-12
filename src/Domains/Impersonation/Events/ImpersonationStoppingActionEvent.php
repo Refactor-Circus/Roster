@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Impersonation\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StopImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 
 /**
@@ -19,7 +20,6 @@ final class ImpersonationStoppingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public ImpersonationModel $impersonation,
-        /** @var array<string, mixed> */
-        public array $data,
+        public StopImpersonationData $data,
     ) {}
 }

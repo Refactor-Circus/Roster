@@ -9,14 +9,19 @@ use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\JoinOrganizationsByDomainAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\ListMembersAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
+use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\DeleteUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\PurgeUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\RestoreUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Roster;
 use Workbench\App\Models\User;
 
@@ -34,10 +39,10 @@ it('switches organization and team', function (): void {
     $ada = user();
     organization($ada, ['name' => 'First']);
     $second = organization($ada, ['name' => 'Second']);
-    $team = app(CreateTeamAction::class)->execute($second, ['name' => 'Ops']);
-    app(AddTeamMemberAction::class)->execute($team, ['user' => $ada->getRouteKey()]);
+    $team = app(CreateTeamAction::class)->execute($second, new CreateTeamData(name: 'Ops'));
+    app(AddTeamMemberAction::class)->execute($team, new AddTeamMemberData(user: $ada->getRouteKey()));
 
-    app(SwitchContextAction::class)->execute($ada, ['organization' => 'second', 'team' => 'ops']);
+    app(SwitchContextAction::class)->execute($ada, new SwitchContextData(organization: 'second', team: 'ops'));
 
     expect(app(Roster::class)->organization($ada)?->is($second))->toBeTrue()
         ->and(app(Roster::class)->team($ada)?->is($team))->toBeTrue();
@@ -47,9 +52,9 @@ it('refuses to switch into an organization or team the user is not in', function
     $ada = user();
     $mine = organization($ada, ['name' => 'Mine']);
     organization(attributes: ['name' => 'Theirs']);
-    app(CreateTeamAction::class)->execute($mine, ['name' => 'Ops']);
+    app(CreateTeamAction::class)->execute($mine, new CreateTeamData(name: 'Ops'));
 
-    app(SwitchContextAction::class)->execute($ada, $data);
+    app(SwitchContextAction::class)->execute($ada, SwitchContextData::from($data));
 })->with([
     'foreign organization' => [['organization' => 'theirs']],
     'team without a seat' => [['organization' => 'mine', 'team' => 'ops']],
@@ -79,7 +84,7 @@ it('joins auto-join organizations on email verification', function (): void {
 it('creates a personal organization when configured', function (): void {
     config()->set('roster.organizations.personal', true);
 
-    $ada = app(CreateUserAction::class)->execute(['name' => 'Ada', 'email' => 'ada@example.com']);
+    $ada = app(CreateUserAction::class)->execute(new CreateUserData(name: 'Ada', email: 'ada@example.com'));
 
     $personal = OrganizationModel::query()->sole();
 
@@ -108,7 +113,7 @@ it('refuses to delete a user who owns a shared organization', function (): void 
 it('keeps a deleted user\'s memberships hidden, and removes them when purged', function (): void {
     $organization = organization();
     $ada = user();
-    app(AddMemberAction::class)->execute($organization, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($organization, new AddMemberData(user: $ada->getRouteKey()));
 
     app(DeleteUserAction::class)->execute($ada);
 

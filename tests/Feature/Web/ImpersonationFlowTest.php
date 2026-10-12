@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StopImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StopImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 
 beforeEach(function (): void {
@@ -17,7 +19,7 @@ beforeEach(function (): void {
     $this->admin = user(['name' => 'Admin']);
     $this->ada = user(['name' => 'Ada']);
     $this->actingAs($this->admin);
-    $this->started = app(StartImpersonationAction::class)->execute($this->ada, ['reason' => 'Ticket 42'], $this->admin);
+    $this->started = app(StartImpersonationAction::class)->execute($this->ada, new StartImpersonationData(reason: 'Ticket 42'), $this->admin);
 });
 
 it('becomes the user, shows the banner, and returns', function (): void {
@@ -62,7 +64,7 @@ it('returns the impersonator when time runs out', function (): void {
 it('returns the impersonator when ended elsewhere', function (): void {
     $this->get($this->started->url);
 
-    app(StopImpersonationAction::class)->execute($this->started->impersonation->refresh(), ['why' => ImpersonationModel::ENDED_FORCED]);
+    app(StopImpersonationAction::class)->execute($this->started->impersonation->refresh(), new StopImpersonationData(why: ImpersonationModel::ENDED_FORCED));
 
     $this->get('roster-test/banner');
 

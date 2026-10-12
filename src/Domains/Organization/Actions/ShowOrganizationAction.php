@@ -10,14 +10,6 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 
 final class ShowOrganizationAction
 {
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
     public function execute(OrganizationModel $organization): OrganizationModel
     {
         OrganizationShowingActionEvent::dispatch($organization);

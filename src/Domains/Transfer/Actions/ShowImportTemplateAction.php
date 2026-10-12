@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Transfer\Actions;
 
-use Illuminate\Validation\Rule;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Events\ImportTemplateShowingActionEvent;
 use RefactorCircus\Roster\Domains\Transfer\Events\ImportTemplateShownActionEvent;
@@ -13,19 +12,6 @@ use RefactorCircus\Roster\Domains\Transfer\Services\Transfers;
 final class ShowImportTemplateAction
 {
     public function __construct(private readonly Transfers $transfers) {}
-
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'type' => ['required', Rule::in(array_map(
-                fn (TransferType $type): string => $type->value,
-                array_filter(TransferType::cases(), fn (TransferType $type): bool => $type->isImport()),
-            ))],
-        ];
-    }
 
     /**
      * The CSV template for an import type, as text. Works without refactor-circus/impex,

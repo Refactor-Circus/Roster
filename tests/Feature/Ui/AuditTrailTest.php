@@ -8,6 +8,7 @@ use RefactorCircus\Keystone\Audit\Data\AuditEntry;
 use RefactorCircus\Keystone\Audit\Data\AuditFilter;
 use RefactorCircus\Keystone\Audit\Data\AuditPage;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 
 /**
  * An installed audit log holding one entry, whatever is asked.
@@ -32,7 +33,7 @@ it('shows each record\'s history on its screen once an audit log is installed', 
     fakeAuditTrail();
     $this->actingAs($ada = user(['name' => 'Ada']));
     $acme = organization($ada);
-    $team = app(CreateTeamAction::class)->execute($acme, ['name' => 'Ops']);
+    $team = app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'));
     $role = roleWith(['roster.users.view']);
 
     foreach ([

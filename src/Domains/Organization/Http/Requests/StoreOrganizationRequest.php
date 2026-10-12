@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
+use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 use RefactorCircus\Roster\Http\Request;
 
@@ -18,12 +19,12 @@ final class StoreOrganizationRequest extends Request
 
     public function rules(): array
     {
-        return CreateOrganizationAction::rules();
+        return CreateOrganizationData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $organization = app(CreateOrganizationAction::class)->execute($this->validated());
+        $organization = app(CreateOrganizationAction::class)->execute(CreateOrganizationData::fromValidated($this->validated()));
 
         return (new OrganizationResource($organization))->response()->setStatusCode(201);
     }

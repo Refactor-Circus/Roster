@@ -6,17 +6,19 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use RefactorCircus\Roster\Domains\Invitation\Actions\CreateInvitationAction;
+use RefactorCircus\Roster\Domains\Invitation\Data\CreateInvitationData;
 use RefactorCircus\Roster\Domains\Invitation\Enums\InvitationStatus;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Invitation\Notifications\InvitationNotification;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 
 beforeEach(function (): void {
     Notification::fake();
 
     $this->organization = organization(attributes: ['name' => 'Acme']);
-    app(CreateTeamAction::class)->execute($this->organization, ['name' => 'Ops']);
-    app(CreateInvitationAction::class)->execute($this->organization, ['email' => 'ada@example.com', 'teams' => ['ops']]);
+    app(CreateTeamAction::class)->execute($this->organization, new CreateTeamData(name: 'Ops'));
+    app(CreateInvitationAction::class)->execute($this->organization, new CreateInvitationData(email: 'ada@example.com', teams: ['ops']));
 
     Notification::assertSentOnDemand(InvitationNotification::class, function (InvitationNotification $notification): bool {
         $this->token = $notification->token;

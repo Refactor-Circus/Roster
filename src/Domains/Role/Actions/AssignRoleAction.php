@@ -6,12 +6,12 @@ namespace RefactorCircus\Roster\Domains\Role\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Concerns\GuardsEscalation;
+use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
 use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
 use RefactorCircus\Roster\Domains\Role\Events\RoleAssignedActionEvent;
 use RefactorCircus\Roster\Domains\Role\Events\RoleAssigningActionEvent;
@@ -26,28 +26,14 @@ final class AssignRoleAction
     use ResolvesScopes;
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'role' => ['required', 'string', Rule::exists('roster_roles', 'id')],
-            'organization' => ['sometimes', 'nullable', 'string'],
-            'team' => ['sometimes', 'nullable', 'string'],
-        ];
-    }
-
-    /**
      * Give a user a role: a global role with no scope, an organization role
      * in an organization they belong to, or a team role on a team they sit on.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(Model $user, array $data, ?Model $actor = null): RoleAssignmentModel
+    public function execute(Model $user, AssignRoleData $data, ?Model $actor = null): RoleAssignmentModel
     {
-        $role = RoleModel::query()->with('permissions')->whereKey($data['role'] ?? null)->firstOrFail();
-        $organization = $this->organizationFrom($data['organization'] ?? null);
-        $team = $this->teamFrom($organization, $data['team'] ?? null);
+        $role = RoleModel::query()->with('permissions')->whereKey($data->role)->firstOrFail();
+        $organization = $this->organizationFrom($data->organization);
+        $team = $this->teamFrom($organization, $data->team);
 
         $this->guardScope($user, $role, $organization, $team);
         $this->guardSuper($role, $actor);
@@ -68,7 +54,7 @@ final class AssignRoleAction
 
         $assignment = DB::transaction(fn (): RoleAssignmentModel => RoleAssignmentModel::query()->create($attributes));
 
-        app(Permissions::class)->flush();
+        app(Permissions::class)->flushUser($user);
 
         $assignment->load(['role', 'user', 'organization', 'team']);
 

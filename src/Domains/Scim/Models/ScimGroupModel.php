@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * A team as an organization's identity provider sees it over SCIM.
@@ -23,11 +25,15 @@ use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
  */
 final class ScimGroupModel extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
 
-    protected $table = 'roster_scim_groups';
-
     protected $fillable = ['organization_id', 'team_id', 'external_id'];
+
+    public function getTable(): string
+    {
+        return Tables::name('scim_groups');
+    }
 
     /**
      * @return BelongsTo<TeamModel, $this>

@@ -10,8 +10,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\ImpersonationFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -33,6 +35,8 @@ use RefactorCircus\Roster\Support\Users;
  */
 final class ImpersonationModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<ImpersonationFactory> */
     use HasFactory;
 
@@ -43,8 +47,6 @@ final class ImpersonationModel extends Model
     public const string ENDED_EXPIRED = 'expired';
 
     public const string ENDED_FORCED = 'forced';
-
-    protected $table = 'roster_impersonations';
 
     protected $fillable = [
         'impersonator_id',
@@ -60,6 +62,11 @@ final class ImpersonationModel extends Model
     ];
 
     protected $hidden = ['token_hash'];
+
+    public function getTable(): string
+    {
+        return Tables::name('impersonations');
+    }
 
     /**
      * @return BelongsTo<Model, $this>
@@ -102,6 +109,22 @@ final class ImpersonationModel extends Model
     public function scopeActive(Builder $query): void
     {
         $query->whereNotNull('started_at')->whereNull('ended_at')->where('expires_at', '>', now());
+    }
+
+    /**
+     * Whether the user is the one impersonating.
+     */
+    public function startedBy(?Model $user): bool
+    {
+        return $user !== null && (string) $this->impersonator_id === (string) $user->getKey();
+    }
+
+    /**
+     * How stopping it ends it: stopped by its impersonator, forced by anyone else.
+     */
+    public function endReasonFor(?Model $actor): string
+    {
+        return $this->startedBy($actor) ? self::ENDED_STOPPED : self::ENDED_FORCED;
     }
 
     protected static function newFactory(): ImpersonationFactory

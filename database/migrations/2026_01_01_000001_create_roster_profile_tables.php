@@ -5,13 +5,14 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\UserKey;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('roster_profiles', function (Blueprint $table): void {
+        Schema::create(Tables::name('profiles'), function (Blueprint $table): void {
             $table->ulid('id')->primary();
 
             // Typed by `roster.users.key_type`, set before migrating.
@@ -34,6 +35,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('roster_profiles');
+        Schema::dropIfExists(Tables::name('profiles'));
     }
 };

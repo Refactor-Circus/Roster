@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Scim\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Scim\Actions\RevokeScimTokenAction;
@@ -28,12 +27,12 @@ final class RevokeScimTokenMcpRequest extends Request
 
     protected function rules(): array
     {
-        return RevokeScimTokenAction::rules() + ['token' => ['required', 'string']];
+        return ['token' => ['required', 'string']];
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        return Response::structured(['data' => (new ScimTokenResource(app(RevokeScimTokenAction::class)->execute($this->token())))->resolve()]);
+        return (new ScimTokenResource(app(RevokeScimTokenAction::class)->execute($this->token())))->toStructuredResponse();
     }
 
     private function token(): ScimTokenModel

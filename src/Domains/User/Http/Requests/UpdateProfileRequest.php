@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\User\Http\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class UpdateProfileRequest extends UserRequest
@@ -23,12 +24,12 @@ final class UpdateProfileRequest extends UserRequest
 
     public function rules(): array
     {
-        return UpdateProfileAction::rules();
+        return UpdateProfileData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $user = app(UpdateProfileAction::class)->execute($this->targetUser(), $this->validated());
+        $user = app(UpdateProfileAction::class)->execute($this->targetUser(), UpdateProfileData::fromValidated($this->validated()));
 
         return (new UserResource($user))->response();
     }

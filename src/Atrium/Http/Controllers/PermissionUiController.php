@@ -12,6 +12,9 @@ use RefactorCircus\Roster\Domains\Permission\Actions\CreatePermissionAction;
 use RefactorCircus\Roster\Domains\Permission\Actions\DeletePermissionAction;
 use RefactorCircus\Roster\Domains\Permission\Actions\ListPermissionsAction;
 use RefactorCircus\Roster\Domains\Permission\Actions\UpdatePermissionAction;
+use RefactorCircus\Roster\Domains\Permission\Data\CreatePermissionData;
+use RefactorCircus\Roster\Domains\Permission\Data\ListPermissionsData;
+use RefactorCircus\Roster\Domains\Permission\Data\UpdatePermissionData;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 
 final class PermissionUiController
@@ -26,7 +29,7 @@ final class PermissionUiController
         $view = 'roster::ui.permissions.index';
 
         return view($view, [
-            'permissions' => app(ListPermissionsAction::class)->execute($request->validate(ListPermissionsAction::rules()))->withQueryString(),
+            'permissions' => app(ListPermissionsAction::class)->execute(ListPermissionsData::from($request->query()))->withQueryString(),
         ]);
     }
 
@@ -34,7 +37,7 @@ final class PermissionUiController
     {
         $this->authorizeScreen('roster.roles.manage');
 
-        app(CreatePermissionAction::class)->execute($request->validate(CreatePermissionAction::rules()));
+        app(CreatePermissionAction::class)->execute(CreatePermissionData::from($request->all()));
 
         return $this->back('roster::roster.permission_created');
     }
@@ -45,7 +48,7 @@ final class PermissionUiController
 
         $request->merge(['description' => $request->input('description')]);
 
-        app(UpdatePermissionAction::class)->execute($this->find($permission), $request->validate(UpdatePermissionAction::rules()));
+        app(UpdatePermissionAction::class)->execute($this->find($permission), UpdatePermissionData::from($request->all()));
 
         return $this->back('roster::roster.permission_updated');
     }

@@ -21,7 +21,9 @@ function toolArguments(): array
     $team = fn (): array => ['organization' => 'acme', 'team' => 'ops'];
 
     return collect(RosterServer::TOOLS)
-        ->reject(fn (string $tool): bool => in_array($tool, [AcceptInvitationTool::class, DeclineInvitationTool::class], true))
+        // Answering an invitation needs no permission; the history tool is not
+        // offered without an audit log (tests/Modes/Keen covers it).
+        ->reject(fn (string $tool): bool => in_array($tool, [AcceptInvitationTool::class, DeclineInvitationTool::class, ListRosterHistoryTool::class], true))
         ->mapWithKeys(fn (string $tool): array => [$tool => match (class_basename($tool)) {
             'ShowUserTool', 'UpdateUserTool', 'DeleteUserTool', 'UpdateProfileTool', 'SuspendUserTool', 'DeactivateUserTool',
             'ReactivateUserTool', 'ApproveUserTool', 'RejectUserTool', 'RestoreUserTool', 'PurgeUserTool', 'SwitchContextTool', 'JoinByDomainTool', 'ListRoleAssignmentsTool', 'AssignRoleTool',
@@ -83,14 +85,10 @@ it('needs a signed-in invitee to answer invitations', function (): void {
     mcpTool(DeclineInvitationTool::class, ['token' => 'x'])->assertHasErrors(['Unauthorized.']);
 });
 
-it('needs roster.audit.view for the history tool', function (): void {
-    mcpTool(ListRosterHistoryTool::class)->assertHasErrors(['Unauthorized.']);
+it('offers no history tool without an audit log', function (): void {
+    grant($admin = user(), 'super-admin');
+    $this->actingAs($admin);
 
-    $this->actingAs($viewer = user());
-
-    mcpTool(ListRosterHistoryTool::class)->assertHasErrors(['Unauthorized.']);
-
-    grant($viewer, 'super-admin');
-
-    mcpTool(ListRosterHistoryTool::class)->assertHasErrors(['No audit log is installed']);
+    // Not offered at all, so not even a super-admin reaches it.
+    mcpTool(ListRosterHistoryTool::class)->assertHasErrors();
 });

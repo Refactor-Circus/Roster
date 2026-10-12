@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\User\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\User\Actions\ListUsersAction;
+use RefactorCircus\Roster\Domains\User\Data\ListUsersData;
 use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 use RefactorCircus\Roster\Http\Request;
 
@@ -18,11 +19,11 @@ final class IndexUsersRequest extends Request
 
     public function rules(): array
     {
-        return ListUsersAction::rules();
+        return ListUsersData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        return UserResource::collection(app(ListUsersAction::class)->execute($this->validated()))->response();
+        return UserResource::collection(app(ListUsersAction::class)->execute(ListUsersData::fromValidated($this->validated())))->response();
     }
 }

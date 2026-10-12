@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Requests\CreateTeamMcpRequest;
+use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesOrganization;
 
 #[Description('Create a team inside an organization.')]
@@ -28,5 +29,10 @@ final class CreateTeamTool extends Tool
             'name' => $schema->string()->description('Display name.')->required(),
             'slug' => $schema->string()->description('URL identifier, unique within the organization. Omit to generate one.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return TeamResource::structuredSchema($schema);
     }
 }

@@ -6,8 +6,11 @@ namespace RefactorCircus\Roster\Domains\User\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
+use RefactorCircus\Roster\Mcp\Request;
 
-final class CreateUserMcpRequest extends UserMcpRequest
+final class CreateUserMcpRequest extends Request
 {
     protected function ability(): string
     {
@@ -16,11 +19,11 @@ final class CreateUserMcpRequest extends UserMcpRequest
 
     protected function rules(): array
     {
-        return CreateUserAction::rules();
+        return CreateUserData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        return $this->respond(app(CreateUserAction::class)->execute($validated));
+        return (new UserResource(app(CreateUserAction::class)->execute(CreateUserData::fromValidated($validated))))->toStructuredResponse();
     }
 }

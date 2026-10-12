@@ -5,6 +5,7 @@ declare(strict_types=1);
 use RefactorCircus\Roster\Domains\User\Actions\DeleteUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Support\Users;
@@ -13,7 +14,7 @@ use RefactorCircus\Roster\Tests\Fixtures\PlainUser;
 it('gives a model without the trait a profile relation', function (): void {
     $user = PlainUser::query()->create(['name' => 'Ada', 'email' => 'ada@example.com', 'password' => 'x']);
 
-    app(UpdateProfileAction::class)->execute($user, ['display_name' => 'Countess']);
+    app(UpdateProfileAction::class)->execute($user, new UpdateProfileData(displayName: 'Countess'));
     app(SuspendUserAction::class)->execute($user);
 
     $fresh = PlainUser::query()->with('rosterProfile')->sole();

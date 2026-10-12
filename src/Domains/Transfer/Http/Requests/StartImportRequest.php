@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Transfer\Http\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartImportAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartImportData;
 use RefactorCircus\Roster\Domains\Transfer\Resources\TransferResource;
 
 final class StartImportRequest extends StartTransferRequest
@@ -18,15 +19,12 @@ final class StartImportRequest extends StartTransferRequest
 
     public function rules(): array
     {
-        return StartImportAction::rules();
+        return StartImportData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $data = $this->validated();
-        $data['file'] = $this->file('file');
-
-        return (new TransferResource(app(StartImportAction::class)->execute($data, $this->requester())))->response()->setStatusCode(202);
+        return (new TransferResource(app(StartImportAction::class)->execute(StartImportData::fromValidated($this->validated()), $this->requester())))->response()->setStatusCode(202);
     }
 
     private function requester(): Model

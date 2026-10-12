@@ -17,14 +17,6 @@ final class RestoreUserAction
     public function __construct(private readonly Users $users) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Bring back a deleted user, with the profile, memberships and roles they
      * kept while deleted.
      */

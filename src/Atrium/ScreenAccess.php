@@ -35,13 +35,4 @@ final class ScreenAccess
 
         return app(Authorizer::class)->organizationsWith($user instanceof Model ? $user : null, $permission);
     }
-
-    /**
-     * Whether the signed-in user holds a permission globally or in any
-     * organization: enough to open a list limited to those organizations.
-     */
-    public static function anywhere(string $permission): bool
-    {
-        return self::allows($permission) || self::organizations($permission) !== [];
-    }
 }

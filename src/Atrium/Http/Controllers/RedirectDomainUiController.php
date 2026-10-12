@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use RefactorCircus\Cortex\Domains\RedirectDomain\Actions\CreateRedirectDomainAction;
 use RefactorCircus\Cortex\Domains\RedirectDomain\Actions\DeleteRedirectDomainAction;
+use RefactorCircus\Cortex\Domains\RedirectDomain\Data\CreateRedirectDomainData;
 use RefactorCircus\Cortex\Domains\RedirectDomain\Models\RedirectDomainModel;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Atrium\RedirectDomains;
@@ -69,7 +70,7 @@ final class RedirectDomainUiController
 
     private function store(Request $request, Model $owner): void
     {
-        app(CreateRedirectDomainAction::class)->execute($request->validate(CreateRedirectDomainAction::rules()), $owner);
+        app(CreateRedirectDomainAction::class)->execute(CreateRedirectDomainData::from($request->all()), $owner);
     }
 
     /**

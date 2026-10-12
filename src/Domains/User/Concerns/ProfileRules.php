@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\User\Concerns;
 
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
+
 /**
  * Profile field rules, shared by every Action that writes a profile.
  */
@@ -25,11 +28,12 @@ trait ProfileRules
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * The profile fields the input gave.
+     *
      * @return array<string, mixed>
      */
-    protected static function profileAttributes(array $data): array
+    protected static function profileAttributes(CreateUserData|UpdateProfileData $data): array
     {
-        return array_intersect_key($data, array_flip(['display_name', 'avatar_url', 'timezone', 'locale', 'bio', 'meta']));
+        return array_intersect_key($data->toArray(), array_flip(['display_name', 'avatar_url', 'timezone', 'locale', 'bio', 'meta']));
     }
 }

@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Impersonation\Http\Requests;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Resources\ImpersonationResource;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
@@ -27,7 +28,7 @@ final class StartImpersonationRequest extends UserRequest
 
     public function rules(): array
     {
-        return StartImpersonationAction::rules();
+        return StartImpersonationData::rules();
     }
 
     /**
@@ -37,7 +38,7 @@ final class StartImpersonationRequest extends UserRequest
     public function persist(): JsonResponse
     {
         $actor = $this->actor() ?? throw new AuthenticationException;
-        $started = app(StartImpersonationAction::class)->execute($this->targetUser(), $this->validated(), $actor);
+        $started = app(StartImpersonationAction::class)->execute($this->targetUser(), StartImpersonationData::fromValidated($this->validated()), $actor);
 
         return (new ImpersonationResource($started->impersonation))
             ->additional(['url' => $started->url])

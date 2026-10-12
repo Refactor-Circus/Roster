@@ -31,11 +31,6 @@ final class RevokeRoleRequest extends UserRequest
             ->firstOrFail();
     }
 
-    public function rules(): array
-    {
-        return RevokeRoleAction::rules();
-    }
-
     public function persist(): Response
     {
         app(RevokeRoleAction::class)->execute($this->assignment(), $this->actor());

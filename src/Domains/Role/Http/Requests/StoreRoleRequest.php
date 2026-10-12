@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Role\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Actions\CreateRoleAction;
+use RefactorCircus\Roster\Domains\Role\Data\CreateRoleData;
 use RefactorCircus\Roster\Domains\Role\Resources\RoleResource;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Http\Request;
@@ -26,12 +27,12 @@ final class StoreRoleRequest extends Request
 
     public function rules(): array
     {
-        return CreateRoleAction::rules();
+        return CreateRoleData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $role = app(CreateRoleAction::class)->execute($this->validated(), $this->actor());
+        $role = app(CreateRoleAction::class)->execute(CreateRoleData::fromValidated($this->validated()), $this->actor());
 
         return (new RoleResource($role))->response()->setStatusCode(201);
     }

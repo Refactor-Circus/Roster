@@ -5,6 +5,7 @@ declare(strict_types=1);
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
@@ -13,6 +14,8 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 
 /**
@@ -26,9 +29,9 @@ function authorizationWorld(): array
 {
     $acme = organization(attributes: ['name' => 'Acme']);
     $target = user(['email' => 'target@example.com']);
-    app(AddMemberAction::class)->execute($acme, ['user' => $target->getRouteKey()]);
-    $ops = app(CreateTeamAction::class)->execute($acme, ['name' => 'Ops']);
-    app(AddTeamMemberAction::class)->execute($ops, ['user' => $target->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $target->getRouteKey()));
+    $ops = app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'));
+    app(AddTeamMemberAction::class)->execute($ops, new AddTeamMemberData(user: $target->getRouteKey()));
 
     $invitation = InvitationModel::factory()->create(['organization_id' => $acme->id, 'email' => 'new@example.com']);
     PermissionModel::query()->create(['name' => 'invoices.edit']);

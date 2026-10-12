@@ -14,11 +14,6 @@ final class DestroySsoConnectionRequest extends SsoConnectionRequest
         return 'roster.sso.manage';
     }
 
-    public function rules(): array
-    {
-        return DeleteSsoConnectionAction::rules();
-    }
-
     public function persist(): Response
     {
         app(DeleteSsoConnectionAction::class)->execute($this->connection());

@@ -15,11 +15,6 @@ final class ShowRoleRequest extends RoleRequest
         return 'roster.roles.view';
     }
 
-    public function rules(): array
-    {
-        return ShowRoleAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return (new RoleResource(app(ShowRoleAction::class)->execute($this->role())))->response();

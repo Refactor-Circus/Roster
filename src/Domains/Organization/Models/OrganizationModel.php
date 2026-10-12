@@ -12,9 +12,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\OrganizationFactory;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -33,13 +35,13 @@ use RefactorCircus\Roster\Support\Users;
  */
 final class OrganizationModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<OrganizationFactory> */
     use HasFactory;
 
     use HasUlids;
     use SoftDeletes;
-
-    protected $table = 'roster_organizations';
 
     protected $fillable = ['name', 'slug', 'owner_id', 'personal', 'auto_join', 'provisioned_status'];
 
@@ -47,6 +49,11 @@ final class OrganizationModel extends Model
         'personal' => false,
         'auto_join' => false,
     ];
+
+    public function getTable(): string
+    {
+        return Tables::name('organizations');
+    }
 
     public function getRouteKeyName(): string
     {
@@ -74,7 +81,7 @@ final class OrganizationModel extends Model
      */
     public function members(): BelongsToMany
     {
-        return $this->belongsToMany(app(Users::class)->model(), 'roster_memberships', 'organization_id', 'user_id')
+        return $this->belongsToMany(app(Users::class)->model(), Tables::name('memberships'), 'organization_id', 'user_id')
             ->withTimestamps();
     }
 

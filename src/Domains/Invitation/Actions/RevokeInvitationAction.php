@@ -13,14 +13,6 @@ use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 
 final class RevokeInvitationAction
 {
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
     public function execute(InvitationModel $invitation): InvitationModel
     {
         if ($invitation->status() !== InvitationStatus::Pending) {

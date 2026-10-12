@@ -103,3 +103,11 @@ it('deletes a user', function (): void {
 
     expect(ProfileModel::query()->count())->toBe(0);
 });
+
+it('validates input once, through the request, with the Data rules', function (): void {
+    user(['email' => 'taken@example.com']);
+
+    $this->postJson(route('roster.users.store'), ['email' => 'taken@example.com', 'password' => 'short', 'status' => 'nope'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['name', 'email', 'password', 'status']);
+});

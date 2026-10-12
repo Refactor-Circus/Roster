@@ -13,14 +13,6 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 final class UnlinkOrganizationAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Forget the organization's record in one external system. The next sync
      * of that record creates a new organization unless it names this one.
      */

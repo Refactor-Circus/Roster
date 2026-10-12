@@ -15,14 +15,9 @@ final class ApproveUserRequest extends UserRequest
         return 'roster.users.approve';
     }
 
-    public function rules(): array
-    {
-        return ApproveUserAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
-        $user = app(ApproveUserAction::class)->execute($this->targetUser(), $this->validated(), $this->actor());
+        $user = app(ApproveUserAction::class)->execute($this->targetUser(), $this->actor());
 
         return (new UserResource($user))->response();
     }

@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Impersonation\Http\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StopImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StopImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Impersonation\Resources\ImpersonationResource;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
@@ -33,21 +34,14 @@ final class StopImpersonationRequest extends Request
     {
         $actor = $this->actor();
 
-        return $actor !== null && (string) $this->impersonation()->impersonator_id === (string) $actor->getKey() ? $actor : null;
-    }
-
-    public function rules(): array
-    {
-        return [];
+        return $this->impersonation()->startedBy($actor) ? $actor : null;
     }
 
     public function persist(): JsonResponse
     {
-        $own = $this->self() !== null;
-
-        $impersonation = app(StopImpersonationAction::class)->execute($this->impersonation(), [
-            'why' => $own ? ImpersonationModel::ENDED_STOPPED : ImpersonationModel::ENDED_FORCED,
-        ]);
+        $impersonation = app(StopImpersonationAction::class)->execute($this->impersonation(), new StopImpersonationData(
+            why: $this->impersonation()->endReasonFor($this->actor()),
+        ));
 
         return (new ImpersonationResource($impersonation))->response();
     }

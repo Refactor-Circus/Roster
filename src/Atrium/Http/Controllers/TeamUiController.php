@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
+use RefactorCircus\Roster\Atrium\ScreenAccess;
 use RefactorCircus\Roster\Domains\Organization\Actions\ListMembersAction;
+use RefactorCircus\Roster\Domains\Organization\Data\ListMembersData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
@@ -16,6 +19,9 @@ use RefactorCircus\Roster\Domains\Team\Actions\DeleteTeamAction;
 use RefactorCircus\Roster\Domains\Team\Actions\RemoveTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\ShowTeamAction;
 use RefactorCircus\Roster\Domains\Team\Actions\UpdateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
+use RefactorCircus\Roster\Domains\Team\Data\UpdateTeamData;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Support\Users;
 
@@ -30,14 +36,14 @@ final class TeamUiController
         $model = $this->organization($organization);
         $this->authorizeScreen('roster.teams.manage', $model);
 
-        $team = app(CreateTeamAction::class)->execute($model, $request->validate(CreateTeamAction::rules($model)));
+        $team = app(CreateTeamAction::class)->execute($model, CreateTeamData::from($request->all(), $model));
 
         return redirect()
             ->route('atrium.roster.teams.show', [$model, $team->slug])
             ->with('status', __('roster::roster.team_created'));
     }
 
-    public function show(string $organization, string $team): View
+    public function show(Request $request, string $organization, string $team): View
     {
         $model = $this->team($organization, $team);
         $this->authorizeScreen('roster.teams.view', $model);
@@ -53,7 +59,12 @@ final class TeamUiController
         return view($view, [
             'team' => $model,
             'organization' => $owner,
-            'candidates' => app(ListMembersAction::class)->execute($owner, ['per_page' => 100]),
+            // Every member, a page at a time; the shown team carries only the first ones.
+            'members' => app(ListMembersAction::class)
+                ->execute($owner, new ListMembersData(perPage: 25, page: $request->integer('page', 1), team: $model->slug))
+                ->withQueryString(),
+            // The add-member picker, only for those who may add.
+            'candidates' => ScreenAccess::allows('roster.teams.manage', $model) ? $this->candidates($owner) : [],
             'directory' => $this->users,
         ]);
     }
@@ -63,7 +74,7 @@ final class TeamUiController
         $model = $this->team($organization, $team);
         $this->authorizeScreen('roster.teams.manage', $model);
 
-        $model = app(UpdateTeamAction::class)->execute($model, $request->validate(UpdateTeamAction::rules($model)));
+        $model = app(UpdateTeamAction::class)->execute($model, UpdateTeamData::from($request->all(), $model));
 
         return $this->backTo($model, 'roster::roster.team_updated');
     }
@@ -85,7 +96,7 @@ final class TeamUiController
         $model = $this->team($organization, $team);
         $this->authorizeScreen('roster.teams.manage', $model);
 
-        $model = app(AddTeamMemberAction::class)->execute($model, $request->validate(AddTeamMemberAction::rules()));
+        $model = app(AddTeamMemberAction::class)->execute($model, AddTeamMemberData::from($request->all()));
 
         return $this->backTo($model, 'roster::roster.team_member_added');
     }
@@ -100,9 +111,30 @@ final class TeamUiController
         return $this->backTo($model, 'roster::roster.team_member_removed');
     }
 
-    private function organization(string $slug): OrganizationModel
+    /**
+     * The organization's first 100 members, by route key and display name.
+     *
+     * @return array<int|string, string>
+     */
+    private function candidates(OrganizationModel $organization): array
     {
-        return OrganizationModel::query()->where('slug', $slug)->firstOrFail();
+        $candidates = [];
+
+        $memberships = $organization->memberships()->whereHas('user')->with('user')->oldest()->oldest('id')->limit(100)->get();
+
+        foreach ($memberships as $membership) {
+            $user = $membership->user;
+
+            if ($user instanceof Model) {
+                $key = $user->getRouteKey();
+
+                if (is_int($key) || is_string($key)) {
+                    $candidates[$key] = $this->users->name($user) ?? $this->users->email($user) ?? (string) $key;
+                }
+            }
+        }
+
+        return $candidates;
     }
 
     private function team(string $organization, string $slug): TeamModel

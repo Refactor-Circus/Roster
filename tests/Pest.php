@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Laravel\Mcp\Request;
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Laravel\Mcp\Server\Tool;
-use Laravel\Mcp\Server\Transport\FakeTransporter;
-use Laravel\Mcp\Transport\JsonRpcResponse;
+use RefactorCircus\Keystone\Testing\McpTools;
+use RefactorCircus\Keystone\Testing\Parity;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
+use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
@@ -22,6 +22,7 @@ use RefactorCircus\Roster\Tests\CortexTestCase;
 use RefactorCircus\Roster\Tests\DefaultsTestCase;
 use RefactorCircus\Roster\Tests\KeenTestCase;
 use RefactorCircus\Roster\Tests\PennantPlusTestCase;
+use RefactorCircus\Roster\Tests\RenamedTablesTestCase;
 use RefactorCircus\Roster\Tests\SsoUnavailableTestCase;
 use RefactorCircus\Roster\Tests\TestCase;
 use RefactorCircus\Roster\Tests\TraitlessTestCase;
@@ -53,48 +54,19 @@ uses(KeenTestCase::class)->in('Modes/Keen');
 uses(PennantPlusTestCase::class)->in('Modes/PennantPlus');
 uses(SsoUnavailableTestCase::class)->in('Modes/SsoUnavailable');
 uses(TransfersUnavailableTestCase::class)->in('Modes/TransfersUnavailable');
+uses(RenamedTablesTestCase::class)->in('Modes/RenamedTables');
 
 /**
- * Call a Roster tool the way a client reaches it.
- *
- * Every tool sits behind ToolSearch, so it is reachable only through the
- * execute_tools entry point. This routes the call through that entry point
- * and lifts the inner tool's response back to the top level so the usual
- * assertions apply to the tool that actually ran.
+ * Call a Roster tool as an MCP client does, through tool search, with its
+ * answer checked against the tool's output schema.
  *
  * @param  class-string<Tool>  $tool
  * @param  array<string, mixed>  $arguments
  */
 function mcpTool(string $tool, array $arguments = []): TestResponse
 {
-    $entryPoints = (new RosterServer(new FakeTransporter))->createContext()->tools();
-
-    $execute = $entryPoints->firstOrFail(
-        fn (Tool $candidate): bool => $candidate->name() === 'execute_tools',
-    );
-
-    $primitive = app($tool);
-
-    $envelope = $execute->handle(new Request([
-        'calls' => [['name' => $primitive->name(), 'arguments' => $arguments]],
-    ]));
-
-    /** @var array<string, mixed> $decoded */
-    $decoded = json_decode(
-        (string) collect($envelope)->firstOrFail()->content(),
-        true,
-        512,
-        JSON_THROW_ON_ERROR,
-    );
-
-    /** @var array<string, mixed> $result */
-    $result = $decoded['results'][0] ?? [];
-
-    return new TestResponse($primitive, JsonRpcResponse::result(1, array_filter([
-        'content' => $result['content'] ?? [],
-        'structuredContent' => $result['structuredContent'] ?? null,
-        'isError' => $result['isError'] ?? false,
-    ], fn (mixed $value): bool => $value !== null)));
+    // Through tool search, as a client calls it, with its output schema checked.
+    return McpTools::call(RosterServer::class, $tool, $arguments);
 }
 
 function user(array $attributes = []): User
@@ -134,7 +106,7 @@ function roleWith(array $permissions, string $scope = 'global'): RoleModel
 
 function organization(?User $owner = null, array $attributes = []): OrganizationModel
 {
-    return app(CreateOrganizationAction::class)->execute(['name' => $attributes['name'] ?? 'Acme'] + $attributes, $owner ?? user());
+    return app(CreateOrganizationAction::class)->execute(CreateOrganizationData::from(['name' => $attributes['name'] ?? 'Acme'] + $attributes), $owner ?? user());
 }
 
 /**
@@ -164,43 +136,15 @@ const PARITY_EXCEPTIONS = [
 
 function parityGaps(): array
 {
-    $root = dirname(__DIR__);
+    $root = dirname(__DIR__).'/src';
 
-    $actions = array_map(
-        fn (string $path): string => basename($path, '.php'),
-        (array) glob($root.'/src/Domains/*/Actions/*.php'),
-    );
-
-    $surfaces = [
-        'http' => $root.'/src/Domains/*/Http/Requests/*.php',
-        'mcp' => $root.'/src/Domains/*/Mcp/Requests/*.php',
+    return Parity::gaps($root.'/Domains/*/Actions/*.php', [
+        'http' => $root.'/Domains/*/Http/Requests/*.php',
+        'mcp' => $root.'/Domains/*/Mcp/Requests/*.php',
         'ui' => [
-            $root.'/src/Atrium/Http/Controllers/*.php',
-            $root.'/src/Domains/*/Http/Controllers/*WebController.php',
-            $root.'/src/Domains/*/Http/Controllers/TransferFileController.php',
+            $root.'/Atrium/Http/Controllers/*.php',
+            $root.'/Domains/*/Http/Controllers/*WebController.php',
+            $root.'/Domains/*/Http/Controllers/TransferFileController.php',
         ],
-    ];
-
-    $gaps = [];
-
-    foreach ($surfaces as $surface => $patterns) {
-        $files = array_merge(...array_map(fn (string $pattern): array => (array) glob($pattern), (array) $patterns));
-
-        $source = implode("\n", array_map(
-            fn (string $path): string => (string) file_get_contents($path),
-            $files,
-        ));
-
-        $missing = array_values(array_filter(
-            $actions,
-            fn (string $action): bool => ! str_contains($source, $action)
-                && ! in_array($surface, PARITY_EXCEPTIONS[$action] ?? [], true),
-        ));
-
-        if ($missing !== []) {
-            $gaps[$surface] = $missing;
-        }
-    }
-
-    return $gaps;
+    ], PARITY_EXCEPTIONS);
 }

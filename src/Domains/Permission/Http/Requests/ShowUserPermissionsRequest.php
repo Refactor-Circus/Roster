@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Permission\Http\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Permission\Actions\ListUserPermissionsAction;
+use RefactorCircus\Roster\Domains\Permission\Data\ListUserPermissionsData;
 use RefactorCircus\Roster\Domains\User\Http\Requests\UserRequest;
 
 final class ShowUserPermissionsRequest extends UserRequest
@@ -23,11 +24,11 @@ final class ShowUserPermissionsRequest extends UserRequest
 
     public function rules(): array
     {
-        return ListUserPermissionsAction::rules();
+        return ListUserPermissionsData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        return response()->json(['data' => app(ListUserPermissionsAction::class)->execute($this->targetUser(), $this->validated())]);
+        return response()->json(['data' => app(ListUserPermissionsAction::class)->execute($this->targetUser(), ListUserPermissionsData::fromValidated($this->validated()))]);
     }
 }

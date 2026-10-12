@@ -6,23 +6,12 @@ namespace RefactorCircus\Roster\Domains\Organization\Http\Requests;
 
 use Illuminate\Http\Response;
 use RefactorCircus\Roster\Domains\Organization\Actions\DeleteOrganizationAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 
 final class DestroyOrganizationRequest extends OrganizationRequest
 {
     protected function ability(): string
     {
         return 'roster.organizations.delete';
-    }
-
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
-    public function rules(): array
-    {
-        return DeleteOrganizationAction::rules();
     }
 
     public function persist(): Response

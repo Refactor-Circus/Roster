@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Invitation\Mcp\Requests\DeclineInvitationMcpRequest;
+use RefactorCircus\Roster\Domains\Invitation\Resources\InvitationResource;
 
 #[Description('Decline an invitation as the authenticated user, whose email must match the invitation.')]
 final class DeclineInvitationTool extends Tool
@@ -24,5 +25,10 @@ final class DeclineInvitationTool extends Tool
         return [
             'token' => $schema->string()->description('The token from the invitation link.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return InvitationResource::structuredSchema($schema);
     }
 }

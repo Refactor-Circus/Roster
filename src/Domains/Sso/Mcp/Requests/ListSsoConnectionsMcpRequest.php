@@ -6,8 +6,8 @@ namespace RefactorCircus\Roster\Domains\Sso\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\OrganizationMcpRequest;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Sso\Actions\ListSsoConnectionsAction;
+use RefactorCircus\Roster\Domains\Sso\Data\ListSsoConnectionsData;
 use RefactorCircus\Roster\Domains\Sso\Resources\SsoConnectionResource;
 
 final class ListSsoConnectionsMcpRequest extends OrganizationMcpRequest
@@ -17,27 +17,15 @@ final class ListSsoConnectionsMcpRequest extends OrganizationMcpRequest
         return 'roster.sso.view';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return ListSsoConnectionsAction::rules() + $this->organizationRules();
+        return $this->organizationRules() + ListSsoConnectionsData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $connections = app(ListSsoConnectionsAction::class)->execute($validated);
+        $connections = app(ListSsoConnectionsAction::class)->execute(ListSsoConnectionsData::fromValidated($validated));
 
-        return $this->structuredCollection(SsoConnectionResource::collection($connections->items())->resolve(), [
-            'meta' => [
-                'current_page' => $connections->currentPage(),
-                'last_page' => $connections->lastPage(),
-                'per_page' => $connections->perPage(),
-                'total' => $connections->total(),
-            ],
-        ]);
+        return SsoConnectionResource::collection($connections)->toStructuredResponse();
     }
 }

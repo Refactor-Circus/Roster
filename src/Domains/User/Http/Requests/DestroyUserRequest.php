@@ -14,11 +14,6 @@ final class DestroyUserRequest extends UserRequest
         return 'roster.users.delete';
     }
 
-    public function rules(): array
-    {
-        return DeleteUserAction::rules();
-    }
-
     public function persist(): Response
     {
         app(DeleteUserAction::class)->execute($this->targetUser(), $this->actor());

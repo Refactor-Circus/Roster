@@ -16,19 +16,9 @@ final class ReactivateUserAction
     use ChangesStatus;
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Return a suspended or deactivated user to active, clearing the reason.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(Model $user, array $data = [], ?Model $actor = null): Model
+    public function execute(Model $user, ?Model $actor = null): Model
     {
         $this->guardTransition($user, UserStatus::Active, $actor);
 

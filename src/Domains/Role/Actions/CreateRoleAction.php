@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Concerns\GuardsEscalation;
+use RefactorCircus\Roster\Domains\Role\Data\CreateRoleData;
 use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
 use RefactorCircus\Roster\Domains\Role\Events\RoleCreatedActionEvent;
 use RefactorCircus\Roster\Domains\Role\Events\RoleCreatingActionEvent;
@@ -25,34 +25,15 @@ final class CreateRoleAction
     use ResolvesScopes;
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'name' => ['required', 'string', 'max:255'],
-            'slug' => ['sometimes', 'nullable', 'string', 'alpha_dash', 'max:255'],
-            'scope' => ['required', Rule::enum(RoleScope::class)],
-            'organization' => ['sometimes', 'nullable', 'string'],
-            'description' => ['sometimes', 'nullable', 'string', 'max:1000'],
-            'permissions' => ['sometimes', 'array'],
-            'permissions.*' => ['string', 'distinct', Rule::exists('roster_permissions', 'name')],
-        ];
-    }
-
-    /**
      * Create a role. With `organization` it is that organization's own
      * (organization or team scope only); without, every organization shares it.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(array $data, ?Model $actor = null): RoleModel
+    public function execute(CreateRoleData $data, ?Model $actor = null): RoleModel
     {
-        $scope = RoleScope::from((string) $data['scope']);
-        $organization = $this->organizationFrom($data['organization'] ?? null);
-        $slug = is_string($data['slug'] ?? null) && $data['slug'] !== '' ? $data['slug'] : Str::slug((string) $data['name']);
-        /** @var array<int, string> $permissions */
-        $permissions = array_values(array_map('strval', (array) ($data['permissions'] ?? [])));
+        $scope = $data->scope;
+        $organization = $this->organizationFrom($data->organization);
+        $slug = $data->slug !== null && $data->slug !== '' ? $data->slug : Str::slug($data->name);
+        $permissions = array_values($data->permissions);
 
         if ($organization !== null && $scope === RoleScope::Global) {
             throw ValidationException::withMessages(['organization' => __('roster::roster.global_role_shared')]);
@@ -74,11 +55,11 @@ final class CreateRoleAction
 
         $role = DB::transaction(function () use ($data, $scope, $organization, $slug, $permissions): RoleModel {
             $role = RoleModel::query()->create([
-                'name' => $data['name'],
+                'name' => $data->name,
                 'slug' => $slug,
                 'scope' => $scope,
                 'organization_id' => $organization?->getKey(),
-                'description' => $data['description'] ?? null,
+                'description' => $data->description,
             ]);
 
             $role->permissions()->sync(PermissionModel::query()->whereIn('name', $permissions)->pluck('id'));

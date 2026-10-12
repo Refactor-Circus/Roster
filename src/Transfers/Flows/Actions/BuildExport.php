@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Transfers\Flows\Actions;
 
+use Illuminate\Support\Facades\DB;
 use RefactorCircus\Impex\Domains\Flow\Support\ResumableAction;
+use RefactorCircus\Roster\Domains\Transfer\Events\ExportBuildingActionEvent;
+use RefactorCircus\Roster\Domains\Transfer\Events\ExportBuiltActionEvent;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\Transfers;
 use RefactorCircus\Roster\Domains\Transfer\Support\Csv\Writer;
@@ -25,9 +28,11 @@ final class BuildExport extends ResumableAction
         $state = $this->cursor();
         [$after, $written] = $state === null ? [null, 0] : [explode('|', $state, 2)[1] ?: null, (int) explode('|', $state, 2)[0]];
 
+        // A resumed step carries on the export it already announced.
         if ($state === null) {
+            ExportBuildingActionEvent::dispatch($model);
             $disk->put($path, '');
-            $model->update(['output_path' => $path]);
+            DB::transaction(fn (): bool => $model->update(['output_path' => $path]));
         }
 
         $writer = new Writer($disk->path($path), append: true);
@@ -41,6 +46,8 @@ final class BuildExport extends ResumableAction
                 $rows = $exporter->rows($model, $after, (int) config('roster.transfers.chunk', 200));
 
                 if ($rows === []) {
+                    ExportBuiltActionEvent::dispatch($model, $written);
+
                     return ['rows' => $written];
                 }
 

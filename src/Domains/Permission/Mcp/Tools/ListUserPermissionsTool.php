@@ -29,4 +29,14 @@ final class ListUserPermissionsTool extends Tool
             'team' => $schema->string()->description('A team slug in the organization.'),
         ];
     }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return [
+            'data' => $schema->object([
+                'super_admin' => $schema->boolean()->required(),
+                'permissions' => $schema->array()->items($schema->string())->description('Permission names the user holds in the scope asked about.')->required(),
+            ])->required(),
+        ];
+    }
 }

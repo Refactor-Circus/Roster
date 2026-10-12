@@ -6,8 +6,8 @@ namespace RefactorCircus\Roster\Domains\Scim\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Organization\Http\Requests\OrganizationRequest;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Scim\Actions\CreateScimTokenAction;
+use RefactorCircus\Roster\Domains\Scim\Data\CreateScimTokenData;
 use RefactorCircus\Roster\Domains\Scim\Resources\ScimTokenResource;
 
 final class StoreScimTokenRequest extends OrganizationRequest
@@ -17,14 +17,9 @@ final class StoreScimTokenRequest extends OrganizationRequest
         return 'roster.scim.manage';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     public function rules(): array
     {
-        return CreateScimTokenAction::rules();
+        return CreateScimTokenData::rules();
     }
 
     /**
@@ -32,7 +27,7 @@ final class StoreScimTokenRequest extends OrganizationRequest
      */
     public function persist(): JsonResponse
     {
-        $issued = app(CreateScimTokenAction::class)->execute($this->organization(), $this->validated(), $this->actor());
+        $issued = app(CreateScimTokenAction::class)->execute($this->organization(), CreateScimTokenData::fromValidated($this->validated()), $this->actor());
 
         return (new ScimTokenResource($issued->token))->additional(['token' => $issued->plain])->response()->setStatusCode(201);
     }

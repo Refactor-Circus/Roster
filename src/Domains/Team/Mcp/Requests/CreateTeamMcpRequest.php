@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\Team\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
+use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 
 final class CreateTeamMcpRequest extends TeamMcpRequest
 {
@@ -15,18 +16,13 @@ final class CreateTeamMcpRequest extends TeamMcpRequest
         return 'roster.teams.manage';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return CreateTeamAction::rules($this->organization()) + $this->organizationRules();
+        return $this->organizationRules() + CreateTeamData::rules($this->organization());
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        return $this->respondWithTeam(app(CreateTeamAction::class)->execute($this->organization(), $this->without($validated, 'organization')));
+        return (new TeamResource(app(CreateTeamAction::class)->execute($this->organization(), CreateTeamData::fromValidated($validated))))->toStructuredResponse();
     }
 }

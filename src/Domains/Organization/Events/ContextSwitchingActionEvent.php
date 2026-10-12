@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 
 /**
  * A user's current organization and team are about to change.
@@ -19,7 +20,6 @@ final class ContextSwitchingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public Model $user,
-        /** @var array<string, mixed> */
-        public array $data,
+        public SwitchContextData $data,
     ) {}
 }

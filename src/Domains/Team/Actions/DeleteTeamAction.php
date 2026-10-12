@@ -12,14 +12,6 @@ use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 
 final class DeleteTeamAction
 {
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
     public function execute(TeamModel $team): void
     {
         TeamDeletingActionEvent::dispatch($team);

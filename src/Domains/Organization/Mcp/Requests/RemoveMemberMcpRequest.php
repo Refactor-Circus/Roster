@@ -6,7 +6,6 @@ namespace RefactorCircus\Roster\Domains\Organization\Mcp\Requests;
 
 use Laravel\Mcp\Response;
 use RefactorCircus\Roster\Domains\Organization\Actions\RemoveMemberAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Support\Users;
 
 final class RemoveMemberMcpRequest extends OrganizationMcpRequest
@@ -16,14 +15,9 @@ final class RemoveMemberMcpRequest extends OrganizationMcpRequest
         return 'roster.members.manage';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return RemoveMemberAction::rules() + $this->organizationRules() + ['user' => ['required']];
+        return $this->organizationRules() + ['user' => ['required']];
     }
 
     protected function handle(array $validated): Response

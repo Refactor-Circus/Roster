@@ -14,19 +14,22 @@ use RefactorCircus\Roster\Domains\User\Actions\PurgeUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\RestoreUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\ShowUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Data\ListUsersData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
 use RefactorCircus\Roster\Domains\User\Events\UserCreatedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserCreatingActionEvent;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use Workbench\App\Models\User;
 
 it('creates a user with a profile', function (): void {
-    $user = app(CreateUserAction::class)->execute([
-        'name' => 'Ada Lovelace',
-        'email' => 'ada@example.com',
-        'password' => 'secret-password',
-        'display_name' => 'Ada',
-        'timezone' => 'Europe/London',
-    ]);
+    $user = app(CreateUserAction::class)->execute(new CreateUserData(
+        name: 'Ada Lovelace',
+        email: 'ada@example.com',
+        password: 'secret-password',
+        displayName: 'Ada',
+        timezone: 'Europe/London',
+    ));
 
     expect($user)->toBeInstanceOf(User::class)
         ->and($user->getAttribute('email'))->toBe('ada@example.com')
@@ -37,7 +40,7 @@ it('creates a user with a profile', function (): void {
 });
 
 it('sets a random password when none is given', function (): void {
-    $user = app(CreateUserAction::class)->execute(['name' => 'Ada', 'email' => 'ada@example.com']);
+    $user = app(CreateUserAction::class)->execute(new CreateUserData(name: 'Ada', email: 'ada@example.com'));
 
     expect($user->getAttribute('password'))->toBeString()->not->toBeEmpty();
 });
@@ -45,25 +48,25 @@ it('sets a random password when none is given', function (): void {
 it('rejects a duplicate email', function (): void {
     user(['email' => 'taken@example.com']);
 
-    validator(['name' => 'Ada', 'email' => 'taken@example.com'], CreateUserAction::rules())->validate();
+    CreateUserData::from(['name' => 'Ada', 'email' => 'taken@example.com']);
 })->throws(ValidationException::class);
 
 it('dispatches starting and finished events', function (): void {
     Event::fake([UserCreatingActionEvent::class, UserCreatedActionEvent::class]);
 
-    app(CreateUserAction::class)->execute(['name' => 'Ada', 'email' => 'ada@example.com']);
+    app(CreateUserAction::class)->execute(new CreateUserData(name: 'Ada', email: 'ada@example.com'));
 
     Event::assertDispatched(UserCreatingActionEvent::class);
     Event::assertDispatched(UserCreatedActionEvent::class);
 
-    expect(new UserCreatingActionEvent([]))->toBeInstanceOf(ActionStartingEvent::class)
+    expect(new UserCreatingActionEvent(new CreateUserData(email: 'ada@example.com')))->toBeInstanceOf(ActionStartingEvent::class)
         ->and(new UserCreatedActionEvent(user()))->toBeInstanceOf(ActionFinishedEvent::class);
 });
 
 it('updates only the given fields', function (): void {
     $user = user(['name' => 'Ada', 'email' => 'ada@example.com']);
 
-    $updated = app(UpdateUserAction::class)->execute($user, ['name' => 'Ada King']);
+    $updated = app(UpdateUserAction::class)->execute($user, new UpdateUserData(name: 'Ada King'));
 
     expect($updated->getAttribute('name'))->toBe('Ada King')
         ->and($updated->getAttribute('email'))->toBe('ada@example.com');
@@ -72,9 +75,9 @@ it('updates only the given fields', function (): void {
 it('lets a user keep their own email on update', function (): void {
     $user = user(['email' => 'ada@example.com']);
 
-    $data = validator(['email' => 'ada@example.com'], UpdateUserAction::rules($user))->validate();
+    $data = UpdateUserData::from(['email' => 'ada@example.com'], $user);
 
-    expect($data)->toBe(['email' => 'ada@example.com']);
+    expect($data->toArray())->toBe(['email' => 'ada@example.com']);
 });
 
 it('shows a user with their profile loaded', function (): void {
@@ -122,7 +125,7 @@ it('lists users with search and status filters', function (): void {
     ProfileModel::factory()->suspended()->create(['user_id' => $grace->getKey(), 'display_name' => 'Grace']);
     ProfileModel::factory()->create(['user_id' => $alan->getKey(), 'display_name' => 'Prof']);
 
-    $list = fn (array $filters): array => collect(app(ListUsersAction::class)->execute($filters)->items())
+    $list = fn (array $filters): array => collect(app(ListUsersAction::class)->execute(ListUsersData::from($filters))->items())
         ->map(fn (User $user): mixed => $user->getKey())
         ->all();
 
@@ -132,5 +135,5 @@ it('lists users with search and status filters', function (): void {
         // A user with no profile row counts as active.
         ->and($list(['status' => 'active']))->toBe([$ada->getKey(), $alan->getKey()])
         ->and($list(['status' => 'suspended']))->toBe([$grace->getKey()])
-        ->and(app(ListUsersAction::class)->execute(['per_page' => 2])->total())->toBe(3);
+        ->and(app(ListUsersAction::class)->execute(new ListUsersData(perPage: 2))->total())->toBe(3);
 });

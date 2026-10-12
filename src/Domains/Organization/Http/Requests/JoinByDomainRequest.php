@@ -16,11 +16,6 @@ final class JoinByDomainRequest extends UserRequest
         return 'roster.users.update';
     }
 
-    public function rules(): array
-    {
-        return JoinOrganizationsByDomainAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return OrganizationResource::collection(app(JoinOrganizationsByDomainAction::class)->execute($this->targetUser()))->response();

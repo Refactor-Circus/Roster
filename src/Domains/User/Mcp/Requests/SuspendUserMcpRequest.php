@@ -6,6 +6,8 @@ namespace RefactorCircus\Roster\Domains\User\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
+use RefactorCircus\Roster\Domains\User\Data\SuspendUserData;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class SuspendUserMcpRequest extends UserMcpRequest
 {
@@ -16,13 +18,11 @@ final class SuspendUserMcpRequest extends UserMcpRequest
 
     protected function rules(): array
     {
-        return SuspendUserAction::rules() + $this->userRules();
+        return $this->userRules() + SuspendUserData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['user']);
-
-        return $this->respond(app(SuspendUserAction::class)->execute($this->targetUser(), $validated, $this->actor()));
+        return (new UserResource(app(SuspendUserAction::class)->execute($this->targetUser(), SuspendUserData::fromValidated($validated), $this->actor())))->toStructuredResponse();
     }
 }

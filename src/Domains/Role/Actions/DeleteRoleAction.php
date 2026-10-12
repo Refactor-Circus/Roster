@@ -14,14 +14,6 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 final class DeleteRoleAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Delete a role and every assignment of it. Built-in roles stay.
      */
     public function execute(RoleModel $role): void

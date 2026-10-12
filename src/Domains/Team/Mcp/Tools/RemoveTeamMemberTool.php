@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Requests\RemoveTeamMemberMcpRequest;
+use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesTeam;
 
 #[Description('Remove a user from a team. They stay in the organization.')]
@@ -27,5 +28,10 @@ final class RemoveTeamMemberTool extends Tool
         return $this->teamSchema($schema) + [
             'user' => $schema->string()->description('The user id, as returned by list-users-tool.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return TeamResource::structuredSchema($schema);
     }
 }

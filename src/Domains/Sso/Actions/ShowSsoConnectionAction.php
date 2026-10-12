@@ -10,14 +10,6 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 
 final class ShowSsoConnectionAction
 {
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
     public function execute(SsoConnectionModel $connection): SsoConnectionModel
     {
         SsoConnectionShowingActionEvent::dispatch($connection);

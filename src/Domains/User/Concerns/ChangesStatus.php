@@ -35,6 +35,21 @@ trait ChangesStatus
         }
     }
 
+    /**
+     * Approving and rejecting answer an account waiting for approval, and
+     * nobody answers their own.
+     */
+    private function guardPending(Model $user, ?Model $actor): void
+    {
+        if (app(Users::class)->status($user) !== UserStatus::Pending) {
+            throw ValidationException::withMessages(['user' => __('roster::roster.not_pending')]);
+        }
+
+        if ($actor !== null && $actor->is($user)) {
+            throw ValidationException::withMessages(['user' => __('roster::roster.cannot_change_own_status')]);
+        }
+    }
+
     private function changeStatus(Model $user, UserStatus $to, ?string $reason): void
     {
         app(Users::class)->profile($user)->update([

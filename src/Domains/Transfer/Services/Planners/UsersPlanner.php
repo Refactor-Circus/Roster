@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -17,7 +19,30 @@ use RefactorCircus\Roster\Support\Users;
  */
 final class UsersPlanner extends Planner
 {
+    /**
+     * The preview's current batch: each valid email, and whether an account
+     * has it. Null outside a preview.
+     *
+     * @var array<string, bool>|null
+     */
+    private ?array $batch = null;
+
     public function __construct(private readonly Users $users) {}
+
+    /**
+     * Which of the batch's emails have accounts, in one query.
+     */
+    public function prefetch(array $rows, TransferModel $transfer): void
+    {
+        $emails = array_values(array_filter(array_map(fn (array $values): string => strtolower($values['email'] ?? ''), $rows), fn (string $email): bool => $email !== ''));
+        $found = $this->users->findManyByEmail($emails);
+
+        $this->batch = [];
+
+        foreach ($emails as $email) {
+            $this->batch[$email] = isset($found[$email]);
+        }
+    }
 
     public function plan(array $values, TransferModel $transfer, ?Model $actor): array
     {
@@ -34,6 +59,7 @@ final class UsersPlanner extends Planner
 
     public function apply(array $values, TransferModel $transfer, ?Model $actor): array
     {
+        $this->batch = null;
         $plan = $this->plan($values, $transfer, $actor);
 
         if ($plan['action'] !== self::CREATE) {
@@ -42,13 +68,13 @@ final class UsersPlanner extends Planner
 
         $email = strtolower($values['email']);
 
-        $user = app(CreateUserAction::class)->execute([
-            'name' => ($values['name'] ?? '') !== '' ? $values['name'] : Str::before($email, '@'),
-            'email' => $email,
-        ]);
+        $user = app(CreateUserAction::class)->execute(new CreateUserData(
+            email: $email,
+            name: ($values['name'] ?? '') !== '' ? $values['name'] : Str::before($email, '@'),
+        ));
 
         if (($values['display_name'] ?? '') !== '') {
-            app(UpdateProfileAction::class)->execute($user, ['display_name' => $values['display_name']]);
+            app(UpdateProfileAction::class)->execute($user, new UpdateProfileData(displayName: $values['display_name']));
         }
 
         return $plan;
@@ -56,6 +82,6 @@ final class UsersPlanner extends Planner
 
     private function exists(string $email): bool
     {
-        return $this->users->findByEmail($email) !== null;
+        return $this->batch[$email] ?? $this->users->findByEmail($email) !== null;
     }
 }

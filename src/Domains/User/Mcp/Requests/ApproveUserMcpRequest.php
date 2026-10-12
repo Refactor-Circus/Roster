@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\User\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\User\Actions\ApproveUserAction;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class ApproveUserMcpRequest extends UserMcpRequest
 {
@@ -14,15 +15,8 @@ final class ApproveUserMcpRequest extends UserMcpRequest
         return 'roster.users.approve';
     }
 
-    protected function rules(): array
-    {
-        return ApproveUserAction::rules() + $this->userRules();
-    }
-
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['user']);
-
-        return $this->respond(app(ApproveUserAction::class)->execute($this->targetUser(), $validated, $this->actor()));
+        return (new UserResource(app(ApproveUserAction::class)->execute($this->targetUser(), $this->actor())))->toStructuredResponse();
     }
 }

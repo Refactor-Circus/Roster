@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\ShowUserMcpRequest;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesUser;
 
 #[Description('Show one user with their profile and status.')]
@@ -25,5 +26,10 @@ final class ShowUserTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return $this->userSchema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return UserResource::structuredSchema($schema);
     }
 }

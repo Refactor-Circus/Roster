@@ -14,11 +14,6 @@ final class DestroyPermissionRequest extends PermissionRequest
         return 'roster.roles.manage';
     }
 
-    public function rules(): array
-    {
-        return DeletePermissionAction::rules();
-    }
-
     public function persist(): Response
     {
         app(DeletePermissionAction::class)->execute($this->permission());

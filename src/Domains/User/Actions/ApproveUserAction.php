@@ -6,40 +6,22 @@ namespace RefactorCircus\Roster\Domains\User\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\User\Concerns\ChangesStatus;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Events\UserApprovedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserApprovingActionEvent;
 use RefactorCircus\Roster\Domains\User\Services\Approvals;
-use RefactorCircus\Roster\Support\Users;
 
 final class ApproveUserAction
 {
     use ChangesStatus;
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Accept an account that is waiting for approval: it becomes active.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(Model $user, array $data = [], ?Model $actor = null): Model
+    public function execute(Model $user, ?Model $actor = null): Model
     {
-        if (app(Users::class)->status($user) !== UserStatus::Pending) {
-            throw ValidationException::withMessages(['user' => __('roster::roster.not_pending')]);
-        }
-
-        if ($actor !== null && $actor->is($user)) {
-            throw ValidationException::withMessages(['user' => __('roster::roster.cannot_change_own_status')]);
-        }
+        $this->guardPending($user, $actor);
 
         UserApprovingActionEvent::dispatch($user);
 

@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Role\Mcp\Requests;
 
-use Laravel\Mcp\Response;
-use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
-use RefactorCircus\Roster\Domains\Role\Resources\RoleResource;
 use RefactorCircus\Roster\Mcp\Request;
 
 abstract class RoleMcpRequest extends Request
@@ -36,8 +33,11 @@ abstract class RoleMcpRequest extends Request
         return ['role' => ['required', 'string']];
     }
 
-    protected function respondWithRole(RoleModel $role): ResponseFactory
+    /**
+     * Every role tool names its role.
+     */
+    protected function rules(): array
     {
-        return Response::structured(['data' => (new RoleResource($role))->resolve()]);
+        return $this->roleRules();
     }
 }

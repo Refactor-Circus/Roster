@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Invitation\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Invitation\Actions\CreateInvitationAction;
+use RefactorCircus\Roster\Domains\Invitation\Data\CreateInvitationData;
 use RefactorCircus\Roster\Domains\Invitation\Resources\InvitationResource;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\OrganizationMcpRequest;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 
 final class CreateInvitationMcpRequest extends OrganizationMcpRequest
 {
@@ -18,20 +17,15 @@ final class CreateInvitationMcpRequest extends OrganizationMcpRequest
         return 'roster.invitations.manage';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return CreateInvitationAction::rules() + $this->organizationRules();
+        return $this->organizationRules() + CreateInvitationData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $invitation = app(CreateInvitationAction::class)->execute($this->organization(), $this->without($validated, 'organization'), $this->actor());
+        $invitation = app(CreateInvitationAction::class)->execute($this->organization(), CreateInvitationData::fromValidated($validated), $this->actor());
 
-        return Response::structured(['data' => (new InvitationResource($invitation))->resolve()]);
+        return (new InvitationResource($invitation))->toStructuredResponse();
     }
 }

@@ -31,7 +31,7 @@ final class TrashController
         return $request->persist();
     }
 
-    public function purgeOrganization(PurgeOrganizationRequest $request): Response
+    public function purgeOrganization(PurgeOrganizationRequest $request): JsonResponse
     {
         return $request->persist();
     }

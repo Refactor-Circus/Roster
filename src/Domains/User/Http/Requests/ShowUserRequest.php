@@ -21,11 +21,6 @@ final class ShowUserRequest extends UserRequest
         return $this->targetUser();
     }
 
-    public function rules(): array
-    {
-        return ShowUserAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return (new UserResource(app(ShowUserAction::class)->execute($this->targetUser())))->response();

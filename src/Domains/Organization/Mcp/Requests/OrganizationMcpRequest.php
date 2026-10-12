@@ -4,15 +4,23 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Organization\Mcp\Requests;
 
-use Laravel\Mcp\Response;
-use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
+use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\Request;
 
 abstract class OrganizationMcpRequest extends Request
 {
     private ?OrganizationModel $resolvedOrganization = null;
+
+    private ?OrganizationModel $trashedOrganization = null;
+
+    /**
+     * Checked in the organization the request names, unless a request says otherwise.
+     */
+    protected function scope(): OrganizationModel|TeamModel|null
+    {
+        return $this->organization();
+    }
 
     /**
      * The organization named by the `organization` slug argument.
@@ -33,16 +41,19 @@ abstract class OrganizationMcpRequest extends Request
     }
 
     /**
-     * @param  array<string, mixed>  $validated
-     * @return array<string, mixed>
+     * Every organization tool names its organization.
      */
-    protected function without(array $validated, string ...$keys): array
+    protected function rules(): array
     {
-        return array_diff_key($validated, array_flip($keys));
+        return $this->organizationRules();
     }
 
-    protected function respondWithOrganization(OrganizationModel $organization): ResponseFactory
+    /**
+     * The same organization, found among deleted ones too: for restoring and
+     * purging.
+     */
+    protected function trashedOrganization(): OrganizationModel
     {
-        return Response::structured(['data' => (new OrganizationResource($organization))->resolve()]);
+        return $this->trashedOrganization ??= OrganizationModel::withTrashed()->where('slug', $this->get('organization'))->firstOrFail();
     }
 }

@@ -4,43 +4,19 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Team\Actions;
 
-use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use RefactorCircus\Roster\Domains\Team\Data\UpdateTeamData;
 use RefactorCircus\Roster\Domains\Team\Events\TeamUpdatedActionEvent;
 use RefactorCircus\Roster\Domains\Team\Events\TeamUpdatingActionEvent;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 
 final class UpdateTeamAction
 {
-    /**
-     * Pass the team being updated so its own slug passes the unique check.
-     *
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(?TeamModel $team = null): array
-    {
-        $slug = Rule::unique('roster_teams', 'slug');
-
-        if ($team !== null) {
-            $slug->ignore($team->getKey())
-                ->where(fn (Builder $query): Builder => $query->where('organization_id', $team->organization_id));
-        }
-
-        return [
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'slug' => ['sometimes', 'required', 'string', 'alpha_dash', 'max:255', $slug],
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function execute(TeamModel $team, array $data): TeamModel
+    public function execute(TeamModel $team, UpdateTeamData $data): TeamModel
     {
         TeamUpdatingActionEvent::dispatch($team, $data);
 
-        DB::transaction(fn () => $team->update(array_intersect_key($data, array_flip(['name', 'slug']))));
+        DB::transaction(fn () => $team->update($data->toArray()));
 
         $team = $team->refresh()->load(['organization', 'memberships.user'])->loadCount('seats');
 

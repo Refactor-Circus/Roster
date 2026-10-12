@@ -13,14 +13,6 @@ use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 
 final class DeletePermissionAction
 {
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
     public function execute(PermissionModel $permission): void
     {
         if ($permission->system) {

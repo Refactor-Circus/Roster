@@ -6,6 +6,9 @@ namespace RefactorCircus\Roster\Domains\Sso\Concerns;
 
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Keystone\Data\Missing;
+use RefactorCircus\Roster\Domains\Sso\Data\CreateSsoConnectionData;
+use RefactorCircus\Roster\Domains\Sso\Data\UpdateSsoConnectionData;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 
 /**
@@ -44,17 +47,17 @@ trait SsoConnectionRules
      * The protocol's settings from input over the current ones. A blank
      * client secret keeps the stored one.
      *
-     * @param  array<string, mixed>  $data
      * @param  array<string, mixed>  $current
      * @return array<string, string>
      */
-    private function settings(string $protocol, array $data, array $current = []): array
+    private function settings(string $protocol, CreateSsoConnectionData|UpdateSsoConnectionData $data, array $current = []): array
     {
         $settings = [];
 
         foreach (self::SETTINGS[$protocol] ?? [] as $key) {
-            $value = array_key_exists($key, $data) && ! ($key === 'client_secret' && blank($data[$key]))
-                ? $data[$key]
+            $given = self::given($data, $key);
+            $value = ! $given instanceof Missing && ! ($key === 'client_secret' && blank($given))
+                ? $given
                 : ($current[$key] ?? null);
 
             if (is_string($value) && $value !== '') {
@@ -65,6 +68,24 @@ trait SsoConnectionRules
         $this->guardSettings($protocol, $settings);
 
         return $settings;
+    }
+
+    /**
+     * The input's value for a setting; Missing when it was left out.
+     */
+    private static function given(CreateSsoConnectionData|UpdateSsoConnectionData $data, string $key): string|Missing|null
+    {
+        return match ($key) {
+            'issuer' => $data->issuer,
+            'tenant' => $data->tenant,
+            'client_id' => $data->clientId,
+            'client_secret' => $data->clientSecret,
+            'metadata_url' => $data->metadataUrl,
+            'entity_id' => $data->entityId,
+            'sso_url' => $data->ssoUrl,
+            'certificate' => $data->certificate,
+            default => new Missing,
+        };
     }
 
     /**

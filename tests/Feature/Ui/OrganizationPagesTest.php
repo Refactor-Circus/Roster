@@ -7,9 +7,13 @@ use RefactorCircus\Roster\Atrium\RosterPlugin;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Invitation\Notifications\InvitationNotification;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Roster;
 
 beforeEach(function (): void {
@@ -79,7 +83,7 @@ it('manages members and ownership', function (): void {
 it('manages teams', function (): void {
     $organization = organization($this->admin);
     $ada = user(['name' => 'Ada']);
-    app(AddMemberAction::class)->execute($organization, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($organization, new AddMemberData(user: $ada->getRouteKey()));
 
     $this->post(route('atrium.roster.teams.store', $organization), ['name' => 'Ops'])
         ->assertRedirect(route('atrium.roster.teams.show', [$organization, 'ops']));
@@ -97,7 +101,7 @@ it('manages teams', function (): void {
 it('invites and revokes', function (): void {
     Notification::fake();
     $organization = organization($this->admin);
-    app(CreateTeamAction::class)->execute($organization, ['name' => 'Ops']);
+    app(CreateTeamAction::class)->execute($organization, new CreateTeamData(name: 'Ops'));
 
     $this->post(route('atrium.roster.invitations.store', $organization), ['email' => 'ada@example.com', 'teams' => ['ops']])->assertRedirect();
 
@@ -136,8 +140,8 @@ it('renders the organizations widget', function (): void {
 it('shows each member\'s status on the members tab', function (): void {
     $this->actingAs(user());
     $acme = organization(attributes: ['name' => 'Acme']);
-    $pending = app(CreateUserAction::class)->execute(['name' => 'Pat', 'email' => 'pat@example.com', 'status' => 'pending']);
-    app(AddMemberAction::class)->execute($acme, ['user' => $pending->getRouteKey()]);
+    $pending = app(CreateUserAction::class)->execute(new CreateUserData(name: 'Pat', email: 'pat@example.com', status: UserStatus::Pending));
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $pending->getRouteKey()));
 
     $this->get(route('atrium.roster.organizations.show', 'acme'))
         ->assertOk()

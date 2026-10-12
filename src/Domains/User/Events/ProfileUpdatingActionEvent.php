@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 
 /**
  * A user's profile is about to be updated.
@@ -19,7 +20,6 @@ final class ProfileUpdatingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public Model $user,
-        /** @var array<string, mixed> */
-        public array $data,
+        public UpdateProfileData $data,
     ) {}
 }

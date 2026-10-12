@@ -207,7 +207,9 @@ final readonly class Audit
 
             if ($model instanceof TeamModel || $model instanceof InvitationModel || $model instanceof RoleAssignmentModel
                 || $model instanceof RoleModel || $model instanceof ImpersonationModel) {
-                $organization = $this->find($model->getAttribute('organization_id'));
+                // The loaded relation when there is one, saving a query per entry.
+                $loaded = $model->relationLoaded('organization') ? $model->getRelation('organization') : null;
+                $organization = $loaded instanceof OrganizationModel ? $loaded : $this->find($model->getAttribute('organization_id'));
 
                 if ($organization !== null) {
                     return $organization;

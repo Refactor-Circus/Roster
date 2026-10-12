@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Organization\Actions\SyncOrganizationsAction;
+use RefactorCircus\Roster\Domains\Organization\Data\SyncOrganizationsData;
 use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationSyncResults;
 use RefactorCircus\Roster\Http\Request;
 
@@ -21,11 +22,11 @@ final class SyncOrganizationsRequest extends Request
 
     public function rules(): array
     {
-        return SyncOrganizationsAction::rules();
+        return SyncOrganizationsData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        return response()->json(['data' => OrganizationSyncResults::present(app(SyncOrganizationsAction::class)->execute($this->validated()))]);
+        return response()->json(['data' => OrganizationSyncResults::present(app(SyncOrganizationsAction::class)->execute(SyncOrganizationsData::fromValidated($this->validated())))]);
     }
 }

@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\ReactivateUserMcpRequest;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesUser;
 
 #[Description('Return a suspended or deactivated user to active, clearing the reason.')]
@@ -25,5 +26,10 @@ final class ReactivateUserTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return $this->userSchema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return UserResource::structuredSchema($schema);
     }
 }

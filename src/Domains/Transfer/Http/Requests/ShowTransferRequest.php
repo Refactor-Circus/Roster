@@ -12,7 +12,9 @@ final class ShowTransferRequest extends TransferRequest
 {
     public function rules(): array
     {
-        return ShowTransferAction::rules();
+        return [
+            'rows_page' => ['sometimes', 'integer', 'min:1'],
+        ];
     }
 
     public function persist(): JsonResponse

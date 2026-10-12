@@ -13,14 +13,6 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 final class RestoreOrganizationAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Bring back a deleted organization with everything it kept. Its slug and
      * domains stayed reserved, so nothing can clash.
      */

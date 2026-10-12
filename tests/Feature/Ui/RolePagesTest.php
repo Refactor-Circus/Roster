@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
@@ -43,7 +44,7 @@ it('manages roles', function (): void {
 it('assigns and revokes from the user page', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $ada = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
     $admin = RoleModel::query()->where('slug', 'admin')->sole();
 
     $this->get(route('atrium.roster.users.show', $ada->getRouteKey()))->assertOk()->assertSee('Member');
@@ -67,4 +68,19 @@ it('keeps each permission row\'s buttons in its actions column, with the descrip
 
     expect($html)->toContain('id="update-'.$permission->id.'"')
         ->and($html)->toMatch('/<input[^>]*name="description"[^>]*form="update-'.$permission->id.'"|<input[^>]*form="update-'.$permission->id.'"[^>]*name="description"/');
+});
+
+it('offers only shared roles and the user\'s own organizations\' roles on the user page', function (): void {
+    $acme = organization(attributes: ['name' => 'Acme']);
+    $globex = organization(attributes: ['name' => 'Globex']);
+    $ada = user();
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
+    RoleModel::factory()->create(['name' => 'Acme Auditor', 'scope' => 'organization', 'organization_id' => $acme->id]);
+    RoleModel::factory()->create(['name' => 'Globex Auditor', 'scope' => 'organization', 'organization_id' => $globex->id]);
+
+    $this->get(route('atrium.roster.users.show', $ada->getRouteKey()))
+        ->assertOk()
+        ->assertSee('Acme Auditor')
+        ->assertSee('Super admin')
+        ->assertDontSee('Globex Auditor');
 });

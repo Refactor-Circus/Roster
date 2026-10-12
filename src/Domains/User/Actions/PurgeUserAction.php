@@ -21,14 +21,6 @@ final class PurgeUserAction
     public function __construct(private readonly Users $users) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Delete a user for good: their personal organization, memberships, role
      * assignments and profile go with them. A model that soft-deletes must be
      * deleted (trashed) first. Owners of shared organizations - deleted ones

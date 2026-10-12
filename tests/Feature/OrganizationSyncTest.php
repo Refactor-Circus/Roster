@@ -12,13 +12,20 @@ use RefactorCircus\Roster\Domains\Organization\Actions\SyncOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SyncOrganizationsAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\TransferOwnershipAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\UnlinkOrganizationAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
+use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
+use RefactorCircus\Roster\Domains\Organization\Data\LinkOrganizationData;
+use RefactorCircus\Roster\Domains\Organization\Data\ListOrganizationsData;
 use RefactorCircus\Roster\Domains\Organization\Data\OrganizationSyncResult;
+use RefactorCircus\Roster\Domains\Organization\Data\SyncOrganizationData;
+use RefactorCircus\Roster\Domains\Organization\Data\SyncOrganizationsData;
+use RefactorCircus\Roster\Domains\Organization\Data\TransferOwnershipData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationLinkModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 
 function sync(array $record): OrganizationSyncResult
 {
-    return app(SyncOrganizationAction::class)->execute($record);
+    return app(SyncOrganizationAction::class)->execute(SyncOrganizationData::from($record));
 }
 
 it('creates an ownerless organization from an external record, then updates it', function (): void {
@@ -82,28 +89,30 @@ it('applies the owner only when there is none', function (): void {
 it('lets an ownerless organization get an owner by transfer, and has no owner to protect', function (): void {
     $organization = sync(['source' => 'erp', 'external_id' => 'C-1', 'name' => 'Initech'])->organization;
     $member = user();
-    app(AddMemberAction::class)->execute($organization, ['user' => $member->getRouteKey()]);
+    app(AddMemberAction::class)->execute($organization, new AddMemberData(user: $member->getRouteKey()));
 
     app(RemoveMemberAction::class)->execute($organization, $member);
-    app(AddMemberAction::class)->execute($organization, ['user' => $member->getRouteKey()]);
-    app(TransferOwnershipAction::class)->execute($organization, ['user' => $member->getRouteKey()]);
+    app(AddMemberAction::class)->execute($organization, new AddMemberData(user: $member->getRouteKey()));
+    app(TransferOwnershipAction::class)->execute($organization, new TransferOwnershipData(user: $member->getRouteKey()));
 
     expect($organization->refresh()->isOwnedBy($member))->toBeTrue();
 });
 
 it('still requires an owner for personal organizations', function (): void {
-    app(CreateOrganizationAction::class)->execute(['name' => 'Mine'], personal: true);
+    app(CreateOrganizationAction::class)->execute(new CreateOrganizationData(name: 'Mine'), personal: true);
 })->throws(ValidationException::class, 'personal organization needs an owner');
 
 it('syncs a batch record by record', function (): void {
     organization(attributes: ['name' => 'Acme', 'domains' => ['acme.test']]);
 
-    $results = app(SyncOrganizationsAction::class)->execute(['records' => [
-        ['source' => 'erp', 'external_id' => 'C-1', 'name' => 'One'],
-        ['source' => 'erp', 'external_id' => 'C-2', 'name' => 'Two', 'domains' => ['acme.test']],
-        ['source' => 'erp', 'external_id' => 'C-1', 'name' => 'One'],
-        ['external_id' => 'C-3'],
-    ]]);
+    $results = app(SyncOrganizationsAction::class)->execute(new SyncOrganizationsData(
+        records: [
+            ['source' => 'erp', 'external_id' => 'C-1', 'name' => 'One'],
+            ['source' => 'erp', 'external_id' => 'C-2', 'name' => 'Two', 'domains' => ['acme.test']],
+            ['source' => 'erp', 'external_id' => 'C-1', 'name' => 'One'],
+            ['external_id' => 'C-3'],
+        ],
+    ));
 
     expect(array_column($results, 'outcome'))->toBe(['created', 'error', 'unchanged', 'error'])
         ->and($results[1]['errors'])->toHaveKey('domains.0')
@@ -115,12 +124,12 @@ it('links, relinks and unlinks by hand', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $globex = organization(attributes: ['name' => 'Globex']);
 
-    app(LinkOrganizationAction::class)->execute($acme, ['source' => 'erp', 'external_id' => 'C-1', 'account_number' => 'A-1']);
-    app(LinkOrganizationAction::class)->execute($acme, ['source' => 'erp', 'external_id' => 'C-2']);
+    app(LinkOrganizationAction::class)->execute($acme, new LinkOrganizationData(source: 'erp', externalId: 'C-1', accountNumber: 'A-1'));
+    app(LinkOrganizationAction::class)->execute($acme, new LinkOrganizationData(source: 'erp', externalId: 'C-2'));
 
     expect($acme->links()->sole()->only(['external_id', 'account_number']))->toBe(['external_id' => 'C-2', 'account_number' => 'A-1']);
 
-    expect(fn () => app(LinkOrganizationAction::class)->execute($globex, ['source' => 'erp', 'external_id' => 'C-2']))
+    expect(fn () => app(LinkOrganizationAction::class)->execute($globex, new LinkOrganizationData(source: 'erp', externalId: 'C-2')))
         ->toThrow(ValidationException::class, 'Another organization');
 
     app(UnlinkOrganizationAction::class)->execute($acme, 'erp');
@@ -133,7 +142,7 @@ it('finds organizations by their external records', function (): void {
     sync(['source' => 'erp', 'external_id' => 'C-2', 'name' => 'Two', 'account_number' => 'A-2']);
     sync(['source' => 'crm', 'external_id' => 'C-1', 'organization' => 'two']);
 
-    $find = fn (array $filters): array => app(ListOrganizationsAction::class)->execute($filters)->pluck('name')->all();
+    $find = fn (array $filters): array => app(ListOrganizationsAction::class)->execute(ListOrganizationsData::from($filters))->pluck('name')->all();
 
     expect($find(['account_number' => 'A-2']))->toBe(['Two'])
         ->and($find(['source' => 'erp', 'external_id' => 'C-1']))->toBe(['One'])

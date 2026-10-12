@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\Invitation\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
@@ -16,15 +17,22 @@ use SensitiveParameter;
  * Emails an invitation link. Sent to the invited address, which need not
  * belong to a registered user yet.
  */
-final class InvitationNotification extends Notification
+final class InvitationNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * Queued, and only once the surrounding transaction commits: a rolled-back
+     * change sends nothing, and a mail failure is retried by the queue rather
+     * than failing the request.
+     */
     public function __construct(
         public readonly InvitationModel $invitation,
         #[SensitiveParameter]
         public readonly string $token,
-    ) {}
+    ) {
+        $this->afterCommit();
+    }
 
     /**
      * @return array<int, string>

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 
 it('creates, shows, updates and deletes an organization', function (): void {
     $owner = user();
@@ -50,7 +51,7 @@ it('manages members and ownership', function (): void {
 it('manages teams and seats', function (): void {
     $organization = organization();
     $ada = user();
-    app(AddMemberAction::class)->execute($organization, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($organization, new AddMemberData(user: $ada->getRouteKey()));
 
     $this->postJson(route('roster.organizations.teams.store', $organization->slug), ['name' => 'Ops'])
         ->assertCreated()

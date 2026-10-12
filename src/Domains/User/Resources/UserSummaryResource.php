@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\User\Resources;
 
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -16,6 +18,18 @@ use RefactorCircus\Roster\Support\Users;
  */
 final class UserSummaryResource extends JsonResource
 {
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'id' => $schema->union(['integer', 'string'])->description('The user\'s route key.')->required(),
+            'name' => $schema->string()->nullable()->required(),
+            'email' => $schema->string()->nullable()->required(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

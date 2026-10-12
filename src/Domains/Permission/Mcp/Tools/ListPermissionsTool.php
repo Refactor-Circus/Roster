@@ -9,7 +9,9 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Roster\Domains\Permission\Data\ListPermissionsData;
 use RefactorCircus\Roster\Domains\Permission\Mcp\Requests\ListPermissionsMcpRequest;
+use RefactorCircus\Roster\Domains\Permission\Resources\PermissionResource;
 
 #[Description('List every permission name roles can grant, alphabetically. Paginated.')]
 final class ListPermissionsTool extends Tool
@@ -23,8 +25,11 @@ final class ListPermissionsTool extends Tool
     {
         return [
             'search' => $schema->string()->description('Matches part of the name.'),
-            'per_page' => $schema->integer()->description('Results per page, 1-100.')->min(1),
-            'page' => $schema->integer()->description('Page number, from 1.')->min(1),
-        ];
+        ] + ListPermissionsData::pagination()->schema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return PermissionResource::collectionSchema($schema);
     }
 }

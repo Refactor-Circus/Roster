@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\User\Resources;
 
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Roster;
@@ -22,6 +24,25 @@ use RefactorCircus\Roster\Support\Users;
  */
 final class UserResource extends JsonResource
 {
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'id' => $schema->union(['integer', 'string'])->description('The user\'s route key.')->required(),
+            'name' => $schema->string()->nullable()->required(),
+            'email' => $schema->string()->nullable()->required(),
+            'status' => $schema->string()->enum(array_column(UserStatus::cases(), 'value'))->required(),
+            'status_reason' => $schema->string()->nullable()->required(),
+            'status_changed_at' => $schema->string()->nullable()->required(),
+            'profile' => $schema->object(ProfileResource::schema($schema))->required(),
+            'current_organization' => $schema->string()->nullable()->description('Organization slug.')->required(),
+            'current_team' => $schema->string()->nullable()->description('Team slug.')->required(),
+            'created_at' => $schema->string()->nullable()->required(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

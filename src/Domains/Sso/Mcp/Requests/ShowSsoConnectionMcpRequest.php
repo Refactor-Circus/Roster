@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Sso\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Sso\Actions\ShowSsoConnectionAction;
+use RefactorCircus\Roster\Domains\Sso\Resources\SsoConnectionResource;
 
 final class ShowSsoConnectionMcpRequest extends SsoConnectionMcpRequest
 {
@@ -14,13 +15,8 @@ final class ShowSsoConnectionMcpRequest extends SsoConnectionMcpRequest
         return 'roster.sso.view';
     }
 
-    protected function rules(): array
-    {
-        return ShowSsoConnectionAction::rules() + ['connection' => ['required', 'string']];
-    }
-
     protected function handle(array $validated): ResponseFactory
     {
-        return $this->respondWithConnection(app(ShowSsoConnectionAction::class)->execute($this->connection()));
+        return (new SsoConnectionResource(app(ShowSsoConnectionAction::class)->execute($this->connection())))->toStructuredResponse();
     }
 }

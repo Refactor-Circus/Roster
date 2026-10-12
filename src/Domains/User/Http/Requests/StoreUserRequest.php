@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\User\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 use RefactorCircus\Roster\Http\Request;
 
@@ -18,12 +19,12 @@ final class StoreUserRequest extends Request
 
     public function rules(): array
     {
-        return CreateUserAction::rules();
+        return CreateUserData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $user = app(CreateUserAction::class)->execute($this->validated());
+        $user = app(CreateUserAction::class)->execute(CreateUserData::fromValidated($this->validated()));
 
         return (new UserResource($user))->response()->setStatusCode(201);
     }

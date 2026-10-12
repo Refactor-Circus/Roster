@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Team\Mcp\Requests;
 
-use Laravel\Mcp\Response;
-use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\OrganizationMcpRequest;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
-use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 
 abstract class TeamMcpRequest extends OrganizationMcpRequest
 {
@@ -33,8 +30,11 @@ abstract class TeamMcpRequest extends OrganizationMcpRequest
         return $this->organizationRules() + ['team' => ['required', 'string']];
     }
 
-    protected function respondWithTeam(TeamModel $team): ResponseFactory
+    /**
+     * Every team tool names its organization and team.
+     */
+    protected function rules(): array
     {
-        return Response::structured(['data' => (new TeamResource($team))->resolve()]);
+        return $this->teamRules();
     }
 }

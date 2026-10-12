@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\AddMemberMcpRequest;
+use RefactorCircus\Roster\Domains\Organization\Resources\MemberResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesOrganization;
 
 #[Description('Add an existing user to an organization.')]
@@ -27,5 +28,10 @@ final class AddMemberTool extends Tool
         return $this->organizationSchema($schema) + [
             'user' => $schema->string()->description('The user id to add.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return MemberResource::structuredSchema($schema);
     }
 }

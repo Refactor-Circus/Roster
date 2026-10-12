@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Scim\Mcp\Requests\RevokeScimTokenMcpRequest;
+use RefactorCircus\Roster\Domains\Scim\Resources\ScimTokenResource;
 
 #[Description('Revoke a SCIM token so it stops working immediately.')]
 final class RevokeScimTokenTool extends Tool
@@ -24,5 +25,10 @@ final class RevokeScimTokenTool extends Tool
         return [
             'token' => $schema->string()->description('The token id (not its value).')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return ScimTokenResource::structuredSchema($schema);
     }
 }

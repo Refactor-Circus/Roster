@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Transfer\Http\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartExportAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartExportData;
 use RefactorCircus\Roster\Domains\Transfer\Resources\TransferResource;
 
 final class StartExportRequest extends StartTransferRequest
@@ -18,12 +19,12 @@ final class StartExportRequest extends StartTransferRequest
 
     public function rules(): array
     {
-        return StartExportAction::rules();
+        return StartExportData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        return (new TransferResource(app(StartExportAction::class)->execute($this->validated(), $this->requester())))->response()->setStatusCode(202);
+        return (new TransferResource(app(StartExportAction::class)->execute(StartExportData::fromValidated($this->validated()), $this->requester())))->response()->setStatusCode(202);
     }
 
     private function requester(): Model

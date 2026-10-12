@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,11 +15,14 @@ use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Atrium\RedirectDomains;
 use RefactorCircus\Roster\Domains\Organization\Actions\JoinOrganizationsByDomainAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
+use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Permission\Actions\ListUserPermissionsAction;
 use RefactorCircus\Roster\Domains\Role\Actions\ListRoleAssignmentsAction;
+use RefactorCircus\Roster\Domains\Role\Data\ListRoleAssignmentsData;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Sso\Actions\ListSsoIdentitiesAction;
+use RefactorCircus\Roster\Domains\Sso\Data\ListSsoIdentitiesData;
 use RefactorCircus\Roster\Domains\User\Actions\ApproveUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\DeactivateUserAction;
@@ -32,6 +36,13 @@ use RefactorCircus\Roster\Domains\User\Actions\ShowUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Data\DeactivateUserData;
+use RefactorCircus\Roster\Domains\User\Data\ListUsersData;
+use RefactorCircus\Roster\Domains\User\Data\RejectUserData;
+use RefactorCircus\Roster\Domains\User\Data\SuspendUserData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Roster;
 use RefactorCircus\Roster\Support\Users;
@@ -51,7 +62,7 @@ final class UserUiController
     {
         $this->authorizeScreen('roster.users.view');
 
-        $filters = $request->validate(ListUsersAction::rules());
+        $filters = ListUsersData::from($request->query());
 
         /** @var view-string $view */
         $view = 'roster::ui.users.index';
@@ -81,7 +92,7 @@ final class UserUiController
 
         $this->dropBlankPassword($request);
 
-        $user = app(CreateUserAction::class)->execute($request->validate(CreateUserAction::rules()));
+        $user = app(CreateUserAction::class)->execute(CreateUserData::from($request->all()));
 
         return redirect()
             ->route('atrium.roster.users.show', $user->getRouteKey())
@@ -101,6 +112,7 @@ final class UserUiController
         }
 
         $model = app(ShowUserAction::class)->execute($target);
+        $memberships = MembershipModel::query()->where('user_id', $model->getKey())->whereHas('organization')->with(['organization', 'teams'])->get();
 
         /** @var view-string $view */
         $view = 'roster::ui.users.show';
@@ -110,13 +122,20 @@ final class UserUiController
             'profile' => $model->getRelation('rosterProfile'),
             'status' => $this->users->status($model),
             'directory' => $this->users,
-            'memberships' => MembershipModel::query()->where('user_id', $model->getKey())->whereHas('organization')->with(['organization', 'teams'])->get(),
+            'memberships' => $memberships,
             'currentOrganization' => app(Roster::class)->organization($model),
             'currentTeam' => app(Roster::class)->team($model),
-            'assignments' => app(ListRoleAssignmentsAction::class)->execute(['user' => $model, 'per_page' => 100]),
+            'assignments' => app(ListRoleAssignmentsAction::class)->execute(new ListRoleAssignmentsData(user: $model, perPage: 100)),
             'effective' => app(ListUserPermissionsAction::class)->execute($model),
-            'assignableRoles' => RoleModel::query()->with('organization')->orderBy('scope')->orderBy('name')->get(),
-            'ssoIdentities' => app(ListSsoIdentitiesAction::class)->execute(['user' => $model, 'per_page' => 50]),
+            // Shared roles, and the custom roles of this user's organizations:
+            // another organization's own roles can't be assigned to them.
+            'assignableRoles' => RoleModel::query()
+                ->where(fn (Builder $query): Builder => $query->whereNull('organization_id')->orWhereIn('organization_id', $memberships->pluck('organization_id')->all()))
+                ->with('organization')
+                ->orderBy('scope')
+                ->orderBy('name')
+                ->get(),
+            'ssoIdentities' => app(ListSsoIdentitiesAction::class)->execute(new ListSsoIdentitiesData(user: $model, perPage: 50)),
             // The user's MCP redirect domains, while Cortex keeps them.
             'redirectDomains' => RedirectDomains::available() ? app(ListRedirectDomainsAction::class)->execute($model) : null,
         ]);
@@ -129,7 +148,7 @@ final class UserUiController
 
         $this->dropBlankPassword($request);
 
-        app(UpdateUserAction::class)->execute($model, $request->validate(UpdateUserAction::rules($model)));
+        app(UpdateUserAction::class)->execute($model, UpdateUserData::from($request->all(), $model));
 
         return $this->backTo($model, 'roster::roster.user_updated');
     }
@@ -139,7 +158,7 @@ final class UserUiController
         $model = $this->users->findOrFail($user);
         $this->authorizeScreen('roster.users.update', null, $model);
 
-        app(UpdateProfileAction::class)->execute($model, $request->validate(UpdateProfileAction::rules()));
+        app(UpdateProfileAction::class)->execute($model, UpdateProfileData::from($request->all()));
 
         return $this->backTo($model, 'roster::roster.profile_updated');
     }
@@ -165,7 +184,7 @@ final class UserUiController
         $model = $this->users->findOrFail($user);
         $this->authorizeScreen('roster.users.approve');
 
-        app(ApproveUserAction::class)->execute($model, $request->validate(ApproveUserAction::rules()), $this->actor($request));
+        app(ApproveUserAction::class)->execute($model, $this->actor($request));
 
         // Back to wherever it was clicked: the user's page, the Users list
         // or an organization's members.
@@ -178,7 +197,7 @@ final class UserUiController
         $model = $this->users->findOrFail($user);
         $this->authorizeScreen('roster.users.approve');
 
-        app(RejectUserAction::class)->execute($model, $request->validate(RejectUserAction::rules()), $this->actor($request));
+        app(RejectUserAction::class)->execute($model, RejectUserData::from($request->all()), $this->actor($request));
 
         return $this->backTo($model, 'roster::roster.user_rejected');
     }
@@ -188,7 +207,7 @@ final class UserUiController
         $model = $this->users->findOrFail($user);
         $this->authorizeScreen('roster.users.manage-status');
 
-        app(SuspendUserAction::class)->execute($model, $request->validate(SuspendUserAction::rules()), $this->actor($request));
+        app(SuspendUserAction::class)->execute($model, SuspendUserData::from($request->all()), $this->actor($request));
 
         return $this->backTo($model, 'roster::roster.user_suspended');
     }
@@ -198,7 +217,7 @@ final class UserUiController
         $model = $this->users->findOrFail($user);
         $this->authorizeScreen('roster.users.manage-status');
 
-        app(DeactivateUserAction::class)->execute($model, $request->validate(DeactivateUserAction::rules()), $this->actor($request));
+        app(DeactivateUserAction::class)->execute($model, DeactivateUserData::from($request->all()), $this->actor($request));
 
         return $this->backTo($model, 'roster::roster.user_deactivated');
     }
@@ -208,7 +227,7 @@ final class UserUiController
         $model = $this->users->findOrFail($user);
         $this->authorizeScreen('roster.users.manage-status');
 
-        app(ReactivateUserAction::class)->execute($model, $request->validate(ReactivateUserAction::rules()), $this->actor($request));
+        app(ReactivateUserAction::class)->execute($model, $this->actor($request));
 
         return $this->backTo($model, 'roster::roster.user_reactivated');
     }
@@ -218,7 +237,7 @@ final class UserUiController
         $model = $this->users->findOrFail($user);
         $this->authorizeScreen('roster.users.update', null, $model);
 
-        app(SwitchContextAction::class)->execute($model, $request->validate(SwitchContextAction::rules()));
+        app(SwitchContextAction::class)->execute($model, SwitchContextData::from($request->all()));
 
         return $this->backTo($model, 'roster::roster.context_switched');
     }
@@ -274,13 +293,6 @@ final class UserUiController
         return redirect()
             ->route('atrium.roster.users.show', $user->getRouteKey())
             ->with('status', __($message));
-    }
-
-    private function actor(Request $request): ?Model
-    {
-        $user = $request->user();
-
-        return $user instanceof Model ? $user : null;
     }
 
     /**

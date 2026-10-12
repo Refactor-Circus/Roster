@@ -16,6 +16,7 @@ use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Roster;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -51,7 +52,7 @@ trait HasRoster
      */
     public function rosterOrganizations(): BelongsToMany
     {
-        return $this->belongsToMany(OrganizationModel::class, 'roster_memberships', 'user_id', 'organization_id')->withTimestamps();
+        return $this->belongsToMany(OrganizationModel::class, Tables::name('memberships'), 'user_id', 'organization_id')->withTimestamps();
     }
 
     /**

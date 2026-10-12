@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Scim\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\OrganizationMcpRequest;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Scim\Actions\CreateScimTokenAction;
+use RefactorCircus\Roster\Domains\Scim\Data\CreateScimTokenData;
 use RefactorCircus\Roster\Domains\Scim\Resources\ScimTokenResource;
 
 final class CreateScimTokenMcpRequest extends OrganizationMcpRequest
@@ -18,20 +17,15 @@ final class CreateScimTokenMcpRequest extends OrganizationMcpRequest
         return 'roster.scim.manage';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return CreateScimTokenAction::rules() + $this->organizationRules();
+        return $this->organizationRules() + CreateScimTokenData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $issued = app(CreateScimTokenAction::class)->execute($this->organization(), $this->without($validated, 'organization'), $this->actor());
+        $issued = app(CreateScimTokenAction::class)->execute($this->organization(), CreateScimTokenData::fromValidated($validated), $this->actor());
 
-        return Response::structured(['data' => (new ScimTokenResource($issued->token))->resolve(), 'token' => $issued->plain]);
+        return (new ScimTokenResource($issued->token))->additional(['token' => $issued->plain])->toStructuredResponse();
     }
 }

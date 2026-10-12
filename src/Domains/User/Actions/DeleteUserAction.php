@@ -19,14 +19,6 @@ use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 final class DeleteUserAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Delete a user. A model using SoftDeletes keeps its profile, memberships
      * and personal organization so a restore brings it all back; a hard
      * delete removes them too. Owners of shared organizations must transfer

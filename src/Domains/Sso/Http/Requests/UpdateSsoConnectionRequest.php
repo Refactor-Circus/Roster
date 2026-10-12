@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Sso\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Sso\Actions\UpdateSsoConnectionAction;
+use RefactorCircus\Roster\Domains\Sso\Data\UpdateSsoConnectionData;
 use RefactorCircus\Roster\Domains\Sso\Resources\SsoConnectionResource;
 
 final class UpdateSsoConnectionRequest extends SsoConnectionRequest
@@ -17,11 +18,11 @@ final class UpdateSsoConnectionRequest extends SsoConnectionRequest
 
     public function rules(): array
     {
-        return UpdateSsoConnectionAction::rules($this->connection());
+        return UpdateSsoConnectionData::rules($this->connection());
     }
 
     public function persist(): JsonResponse
     {
-        return (new SsoConnectionResource(app(UpdateSsoConnectionAction::class)->execute($this->connection(), $this->validated())))->response();
+        return (new SsoConnectionResource(app(UpdateSsoConnectionAction::class)->execute($this->connection(), UpdateSsoConnectionData::fromValidated($this->validated()))))->response();
     }
 }

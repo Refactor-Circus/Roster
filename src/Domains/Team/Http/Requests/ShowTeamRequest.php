@@ -21,11 +21,6 @@ final class ShowTeamRequest extends TeamRequest
         return $this->team();
     }
 
-    public function rules(): array
-    {
-        return ShowTeamAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return (new TeamResource(app(ShowTeamAction::class)->execute($this->team())))->response();

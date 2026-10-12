@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Transfers\Flows\Actions;
 
+use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferStatus;
 use RefactorCircus\Roster\Domains\Transfer\Events\TransferFinishedActionEvent;
+use RefactorCircus\Roster\Domains\Transfer\Events\TransferFinishingActionEvent;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\PlanCache;
 
@@ -22,10 +24,12 @@ final class CloseTransfer
         $model = TransferModel::query()->findOrFail($transfer);
 
         if (! $model->status->isFinished()) {
-            $model->update([
+            TransferFinishingActionEvent::dispatch($model);
+
+            DB::transaction(fn (): bool => $model->update([
                 'status' => $reason === 'expired' ? TransferStatus::Expired : TransferStatus::Cancelled,
                 'finished_at' => now(),
-            ]);
+            ]));
 
             app(PlanCache::class)->forget($model->id);
             TransferFinishedActionEvent::dispatch($model->refresh());

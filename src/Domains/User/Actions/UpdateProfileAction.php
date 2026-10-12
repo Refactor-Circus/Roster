@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\User\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Domains\User\Concerns\ProfileRules;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 use RefactorCircus\Roster\Domains\User\Events\ProfileUpdatedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\ProfileUpdatingActionEvent;
 use RefactorCircus\Roster\Support\Users;
@@ -17,18 +18,7 @@ final class UpdateProfileAction
 
     public function __construct(private readonly Users $users) {}
 
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return self::profileRules();
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function execute(Model $user, array $data): Model
+    public function execute(Model $user, UpdateProfileData $data): Model
     {
         ProfileUpdatingActionEvent::dispatch($user, $data);
 

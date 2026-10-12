@@ -33,7 +33,7 @@ final class RevokeRoleMcpRequest extends UserMcpRequest
 
     protected function rules(): array
     {
-        return RevokeRoleAction::rules() + $this->userRules() + ['assignment' => ['required', 'string']];
+        return $this->userRules() + ['assignment' => ['required', 'string']];
     }
 
     protected function handle(array $validated): Response

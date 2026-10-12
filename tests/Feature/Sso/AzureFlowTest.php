@@ -11,6 +11,7 @@ use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Sso\Actions\CreateSsoConnectionAction;
+use RefactorCircus\Roster\Domains\Sso\Data\CreateSsoConnectionData;
 
 beforeEach(function (): void {
     $this->connection = acmeWithSso(protocol: 'azure');
@@ -51,7 +52,7 @@ it('trusts the userPrincipalName, never the mail attribute', function (): void {
 });
 
 it('refuses multi-tenant authorities', function (string $tenant): void {
-    app(CreateSsoConnectionAction::class)->execute($this->connection->organization, validator([
+    app(CreateSsoConnectionAction::class)->execute($this->connection->organization, CreateSsoConnectionData::from([
         'name' => 'Entra', 'protocol' => 'azure', 'tenant' => $tenant, 'client_id' => 'x', 'client_secret' => 'y',
-    ], CreateSsoConnectionAction::rules())->validate());
+    ]));
 })->with(['common', 'organizations', 'consumers'])->throws(ValidationException::class);

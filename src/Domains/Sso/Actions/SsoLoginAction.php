@@ -19,6 +19,7 @@ use RefactorCircus\Roster\Domains\Sso\Exceptions\SsoLoginRefused;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Support\Users;
 
@@ -33,14 +34,6 @@ final class SsoLoginAction
     public const string BY_JIT = 'jit';
 
     public function __construct(private readonly Users $users) {}
-
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
 
     /**
      * Find, link or create the account an identity provider vouched for.
@@ -141,12 +134,12 @@ final class SsoLoginAction
         /** @var OrganizationModel $organization */
         $organization = $connection->organization;
 
-        $user = app(CreateUserAction::class)->execute([
-            'name' => $claims->name ?? Str::before($email, '@'),
-            'email' => $email,
+        $user = app(CreateUserAction::class)->execute(new CreateUserData(
+            email: $email,
+            name: $claims->name ?? Str::before($email, '@'),
             // The organization decides whether its new accounts need approval.
-            'status' => $organization->provisioned_status,
-        ]);
+            status: UserStatus::from($organization->provisioned_status),
+        ));
 
         // The identity provider is authoritative for this domain, so the
         // address counts as verified (where the users table tracks that).

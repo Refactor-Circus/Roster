@@ -11,8 +11,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\SsoConnectionFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * An organization's identity provider: OIDC, SAML or Microsoft Entra ID.
@@ -36,6 +38,8 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
  */
 final class SsoConnectionModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<SsoConnectionFactory> */
     use HasFactory;
 
@@ -50,8 +54,6 @@ final class SsoConnectionModel extends Model
     /** @var array<int, string> */
     public const array PROTOCOLS = [self::OIDC, self::SAML, self::AZURE];
 
-    protected $table = 'roster_sso_connections';
-
     protected $fillable = ['organization_id', 'name', 'slug', 'protocol', 'config', 'jit', 'enforced', 'enabled'];
 
     protected $hidden = ['config'];
@@ -61,6 +63,11 @@ final class SsoConnectionModel extends Model
         'enforced' => false,
         'enabled' => true,
     ];
+
+    public function getTable(): string
+    {
+        return Tables::name('sso_connections');
+    }
 
     public function getRouteKeyName(): string
     {

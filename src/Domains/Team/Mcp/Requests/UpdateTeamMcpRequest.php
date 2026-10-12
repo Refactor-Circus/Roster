@@ -6,7 +6,9 @@ namespace RefactorCircus\Roster\Domains\Team\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Team\Actions\UpdateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\UpdateTeamData;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 
 final class UpdateTeamMcpRequest extends TeamMcpRequest
 {
@@ -22,13 +24,11 @@ final class UpdateTeamMcpRequest extends TeamMcpRequest
 
     protected function rules(): array
     {
-        return UpdateTeamAction::rules($this->team()) + $this->teamRules();
+        return $this->teamRules() + UpdateTeamData::rules($this->team());
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $data = $this->without($validated, 'organization', 'team');
-
-        return $this->respondWithTeam(app(UpdateTeamAction::class)->execute($this->team(), $data));
+        return (new TeamResource(app(UpdateTeamAction::class)->execute($this->team(), UpdateTeamData::fromValidated($validated))))->toStructuredResponse();
     }
 }

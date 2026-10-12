@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\UpdateProfileMcpRequest;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesProfilePayload;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesUser;
 
@@ -27,5 +28,10 @@ final class UpdateProfileTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return $this->userSchema($schema) + $this->profileSchema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return UserResource::structuredSchema($schema);
     }
 }

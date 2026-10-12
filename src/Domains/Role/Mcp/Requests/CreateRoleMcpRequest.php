@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Role\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Actions\CreateRoleAction;
+use RefactorCircus\Roster\Domains\Role\Data\CreateRoleData;
 use RefactorCircus\Roster\Domains\Role\Resources\RoleResource;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\Request;
@@ -27,11 +27,11 @@ final class CreateRoleMcpRequest extends Request
 
     protected function rules(): array
     {
-        return CreateRoleAction::rules();
+        return CreateRoleData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        return Response::structured(['data' => (new RoleResource(app(CreateRoleAction::class)->execute($validated, $this->actor())))->resolve()]);
+        return (new RoleResource(app(CreateRoleAction::class)->execute(CreateRoleData::fromValidated($validated), $this->actor())))->toStructuredResponse();
     }
 }

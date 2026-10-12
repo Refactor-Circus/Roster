@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Permission\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\Permission\Data\UpdatePermissionData;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 
 /**
@@ -19,7 +20,6 @@ final class PermissionUpdatingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public PermissionModel $permission,
-        /** @var array<string, mixed> */
-        public array $data,
+        public UpdatePermissionData $data,
     ) {}
 }

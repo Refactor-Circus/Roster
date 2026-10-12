@@ -6,8 +6,7 @@ namespace RefactorCircus\Roster\Domains\Role\Actions;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Validation\Rule;
-use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
+use RefactorCircus\Roster\Domains\Role\Data\ListRolesData;
 use RefactorCircus\Roster\Domains\Role\Events\RolesListedActionEvent;
 use RefactorCircus\Roster\Domains\Role\Events\RolesListingActionEvent;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
@@ -18,32 +17,18 @@ final class ListRolesAction
     use ResolvesScopes;
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'scope' => ['sometimes', 'nullable', Rule::enum(RoleScope::class)],
-            'organization' => ['sometimes', 'nullable', 'string'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-        ];
-    }
-
-    /**
      * Roles by scope and name. With `organization`, the roles usable in that
      * organization: the shared ones plus its own. Without, the shared ones.
      *
-     * @param  array<string, mixed>  $filters
      * @param  array<int, int|string>|null  $organizations  Only these organizations; null for no limit.
      * @return LengthAwarePaginator<int, RoleModel>
      */
-    public function execute(array $filters = [], ?array $organizations = null): LengthAwarePaginator
+    public function execute(ListRolesData $filters = new ListRolesData, ?array $organizations = null): LengthAwarePaginator
     {
         RolesListingActionEvent::dispatch($filters);
 
-        $organization = $this->organizationFrom($filters['organization'] ?? null);
-        $scope = isset($filters['scope']) ? RoleScope::tryFrom((string) $filters['scope']) : null;
+        $organization = $this->organizationFrom($filters->organization);
+        $scope = $filters->scope;
 
         $query = RoleModel::query()
             ->with(['permissions', 'organization'])
@@ -59,10 +44,7 @@ final class ListRolesAction
             $query->where('scope', $scope);
         }
 
-        $perPage = is_numeric($filters['per_page'] ?? null) ? (int) $filters['per_page'] : 50;
-        $page = is_numeric($filters['page'] ?? null) ? (int) $filters['page'] : null;
-
-        $roles = $query->orderBy('scope')->orderBy('name')->orderBy('id')->paginate($perPage, ['*'], 'page', $page);
+        $roles = $query->orderBy('scope')->orderBy('name')->orderBy('id')->paginate($filters->perPage, ['*'], 'page', $filters->page);
 
         RolesListedActionEvent::dispatch($filters);
 

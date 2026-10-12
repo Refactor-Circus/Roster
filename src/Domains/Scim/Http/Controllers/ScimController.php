@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Scim\Http\Controllers;
 
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -53,7 +54,7 @@ final class ScimController
     public function replaceUser(Request $request, string $organization, string $id): JsonResponse
     {
         $user = $this->users->find($id);
-        $this->checkVersion($request, $this->mapper->user($user));
+        $this->checkVersion($request, fn (): array => $this->mapper->user($user));
 
         return $this->respond($this->mapper->user($this->users->replace($user, $this->body($request))));
     }
@@ -61,7 +62,7 @@ final class ScimController
     public function patchUser(Request $request, string $organization, string $id): JsonResponse
     {
         $user = $this->users->find($id);
-        $this->checkVersion($request, $this->mapper->user($user));
+        $this->checkVersion($request, fn (): array => $this->mapper->user($user));
 
         return $this->respond($this->mapper->user($this->users->patch($user, $this->operations($request))));
     }
@@ -69,7 +70,7 @@ final class ScimController
     public function deleteUser(Request $request, string $organization, string $id): Response
     {
         $user = $this->users->find($id);
-        $this->checkVersion($request, $this->mapper->user($user));
+        $this->checkVersion($request, fn (): array => $this->mapper->user($user));
         $this->users->delete($user);
 
         return response()->noContent();
@@ -96,7 +97,7 @@ final class ScimController
     public function replaceGroup(Request $request, string $organization, string $id): JsonResponse
     {
         $group = $this->groups->find($id);
-        $this->checkVersion($request, $this->mapper->group($group));
+        $this->checkVersion($request, fn (): array => $this->mapper->group($group));
 
         return $this->respond($this->mapper->group($this->groups->replace($group, $this->body($request))));
     }
@@ -104,7 +105,7 @@ final class ScimController
     public function patchGroup(Request $request, string $organization, string $id): JsonResponse
     {
         $group = $this->groups->find($id);
-        $this->checkVersion($request, $this->mapper->group($group));
+        $this->checkVersion($request, fn (): array => $this->mapper->group($group));
 
         return $this->respond($this->mapper->group($this->groups->patch($group, $this->operations($request))));
     }
@@ -112,7 +113,7 @@ final class ScimController
     public function deleteGroup(Request $request, string $organization, string $id): Response
     {
         $group = $this->groups->find($id);
-        $this->checkVersion($request, $this->mapper->group($group));
+        $this->checkVersion($request, fn (): array => $this->mapper->group($group));
         $this->groups->delete($group);
 
         return response()->noContent();
@@ -170,11 +171,18 @@ final class ScimController
     /**
      * @param  array<string, mixed>  $current
      */
-    private function checkVersion(Request $request, array $current): void
+    /**
+     * Refuse a write whose If-Match names another version. The resource is
+     * only built when the header is there: most clients never send it, and
+     * building a group reads all its members.
+     *
+     * @param  Closure(): array<string, mixed>  $current
+     */
+    private function checkVersion(Request $request, Closure $current): void
     {
         $ifMatch = $request->header('If-Match');
 
-        if ($ifMatch !== null && ! Scim::matches($ifMatch, (string) $current['meta']['version'])) {
+        if ($ifMatch !== null && ! Scim::matches($ifMatch, (string) $current()['meta']['version'])) {
             throw ScimException::preconditionFailed();
         }
     }

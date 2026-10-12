@@ -20,14 +20,6 @@ final class RevokeRoleAction
     use GuardsEscalation;
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Take a role away. Like granting, revoking needs the actor to hold the
      * role's permissions in that scope - no one can strip a super-admin.
      */
@@ -48,7 +40,8 @@ final class RevokeRoleAction
 
         DB::transaction(fn () => $assignment->delete());
 
-        app(Permissions::class)->flush();
+        $user = $assignment->getAttribute('user_id');
+        is_int($user) || is_string($user) ? app(Permissions::class)->flushUser($user) : app(Permissions::class)->flush();
 
         RoleRevokedActionEvent::dispatch($assignment);
     }

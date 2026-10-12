@@ -5,20 +5,24 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ConfirmImportAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartExportAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartImportAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartExportData;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartImportData;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferStatus;
+use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use Workbench\App\Models\User;
 
 beforeEach(function (): void {
     $this->acme = organization(user(), ['name' => 'Acme', 'domains' => ['acme.test']]);
     $this->admin = user();
-    app(AddMemberAction::class)->execute($this->acme, ['user' => $this->admin->getRouteKey()]);
+    app(AddMemberAction::class)->execute($this->acme, new AddMemberData(user: $this->admin->getRouteKey()));
     grant($this->admin, 'admin', $this->acme);
 });
 
@@ -41,10 +45,10 @@ it('refuses roles the importer cannot assign', function (): void {
     $custom = RoleModel::factory()->create(['scope' => 'organization', 'slug' => 'auditor']);
     $custom->permissions()->sync(PermissionModel::query()->where('name', 'roster.audit.view')->pluck('id'));
     $lead = user();
-    app(AddMemberAction::class)->execute($this->acme, ['user' => $lead->getRouteKey()]);
+    app(AddMemberAction::class)->execute($this->acme, new AddMemberData(user: $lead->getRouteKey()));
     RoleAssignmentModel::query()->create(['role_id' => roleWith(['roster.members.manage', 'roster.members.view'], 'organization')->id, 'user_id' => $lead->getKey(), 'organization_id' => $this->acme->id]);
 
-    $transfer = app(StartImportAction::class)->execute(['type' => 'import_members', 'organization' => 'acme', 'content' => "email,role\nnew@acme.test,auditor"], $lead);
+    $transfer = app(StartImportAction::class)->execute(new StartImportData(type: TransferType::ImportMembers, organization: 'acme', content: "email,role\nnew@acme.test,auditor"), $lead);
 
     expect($transfer->rows()[0]['action'])->toBe('error')
         ->and($transfer->rows()[0]['reasons'][0])->toContain('cannot assign the auditor role');
@@ -52,16 +56,16 @@ it('refuses roles the importer cannot assign', function (): void {
 
 it('turns rows outside the organization\'s domains into errors without invitation rights', function (): void {
     $manager = user();
-    app(AddMemberAction::class)->execute($this->acme, ['user' => $manager->getRouteKey()]);
+    app(AddMemberAction::class)->execute($this->acme, new AddMemberData(user: $manager->getRouteKey()));
     RoleAssignmentModel::query()->create(['role_id' => roleWith(['roster.members.manage'], 'organization')->id, 'user_id' => $manager->getKey(), 'organization_id' => $this->acme->id]);
 
-    $transfer = app(StartImportAction::class)->execute(['type' => 'import_members', 'organization' => 'acme', 'content' => "email\nfriend@example.com"], $manager);
+    $transfer = app(StartImportAction::class)->execute(new StartImportData(type: TransferType::ImportMembers, organization: 'acme', content: "email\nfriend@example.com"), $manager);
 
     expect($transfer->rows()[0]['action'])->toBe('error');
 });
 
 it('checks the confirmer\'s permission again at confirm', function (): void {
-    $transfer = app(StartImportAction::class)->execute(['type' => 'import_members', 'organization' => 'acme', 'content' => "email\nnew@acme.test"], $this->admin);
+    $transfer = app(StartImportAction::class)->execute(new StartImportData(type: TransferType::ImportMembers, organization: 'acme', content: "email\nnew@acme.test"), $this->admin);
 
     RoleAssignmentModel::query()->where('user_id', $this->admin->getKey())->delete();
 
@@ -71,7 +75,7 @@ it('checks the confirmer\'s permission again at confirm', function (): void {
 });
 
 it('lets the requester follow and download their own export, and nobody else without permission', function (): void {
-    $transfer = app(StartExportAction::class)->execute(['type' => 'export_members', 'organization' => 'acme'], $this->admin);
+    $transfer = app(StartExportAction::class)->execute(new StartExportData(type: TransferType::ExportMembers, organization: 'acme'), $this->admin);
 
     $this->actingAs($this->admin)->getJson(route('roster.transfers.show', $transfer->id))
         ->assertOk()
@@ -84,7 +88,7 @@ it('lets the requester follow and download their own export, and nobody else wit
 });
 
 it('hands MCP a short-lived signed download link', function (): void {
-    $transfer = app(StartExportAction::class)->execute(['type' => 'export_users'], $this->admin);
+    $transfer = app(StartExportAction::class)->execute(new StartExportData(type: TransferType::ExportUsers), $this->admin);
     $this->actingAs($this->admin);
 
     $url = URL::temporarySignedRoute('roster.transfers.file', now()->addMinutes(15), ['transfer' => $transfer->id]);

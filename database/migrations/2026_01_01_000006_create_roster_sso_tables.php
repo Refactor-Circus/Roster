@@ -5,15 +5,16 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\UserKey;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('roster_sso_connections', function (Blueprint $table): void {
+        Schema::create(Tables::name('sso_connections'), function (Blueprint $table): void {
             $table->ulid('id')->primary();
-            $table->foreignUlid('organization_id')->constrained('roster_organizations')->cascadeOnDelete();
+            $table->foreignUlid('organization_id')->constrained(Tables::name('organizations'))->cascadeOnDelete();
             $table->string('name');
             $table->string('slug')->unique();
             $table->string('protocol', 8);
@@ -25,9 +26,9 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('roster_sso_identities', function (Blueprint $table): void {
+        Schema::create(Tables::name('sso_identities'), function (Blueprint $table): void {
             $table->ulid('id')->primary();
-            $table->foreignUlid('connection_id')->constrained('roster_sso_connections')->cascadeOnDelete();
+            $table->foreignUlid('connection_id')->constrained(Tables::name('sso_connections'))->cascadeOnDelete();
             UserKey::column($table, 'user_id')->index();
             $table->string('subject');
             $table->string('email')->nullable();
@@ -40,7 +41,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('roster_sso_identities');
-        Schema::dropIfExists('roster_sso_connections');
+        Schema::dropIfExists(Tables::name('sso_identities'));
+        Schema::dropIfExists(Tables::name('sso_connections'));
     }
 };

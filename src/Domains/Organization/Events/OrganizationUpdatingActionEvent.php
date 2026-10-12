@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\Organization\Data\UpdateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 
 /**
@@ -19,7 +20,6 @@ final class OrganizationUpdatingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public OrganizationModel $organization,
-        /** @var array<string, mixed> */
-        public array $data,
+        public UpdateOrganizationData $data,
     ) {}
 }

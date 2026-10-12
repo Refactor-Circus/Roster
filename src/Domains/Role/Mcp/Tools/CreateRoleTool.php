@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Role\Mcp\Requests\CreateRoleMcpRequest;
+use RefactorCircus\Roster\Domains\Role\Resources\RoleResource;
 
 #[Description('Create a role. scope is global, organization or team. Give organization to make it that organization\'s own; omit to share it with every organization. You can only grant permissions you hold.')]
 final class CreateRoleTool extends Tool
@@ -29,5 +30,10 @@ final class CreateRoleTool extends Tool
             'description' => $schema->string()->description('What the role is for.'),
             'permissions' => $schema->array()->items($schema->string())->description('Permission names to grant.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return RoleResource::structuredSchema($schema);
     }
 }

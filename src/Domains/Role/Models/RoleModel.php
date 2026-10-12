@@ -11,10 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\RoleFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * A bundle of permissions, assigned globally, per organization or per team.
@@ -35,12 +37,12 @@ use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
  */
 final class RoleModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<RoleFactory> */
     use HasFactory;
 
     use HasUlids;
-
-    protected $table = 'roster_roles';
 
     protected $fillable = ['name', 'slug', 'scope', 'organization_id', 'description', 'super', 'system'];
 
@@ -49,12 +51,17 @@ final class RoleModel extends Model
         'system' => false,
     ];
 
+    public function getTable(): string
+    {
+        return Tables::name('roles');
+    }
+
     /**
      * @return BelongsToMany<PermissionModel, $this>
      */
     public function permissions(): BelongsToMany
     {
-        return $this->belongsToMany(PermissionModel::class, 'roster_permission_role', 'role_id', 'permission_id');
+        return $this->belongsToMany(PermissionModel::class, Tables::name('permission_role'), 'role_id', 'permission_id');
     }
 
     /**

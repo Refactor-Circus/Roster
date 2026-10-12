@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Role\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
+use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
 use RefactorCircus\Roster\Domains\Role\Resources\RoleAssignmentResource;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\UserMcpRequest;
@@ -27,15 +27,13 @@ final class AssignRoleMcpRequest extends UserMcpRequest
 
     protected function rules(): array
     {
-        return AssignRoleAction::rules() + $this->userRules();
+        return $this->userRules() + AssignRoleData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['user']);
+        $assignment = app(AssignRoleAction::class)->execute($this->targetUser(), AssignRoleData::fromValidated($validated), $this->actor());
 
-        $assignment = app(AssignRoleAction::class)->execute($this->targetUser(), $validated, $this->actor());
-
-        return Response::structured(['data' => (new RoleAssignmentResource($assignment))->resolve()]);
+        return (new RoleAssignmentResource($assignment))->toStructuredResponse();
     }
 }

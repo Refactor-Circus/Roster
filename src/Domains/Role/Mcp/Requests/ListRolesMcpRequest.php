@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Role\Mcp\Requests;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Actions\ListRolesAction;
+use RefactorCircus\Roster\Domains\Role\Data\ListRolesData;
 use RefactorCircus\Roster\Domains\Role\Resources\RoleResource;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\Request;
@@ -31,20 +32,13 @@ final class ListRolesMcpRequest extends Request
 
     protected function rules(): array
     {
-        return ListRolesAction::rules();
+        return ListRolesData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $roles = app(ListRolesAction::class)->execute($validated, $this->organizations());
+        $roles = app(ListRolesAction::class)->execute(ListRolesData::fromValidated($validated), $this->organizations());
 
-        return $this->structuredCollection(RoleResource::collection($roles->items())->resolve(), [
-            'meta' => [
-                'current_page' => $roles->currentPage(),
-                'last_page' => $roles->lastPage(),
-                'per_page' => $roles->perPage(),
-                'total' => $roles->total(),
-            ],
-        ]);
+        return RoleResource::collection($roles)->toStructuredResponse();
     }
 }

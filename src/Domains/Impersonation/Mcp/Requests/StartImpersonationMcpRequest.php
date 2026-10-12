@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Impersonation\Mcp\Requests;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Resources\ImpersonationResource;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
@@ -25,14 +26,14 @@ final class StartImpersonationMcpRequest extends UserMcpRequest
         return Scopes::fromInput($this->get('organization'));
     }
 
-    protected function authorize(): bool
+    public function authorize(): bool
     {
         return $this->actor() !== null && parent::authorize();
     }
 
     protected function rules(): array
     {
-        return StartImpersonationAction::rules() + $this->userRules();
+        return $this->userRules() + StartImpersonationData::rules();
     }
 
     protected function handle(array $validated): Response|ResponseFactory
@@ -43,12 +44,8 @@ final class StartImpersonationMcpRequest extends UserMcpRequest
             return Response::error('Unauthorized.');
         }
 
-        unset($validated['user']);
-        $started = app(StartImpersonationAction::class)->execute($this->targetUser(), $validated, $actor);
+        $started = app(StartImpersonationAction::class)->execute($this->targetUser(), StartImpersonationData::fromValidated($validated), $actor);
 
-        return Response::structured([
-            'data' => (new ImpersonationResource($started->impersonation))->resolve(),
-            'url' => $started->url,
-        ]);
+        return (new ImpersonationResource($started->impersonation))->additional(['url' => $started->url])->toStructuredResponse();
     }
 }

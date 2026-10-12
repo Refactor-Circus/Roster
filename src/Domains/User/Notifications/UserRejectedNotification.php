@@ -5,17 +5,26 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\User\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 /**
  * Tells someone their account wasn't approved, with the reason when given.
  */
-final class UserRejectedNotification extends Notification
+final class UserRejectedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public readonly ?string $reason = null) {}
+    /**
+     * Queued, and only once the surrounding transaction commits: a rolled-back
+     * change sends nothing, and a mail failure is retried by the queue rather
+     * than failing the request.
+     */
+    public function __construct(public readonly ?string $reason = null)
+    {
+        $this->afterCommit();
+    }
 
     /**
      * @return array<int, string>

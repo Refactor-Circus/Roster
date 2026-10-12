@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Scim\Resources;
 
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\Facades\Route;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
 use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
 
 /**
@@ -16,6 +18,25 @@ use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
  */
 final class ScimTokenResource extends JsonResource
 {
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'id' => $schema->string()->required(),
+            'name' => $schema->string()->required(),
+            'organization' => $schema->string()->nullable()->required(),
+            'sso_connection' => $schema->string()->nullable()->required(),
+            'base_url' => $schema->string()->nullable()->description('The SCIM base URL to give the identity provider.')->required(),
+            'usable' => $schema->boolean()->required(),
+            'last_used_at' => $schema->string()->nullable()->required(),
+            'expires_at' => $schema->string()->nullable()->required(),
+            'revoked_at' => $schema->string()->nullable()->required(),
+            'created_at' => $schema->string()->nullable()->required(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

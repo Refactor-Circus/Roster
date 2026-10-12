@@ -6,9 +6,9 @@ namespace RefactorCircus\Roster\Domains\Transfer\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Impex\Impex;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartExportData;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferStatus;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Events\TransferStartedActionEvent;
@@ -24,29 +24,14 @@ final class StartExportAction
     public function __construct(private readonly Transfers $transfers) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'type' => ['required', Rule::in([TransferType::ExportMembers->value, TransferType::ExportUsers->value, TransferType::ExportOrganizations->value])],
-            'organization' => ['sometimes', 'nullable', 'string'],
-            'filters' => ['sometimes', 'array'],
-            'filters.external_source' => ['sometimes', 'nullable', 'string', 'max:64'],
-        ];
-    }
-
-    /**
      * Build a CSV export in the background.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(array $data, Model $actor): TransferModel
+    public function execute(StartExportData $data, Model $actor): TransferModel
     {
         $this->transfers->ensureAvailable();
 
-        $type = TransferType::from((string) $data['type']);
-        $organization = $this->organizationFrom($data['organization'] ?? null);
+        $type = $data->type;
+        $organization = $this->organizationFrom($data->organization);
 
         if ($type->needsOrganization() && $organization === null) {
             throw ValidationException::withMessages(['organization' => __('roster::roster.transfer_needs_organization')]);
@@ -60,7 +45,7 @@ final class StartExportAction
             'requested_by' => $actor->getKey(),
             'status' => TransferStatus::Running,
             'filters' => match ($type) {
-                TransferType::ExportOrganizations => array_intersect_key((array) ($data['filters'] ?? []), ['external_source' => true]),
+                TransferType::ExportOrganizations => $data->filters->toArray(),
                 default => null,
             },
         ]));

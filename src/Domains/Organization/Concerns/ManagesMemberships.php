@@ -64,7 +64,7 @@ trait ManagesMemberships
                 'team_id' => null,
             ]);
 
-            app(Permissions::class)->flush();
+            app(Permissions::class)->flushUser($user);
         }
     }
 
@@ -84,7 +84,7 @@ trait ManagesMemberships
 
         $query->delete();
 
-        app(Permissions::class)->flush();
+        app(Permissions::class)->flushUser($user);
     }
 
     private function seat(TeamModel $team, MembershipModel $membership): void

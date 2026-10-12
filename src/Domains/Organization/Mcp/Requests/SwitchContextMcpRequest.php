@@ -7,7 +7,9 @@ namespace RefactorCircus\Roster\Domains\Organization\Mcp\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
+use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\UserMcpRequest;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class SwitchContextMcpRequest extends UserMcpRequest
 {
@@ -23,13 +25,11 @@ final class SwitchContextMcpRequest extends UserMcpRequest
 
     protected function rules(): array
     {
-        return SwitchContextAction::rules() + $this->userRules();
+        return $this->userRules() + SwitchContextData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['user']);
-
-        return $this->respond(app(SwitchContextAction::class)->execute($this->targetUser(), $validated));
+        return (new UserResource(app(SwitchContextAction::class)->execute($this->targetUser(), SwitchContextData::fromValidated($validated))))->toStructuredResponse();
     }
 }

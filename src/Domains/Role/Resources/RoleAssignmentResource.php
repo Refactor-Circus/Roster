@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Role\Resources;
 
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
+use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\User\Resources\UserSummaryResource;
 
@@ -15,6 +18,26 @@ use RefactorCircus\Roster\Domains\User\Resources\UserSummaryResource;
  */
 final class RoleAssignmentResource extends JsonResource
 {
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'id' => $schema->string()->required(),
+            'user' => $schema->object(UserSummaryResource::schema($schema))->nullable()->required(),
+            'role' => $schema->object([
+                'id' => $schema->string()->required(),
+                'slug' => $schema->string()->required(),
+                'name' => $schema->string()->required(),
+                'scope' => $schema->string()->enum(array_column(RoleScope::cases(), 'value'))->required(),
+            ])->nullable()->required(),
+            'organization' => $schema->string()->nullable()->description('Organization slug.')->required(),
+            'team' => $schema->string()->nullable()->description('Team slug.')->required(),
+            'assigned_at' => $schema->string()->nullable()->required(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * A seat on a team, held through an organization membership.
@@ -21,11 +23,15 @@ use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
  */
 final class TeamMemberModel extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
 
-    protected $table = 'roster_team_members';
-
     protected $fillable = ['team_id', 'membership_id'];
+
+    public function getTable(): string
+    {
+        return Tables::name('team_members');
+    }
 
     /**
      * @return BelongsTo<TeamModel, $this>

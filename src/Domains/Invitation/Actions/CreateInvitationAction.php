@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Roster\Domains\Invitation\Data\CreateInvitationData;
 use RefactorCircus\Roster\Domains\Invitation\Events\InvitationCreatedActionEvent;
 use RefactorCircus\Roster\Domains\Invitation\Events\InvitationCreatingActionEvent;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
@@ -21,27 +22,13 @@ final class CreateInvitationAction
     public function __construct(private readonly Users $users) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'email' => ['required', 'email', 'max:255'],
-            'teams' => ['sometimes', 'array', 'max:50'],
-            'teams.*' => ['string', 'distinct'],
-        ];
-    }
-
-    /**
      * Invite an email address into the organization, optionally onto some
      * of its teams (by slug), and email the link.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(OrganizationModel $organization, array $data, ?Model $actor = null): InvitationModel
+    public function execute(OrganizationModel $organization, CreateInvitationData $data, ?Model $actor = null): InvitationModel
     {
-        $email = strtolower((string) $data['email']);
-        $teams = $this->teamIds($organization, (array) ($data['teams'] ?? []));
+        $email = strtolower($data->email);
+        $teams = $this->teamIds($organization, $data->teams);
 
         $this->guard($organization, $email);
 
@@ -81,7 +68,7 @@ final class CreateInvitationAction
     }
 
     /**
-     * @param  array<int, mixed>  $slugs
+     * @param  array<int, string>  $slugs
      * @return array<int, string>
      */
     private function teamIds(OrganizationModel $organization, array $slugs): array

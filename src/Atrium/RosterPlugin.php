@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Atrium;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use RefactorCircus\Atrium\Domains\Navigation\Data\NavGroup;
@@ -44,6 +45,12 @@ use RefactorCircus\Roster\Support\Users;
  */
 class RosterPlugin extends Plugin
 {
+    /**
+     * Where the user-status widget's counts are cached for a minute; Roster
+     * forgets them whenever one of its User actions finishes.
+     */
+    public const string STATUS_COUNTS_CACHE = 'roster:atrium:user-status-counts';
+
     public function key(): string
     {
         return 'roster';
@@ -84,7 +91,7 @@ class RosterPlugin extends Plugin
                 ->route('atrium.roster.users.index')
                 ->group(__('roster::roster.label'))
                 ->sort(10)
-                ->authorize(fn (Request $request): bool => $this->may($request, 'roster.users.view')),
+                ->authorize(fn (Request $request): bool => self::may($request, 'roster.users.view')),
 
             NavItem::make(__('roster::roster.organizations'))
                 ->icon(Icons::svg('building-office'))
@@ -105,7 +112,7 @@ class RosterPlugin extends Plugin
                 ->route('atrium.roster.permissions.index')
                 ->group(__('roster::roster.label'))
                 ->sort(40)
-                ->authorize(fn (Request $request): bool => $this->may($request, 'roster.roles.view')),
+                ->authorize(fn (Request $request): bool => self::may($request, 'roster.roles.view')),
 
             NavItem::make(__('roster::roster.impersonations'))
                 ->icon(Icons::svg('eye'))
@@ -123,7 +130,7 @@ class RosterPlugin extends Plugin
                 ->sort(48)
                 ->authorize(fn (Request $request): bool => collect(TransferType::cases())->contains(fn (TransferType $type): bool => $this->mayAnywhere($request, $type->permission()))),
 
-            // The package's own audit log, while an audit log is installed.
+            // Roster's own audit log, while Roster audits (Keen installed, roster.audit.enabled on).
             $this->historyNavItem('roster')->group(__('roster::roster.label'))->sort(90),
         ];
     }
@@ -222,7 +229,7 @@ class RosterPlugin extends Plugin
                 ->description(__('roster::roster.widget_user_status_description'))
                 ->defaultSize(6, 2)
                 ->view('roster::ui.widgets.user-status')
-                ->authorize(fn (Request $request): bool => $this->may($request, 'roster.users.view'))
+                ->authorize(fn (Request $request): bool => self::may($request, 'roster.users.view'))
                 ->resolve(fn (): array => ['counts' => $this->statusCounts()]),
 
             WidgetDefinition::make('roster.organizations')
@@ -230,7 +237,7 @@ class RosterPlugin extends Plugin
                 ->description(__('roster::roster.widget_organizations_description'))
                 ->defaultSize(6, 1)
                 ->view('roster::ui.widgets.organizations')
-                ->authorize(fn (Request $request): bool => $this->may($request, 'roster.organizations.view'))
+                ->authorize(fn (Request $request): bool => self::may($request, 'roster.organizations.view'))
                 // One query for all three counts.
                 ->resolve(fn (): array => array_map('intval', (array) DB::query()
                     ->selectSub(OrganizationModel::query()->toBase()->selectRaw('count(*)'), 'organizations')
@@ -247,6 +254,11 @@ class RosterPlugin extends Plugin
      * The closures are static and resolve what they need when they run,
      * because Atrium may serialize them into a child process.
      *
+     * Both match from the start of each field (`ada` finds Ada Lovelace and
+     * ada@example.com), which the columns' indexes can serve on every
+     * keystroke; the Users and Organizations screens' own filters still
+     * match anywhere in a field.
+     *
      * @return array<int, SearchSource>
      */
     public function search(): array
@@ -255,7 +267,7 @@ class RosterPlugin extends Plugin
             SearchSource::make('roster-users')
                 ->label(__('roster::roster.users'))
                 ->description('People: user accounts, by name or email address.')
-                ->authorize(static fn (Request $request): bool => self::allows($request, 'roster.users.view'))
+                ->authorize(static fn (Request $request): bool => self::may($request, 'roster.users.view'))
                 ->using(static function (string $query): array {
                     $users = app(Users::class);
                     $columns = array_filter([$users->column('name'), $users->column('email')]);
@@ -263,7 +275,7 @@ class RosterPlugin extends Plugin
                     return $users->query()
                         ->where(function (Builder $builder) use ($columns, $query): void {
                             foreach ($columns as $column) {
-                                $builder->orWhere($column, 'like', '%'.$query.'%');
+                                $builder->orWhere($column, 'like', $query.'%');
                             }
                         })
                         ->limit(self::searchLimit())
@@ -278,13 +290,13 @@ class RosterPlugin extends Plugin
             SearchSource::make('roster-organizations')
                 ->label(__('roster::roster.organizations'))
                 ->description('Organizations (tenants, customers, accounts), by name or slug.')
-                ->authorize(static fn (Request $request): bool => self::allows($request, 'roster.organizations.view') || self::organizationsFor($request->user()) !== [])
+                ->authorize(static fn (Request $request): bool => self::may($request, 'roster.organizations.view') || self::organizationsFor($request->user()) !== [])
                 ->using(static fn (string $query): array => OrganizationModel::query()
                     // Only the organizations the searcher may view, when not all of them.
                     ->when(self::organizationsFor(auth()->user()), fn (Builder $builder, array $within): Builder => $builder->whereIn('id', $within))
                     ->where(fn (Builder $builder): Builder => $builder
-                        ->where('name', 'like', '%'.$query.'%')
-                        ->orWhere('slug', 'like', '%'.$query.'%'))
+                        ->where('name', 'like', $query.'%')
+                        ->orWhere('slug', 'like', $query.'%'))
                     ->orderBy('name')
                     ->limit(self::searchLimit())
                     ->get()
@@ -306,17 +318,12 @@ class RosterPlugin extends Plugin
         return is_int($limit) && $limit > 0 ? $limit : 5;
     }
 
-    private static function allows(Request $request, string $permission): bool
-    {
-        $user = $request->user();
-
-        return app(Authorizer::class)->check($user instanceof Model ? $user : null, $permission);
-    }
-
     /**
-     * Whether the signed-in user holds a global Roster permission.
+     * Whether the request's user holds a global Roster permission. Atrium
+     * asks with the request it is serving, so this reads the user from it
+     * rather than from the current request as ScreenAccess does.
      */
-    private function may(Request $request, string $permission): bool
+    private static function may(Request $request, string $permission): bool
     {
         $user = $request->user();
 
@@ -331,7 +338,7 @@ class RosterPlugin extends Plugin
     {
         $user = $request->user();
 
-        return $this->may($request, $permission)
+        return self::may($request, $permission)
             || app(Authorizer::class)->organizationsWith($user instanceof Model ? $user : null, $permission) !== [];
     }
 
@@ -346,11 +353,21 @@ class RosterPlugin extends Plugin
     }
 
     /**
-     * Users per status. Users without a profile row count as active.
+     * Users per status. Users without a profile row count as active. Counted
+     * at most once a minute: counting every user on every dashboard render
+     * gets slow on large tables.
      *
      * @return array<string, int>
      */
     private function statusCounts(): array
+    {
+        return Cache::remember(self::STATUS_COUNTS_CACHE, 60, fn (): array => $this->countStatuses());
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function countStatuses(): array
     {
         $total = app(Users::class)->query()->count();
 

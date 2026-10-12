@@ -10,16 +10,6 @@ use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 
 final class ShowTransferAction
 {
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'rows_page' => ['sometimes', 'integer', 'min:1'],
-        ];
-    }
-
     public function execute(TransferModel $transfer): TransferModel
     {
         TransferShowingActionEvent::dispatch($transfer);

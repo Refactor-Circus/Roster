@@ -15,14 +15,9 @@ final class ReactivateUserRequest extends UserRequest
         return 'roster.users.manage-status';
     }
 
-    public function rules(): array
-    {
-        return ReactivateUserAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
-        $user = app(ReactivateUserAction::class)->execute($this->targetUser(), $this->validated(), $this->actor());
+        $user = app(ReactivateUserAction::class)->execute($this->targetUser(), $this->actor());
 
         return (new UserResource($user))->response();
     }

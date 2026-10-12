@@ -14,11 +14,6 @@ final class DeleteRoleMcpRequest extends RoleMcpRequest
         return 'roster.roles.manage';
     }
 
-    protected function rules(): array
-    {
-        return DeleteRoleAction::rules() + $this->roleRules();
-    }
-
     protected function handle(array $validated): Response
     {
         app(DeleteRoleAction::class)->execute($this->role());

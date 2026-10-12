@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\Transfer\Services;
 
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -13,6 +14,7 @@ use LogicException;
 use RefactorCircus\Impex\Domains\Batch\Models\BatchModel;
 use RefactorCircus\Impex\Impex;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferStatus;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Exceptions\TransfersUnavailableException;
@@ -184,5 +186,24 @@ class Transfers
     public static function scope(TransferType $type, ?OrganizationModel $organization): ?OrganizationModel
     {
         return $type->needsOrganization() ? $organization : null;
+    }
+
+    /**
+     * Whose transfers a list shows the actor, as ListTransfersAction's
+     * `requester` and `organizations` arguments: everyone's within a named
+     * organization or with `roster.users.view`; otherwise their own, plus
+     * those of the organizations they may see members in.
+     *
+     * @return array{0: Model|null, 1: array<int, int|string>}
+     */
+    public function visibleTo(?Model $actor, ?OrganizationModel $organization): array
+    {
+        $authorizer = app(Authorizer::class);
+
+        if ($organization !== null || $authorizer->check($actor, 'roster.users.view')) {
+            return [null, []];
+        }
+
+        return [$actor, $authorizer->organizationsWith($actor, 'roster.members.view') ?? []];
     }
 }

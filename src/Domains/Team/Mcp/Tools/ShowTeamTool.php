@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Requests\ShowTeamMcpRequest;
+use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesTeam;
 
 #[Description('Show a team with its members.')]
@@ -25,5 +26,10 @@ final class ShowTeamTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return $this->teamSchema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return TeamResource::structuredSchema($schema);
     }
 }

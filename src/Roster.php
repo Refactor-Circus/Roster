@@ -6,15 +6,13 @@ namespace RefactorCircus\Roster;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use RefactorCircus\Keen\Domains\Audit\Data\PendingAuditEntry;
-use RefactorCircus\Keen\Facades\Keen;
+use RefactorCircus\Keystone\Packages\PackageRegistry;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
-use RefactorCircus\Roster\Exceptions\AuditLogNotInstalledException;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -66,33 +64,29 @@ class Roster
         $profile = $this->users->profileIfExists($user);
         $stored = $profile?->current_organization_id;
 
-        // Memberships of deleted organizations don't count.
-        $memberships = MembershipModel::query()->where('user_id', $user->getKey())->whereHas('organization');
+        // The stored one while the user is still a member, in one query.
+        // Deleted organizations don't count.
+        $current = $stored === null ? null : OrganizationModel::query()
+            ->whereKey($stored)
+            ->whereHas('memberships', fn (Builder $query): Builder => $query->where('user_id', $user->getKey()))
+            ->first();
 
-        if ($stored !== null && (clone $memberships)->where('organization_id', $stored)->exists()) {
-            return OrganizationModel::query()->find($stored);
+        if ($current !== null) {
+            return $current;
         }
 
-        $first = $memberships->oldest()->oldest('id')->first();
+        $first = MembershipModel::query()->where('user_id', $user->getKey())->whereHas('organization')->oldest()->oldest('id')->first();
 
         return $first?->organization;
     }
 
     /**
-     * Start one of the app's own audit entries in the suite-wide audit log,
-     * recorded as the signed-in user unless `by()` says otherwise.
-     *
-     * @deprecated Use `Keen::record()` from refactor-circus/keen, which this delegates to.
-     *
-     * @throws AuditLogNotInstalledException When refactor-circus/keen is not installed.
+     * Whether Roster records to the suite's audit log: while refactor-circus/keen
+     * is installed, unless `roster.audit.enabled` is false.
      */
-    public function audit(string $action): PendingAuditEntry
+    public function auditing(): bool
     {
-        if (! class_exists(Keen::class)) {
-            throw AuditLogNotInstalledException::make();
-        }
-
-        return Keen::record($action);
+        return app(PackageRegistry::class)->get('roster')->audits();
     }
 
     /**
@@ -144,12 +138,18 @@ class Roster
             return null;
         }
 
-        $team = TeamModel::query()->whereKey($stored)->where('organization_id', $organization->getKey())->first();
+        // The stored team while it's in the organization and the user holds a
+        // seat on it, in one query.
+        $team = TeamModel::query()
+            ->whereKey($stored)
+            ->where('organization_id', $organization->getKey())
+            ->whereHas('memberships', fn (Builder $query): Builder => $query->where('user_id', $user->getKey()))
+            ->first();
 
         // Permission checks in a team scope need its organization; it's this one.
         $team?->setRelation('organization', $organization);
 
-        return $team !== null && $team->hasMember($user) ? $team : null;
+        return $team;
     }
 
     /**

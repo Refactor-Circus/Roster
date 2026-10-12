@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Sso\Mcp\Requests;
 
-use Laravel\Mcp\Response;
-use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
-use RefactorCircus\Roster\Domains\Sso\Resources\SsoConnectionResource;
 use RefactorCircus\Roster\Mcp\Request;
 
 abstract class SsoConnectionMcpRequest extends Request
@@ -25,8 +22,19 @@ abstract class SsoConnectionMcpRequest extends Request
         return $this->connection()->organization;
     }
 
-    protected function respondWithConnection(SsoConnectionModel $connection): ResponseFactory
+    /**
+     * @return array<string, array<int, mixed>>
+     */
+    protected function connectionRules(): array
     {
-        return Response::structured(['data' => (new SsoConnectionResource($connection))->resolve()]);
+        return ['connection' => ['required', 'string']];
+    }
+
+    /**
+     * Every connection tool names its connection by slug.
+     */
+    protected function rules(): array
+    {
+        return $this->connectionRules();
     }
 }

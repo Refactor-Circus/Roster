@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\User\Mcp\Requests;
 
 use Illuminate\Database\Eloquent\Model;
-use Laravel\Mcp\Response;
-use Laravel\Mcp\ResponseFactory;
-use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 use RefactorCircus\Roster\Mcp\Request;
 use RefactorCircus\Roster\Support\Users;
 
 abstract class UserMcpRequest extends Request
 {
     private ?Model $target = null;
+
+    private ?Model $trashed = null;
 
     /**
      * The user named by the `user` argument, found by the user model's route key.
@@ -31,8 +30,19 @@ abstract class UserMcpRequest extends Request
         return ['user' => ['required']];
     }
 
-    protected function respond(Model $user): ResponseFactory
+    /**
+     * Every user tool names its user.
+     */
+    protected function rules(): array
     {
-        return Response::structured(['data' => (new UserResource($user))->resolve()]);
+        return $this->userRules();
+    }
+
+    /**
+     * The same user, found among deleted ones too: for restoring and purging.
+     */
+    protected function trashedUser(): Model
+    {
+        return $this->trashed ??= app(Users::class)->findWithTrashedOrFail($this->get('user'));
     }
 }

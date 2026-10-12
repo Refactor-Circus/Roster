@@ -14,11 +14,6 @@ final class DestroyRoleRequest extends RoleRequest
         return 'roster.roles.manage';
     }
 
-    public function rules(): array
-    {
-        return DeleteRoleAction::rules();
-    }
-
     public function persist(): Response
     {
         app(DeleteRoleAction::class)->execute($this->role());

@@ -32,17 +32,12 @@ final class DestroySsoIdentityRequest extends Request
     {
         $actor = $this->actor();
 
-        return $actor !== null && (string) $this->identity()->user_id === (string) $actor->getKey() ? $actor : null;
+        return $this->identity()->ownedBy($actor) ? $actor : null;
     }
 
     private function identity(): SsoIdentityModel
     {
         return $this->resolved ??= SsoIdentityModel::query()->whereKey($this->route('identity'))->firstOrFail();
-    }
-
-    public function rules(): array
-    {
-        return UnlinkSsoIdentityAction::rules();
     }
 
     public function persist(): Response

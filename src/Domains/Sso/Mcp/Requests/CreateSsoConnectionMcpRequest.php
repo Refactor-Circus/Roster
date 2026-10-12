@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Sso\Mcp\Requests;
 
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\OrganizationMcpRequest;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Sso\Actions\CreateSsoConnectionAction;
+use RefactorCircus\Roster\Domains\Sso\Data\CreateSsoConnectionData;
 use RefactorCircus\Roster\Domains\Sso\Resources\SsoConnectionResource;
 
 final class CreateSsoConnectionMcpRequest extends OrganizationMcpRequest
@@ -18,20 +17,15 @@ final class CreateSsoConnectionMcpRequest extends OrganizationMcpRequest
         return 'roster.sso.manage';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return CreateSsoConnectionAction::rules() + $this->organizationRules();
+        return $this->organizationRules() + CreateSsoConnectionData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $connection = app(CreateSsoConnectionAction::class)->execute($this->organization(), $this->without($validated, 'organization'));
+        $connection = app(CreateSsoConnectionAction::class)->execute($this->organization(), CreateSsoConnectionData::fromValidated($validated));
 
-        return Response::structured(['data' => (new SsoConnectionResource($connection))->resolve()]);
+        return (new SsoConnectionResource($connection))->toStructuredResponse();
     }
 }

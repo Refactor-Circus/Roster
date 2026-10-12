@@ -5,16 +5,20 @@ declare(strict_types=1);
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\RemoveMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
+use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Roster;
 
 it('preloads the same current organization and team as resolving one user at a time', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $globex = organization(attributes: ['name' => 'Globex']);
-    $ops = app(CreateTeamAction::class)->execute($acme, ['name' => 'Ops']);
-    $sales = app(CreateTeamAction::class)->execute($globex, ['name' => 'Sales']);
+    $ops = app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'));
+    $sales = app(CreateTeamAction::class)->execute($globex, new CreateTeamData(name: 'Sales'));
 
     $users = [];
 
@@ -22,21 +26,21 @@ it('preloads the same current organization and team as resolving one user at a t
     $users[] = user();
     // Stored organization and seated team.
     $users[] = $u = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $u->getRouteKey()]);
-    app(AddTeamMemberAction::class)->execute($ops, ['user' => $u->getRouteKey()]);
-    app(SwitchContextAction::class)->execute($u, ['organization' => 'acme', 'team' => 'ops']);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $u->getRouteKey()));
+    app(AddTeamMemberAction::class)->execute($ops, new AddTeamMemberData(user: $u->getRouteKey()));
+    app(SwitchContextAction::class)->execute($u, new SwitchContextData(organization: 'acme', team: 'ops'));
     // Falls back to the first organization after leaving the stored one.
     $users[] = $u = user();
-    app(AddMemberAction::class)->execute($globex, ['user' => $u->getRouteKey()]);
-    app(AddMemberAction::class)->execute($acme, ['user' => $u->getRouteKey()]);
-    app(AddTeamMemberAction::class)->execute($ops, ['user' => $u->getRouteKey()]);
-    app(SwitchContextAction::class)->execute($u, ['organization' => 'acme', 'team' => 'ops']);
+    app(AddMemberAction::class)->execute($globex, new AddMemberData(user: $u->getRouteKey()));
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $u->getRouteKey()));
+    app(AddTeamMemberAction::class)->execute($ops, new AddTeamMemberData(user: $u->getRouteKey()));
+    app(SwitchContextAction::class)->execute($u, new SwitchContextData(organization: 'acme', team: 'ops'));
     app(RemoveMemberAction::class)->execute($acme, $u);
     // Stored team in another organization than the current one.
     $users[] = $u = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $u->getRouteKey()]);
-    app(AddMemberAction::class)->execute($globex, ['user' => $u->getRouteKey()]);
-    app(AddTeamMemberAction::class)->execute($sales, ['user' => $u->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $u->getRouteKey()));
+    app(AddMemberAction::class)->execute($globex, new AddMemberData(user: $u->getRouteKey()));
+    app(AddTeamMemberAction::class)->execute($sales, new AddTeamMemberData(user: $u->getRouteKey()));
     ProfileModel::query()->where('user_id', $u->getKey())->update(['current_organization_id' => $acme->id, 'current_team_id' => $sales->id]);
 
     $expected = [];

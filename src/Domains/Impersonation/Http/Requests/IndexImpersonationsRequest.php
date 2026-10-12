@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Impersonation\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\ListImpersonationsAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\ListImpersonationsData;
 use RefactorCircus\Roster\Domains\Impersonation\Resources\ImpersonationResource;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
@@ -31,11 +32,11 @@ final class IndexImpersonationsRequest extends Request
 
     public function rules(): array
     {
-        return ListImpersonationsAction::rules();
+        return ListImpersonationsData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        return ImpersonationResource::collection(app(ListImpersonationsAction::class)->execute($this->validated(), $this->organizations()))->response();
+        return ImpersonationResource::collection(app(ListImpersonationsAction::class)->execute(ListImpersonationsData::fromValidated($this->validated()), $this->organizations()))->response();
     }
 }

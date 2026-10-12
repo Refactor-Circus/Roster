@@ -8,6 +8,7 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Services\Transfers;
 use RefactorCircus\Roster\Mcp\Request;
+use RefactorCircus\Roster\Support\Scopes;
 
 /**
  * Starting an import or export needs the type's permission, in the
@@ -29,13 +30,9 @@ abstract class StartTransferMcpRequest extends Request
     protected function scope(): ?OrganizationModel
     {
         $type = $this->type();
-        $slug = $this->get('organization');
+        $organization = Scopes::organization($this->get('organization'));
 
-        if ($type === null || ! is_string($slug) || $slug === '') {
-            return null;
-        }
-
-        return Transfers::scope($type, OrganizationModel::query()->where('slug', $slug)->first());
+        return $type === null || $organization === null ? null : Transfers::scope($type, $organization);
     }
 
     private function type(): ?TransferType

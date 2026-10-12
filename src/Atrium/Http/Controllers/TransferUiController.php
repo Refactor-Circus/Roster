@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
-use RefactorCircus\Roster\Atrium\ScreenAccess;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Transfer\Actions\CancelTransferAction;
@@ -19,6 +17,9 @@ use RefactorCircus\Roster\Domains\Transfer\Actions\ShowImportTemplateAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ShowTransferAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartExportAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartImportAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\ListTransfersData;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartExportData;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartImportData;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\Transfers;
@@ -37,21 +38,20 @@ final class TransferUiController
 
     public function index(Request $request): View
     {
-        $filters = $request->validate(ListTransfersAction::rules());
-        $organization = $this->organization($filters['organization'] ?? null);
+        $filters = ListTransfersData::from($request->query());
+        $organization = $this->namedOrganization($filters->organization);
         $actor = $this->actor($request);
 
         // Your own transfers are always visible; an organization's need
         // roster.members.view there, everyone's roster.users.view.
         $this->authorizeScreen('roster.members.view', $organization, $organization === null ? $actor : null);
-        $everyone = $organization !== null || app(Authorizer::class)->check($actor, 'roster.users.view');
 
         /** @var view-string $view */
         $view = 'roster::ui.transfers.index';
 
         return view($view, [
             'available' => $this->transfers->available(),
-            'transfers' => app(ListTransfersAction::class)->execute($filters, $everyone ? null : $actor, $everyone ? [] : (ScreenAccess::organizations('roster.members.view') ?? []))->withQueryString(),
+            'transfers' => app(ListTransfersAction::class)->execute($filters, ...$this->transfers->visibleTo($actor, $organization))->withQueryString(),
             'filters' => $filters,
             'organization' => $organization,
             'imports' => array_filter(TransferType::cases(), fn (TransferType $type): bool => $type->isImport()),
@@ -62,9 +62,8 @@ final class TransferUiController
     public function import(Request $request): RedirectResponse
     {
         $this->authorizeStart($request, 'roster.users.create');
-        $data = $request->validate(StartImportAction::rules());
+        $data = StartImportData::from($request->all());
 
-        $data['file'] = $request->file('file');
         $transfer = app(StartImportAction::class)->execute($data, $this->actor($request) ?? abort(401));
 
         return redirect()->route('atrium.roster.transfers.show', $transfer->id);
@@ -73,7 +72,7 @@ final class TransferUiController
     public function export(Request $request): RedirectResponse
     {
         $this->authorizeStart($request, 'roster.users.view');
-        $data = $request->validate(StartExportAction::rules());
+        $data = StartExportData::from($request->all());
 
         $transfer = app(StartExportAction::class)->execute($data, $this->actor($request) ?? abort(401));
 
@@ -168,15 +167,11 @@ final class TransferUiController
         return $model;
     }
 
-    private function organization(mixed $slug): ?OrganizationModel
+    /**
+     * The organization a filter names, when it names one.
+     */
+    private function namedOrganization(mixed $slug): ?OrganizationModel
     {
         return is_string($slug) && $slug !== '' ? OrganizationModel::query()->where('slug', $slug)->firstOrFail() : null;
-    }
-
-    private function actor(Request $request): ?Model
-    {
-        $user = $request->user();
-
-        return $user instanceof Model ? $user : null;
     }
 }

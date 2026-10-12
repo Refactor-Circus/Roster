@@ -10,14 +10,6 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 
 final class ShowRoleAction
 {
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
     public function execute(RoleModel $role): RoleModel
     {
         RoleShowingActionEvent::dispatch($role);

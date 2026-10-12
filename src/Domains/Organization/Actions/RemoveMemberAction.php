@@ -17,14 +17,6 @@ final class RemoveMemberAction
     use ManagesMemberships;
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Remove a member, and with them every team seat they held.
      */
     public function execute(OrganizationModel $organization, Model $user): void

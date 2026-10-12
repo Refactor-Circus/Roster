@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Domains\User\Concerns\HasRoster;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * A ready-made user model for apps without one of their own.
@@ -28,15 +30,22 @@ use RefactorCircus\Roster\Domains\User\Concerns\HasRoster;
  */
 class UserModel extends Authenticatable
 {
+    use DispatchesModelEvents;
     use HasRoster;
     use Notifiable;
     use SoftDeletes;
 
-    protected $table = 'users';
-
     protected $fillable = ['name', 'email', 'password'];
 
     protected $hidden = ['password', 'remember_token'];
+
+    /**
+     * The `roster.tables.users` table, unless a subclass names its own.
+     */
+    public function getTable(): string
+    {
+        return $this->table ?? Tables::name('users');
+    }
 
     protected function casts(): array
     {

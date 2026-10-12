@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Sso\Http\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Sso\Actions\ListSsoIdentitiesAction;
+use RefactorCircus\Roster\Domains\Sso\Data\ListSsoIdentitiesData;
 use RefactorCircus\Roster\Domains\Sso\Resources\SsoIdentityResource;
 use RefactorCircus\Roster\Domains\User\Http\Requests\UserRequest;
 
@@ -24,13 +25,11 @@ final class IndexUserSsoIdentitiesRequest extends UserRequest
 
     public function rules(): array
     {
-        return ListSsoIdentitiesAction::rules();
+        return ListSsoIdentitiesData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $filters = ['user' => $this->targetUser()->getRouteKey()] + $this->validated();
-
-        return SsoIdentityResource::collection(app(ListSsoIdentitiesAction::class)->execute($filters))->response();
+        return SsoIdentityResource::collection(app(ListSsoIdentitiesAction::class)->execute(ListSsoIdentitiesData::fromValidated(['user' => $this->targetUser()->getRouteKey()] + $this->validated())))->response();
     }
 }

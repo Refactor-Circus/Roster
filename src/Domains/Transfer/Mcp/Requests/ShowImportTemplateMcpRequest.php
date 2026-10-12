@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Transfer\Mcp\Requests;
 
+use Illuminate\Validation\Rule;
 use Laravel\Mcp\Response;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ShowImportTemplateAction;
@@ -15,7 +16,7 @@ use RefactorCircus\Roster\Mcp\Request;
  */
 final class ShowImportTemplateMcpRequest extends Request
 {
-    protected function authorize(): bool
+    public function authorize(): bool
     {
         return ! app(Authorizer::class)->enabled() || $this->actor() !== null;
     }
@@ -27,7 +28,12 @@ final class ShowImportTemplateMcpRequest extends Request
 
     protected function rules(): array
     {
-        return ShowImportTemplateAction::rules();
+        return [
+            'type' => ['required', Rule::in(array_map(
+                fn (TransferType $type): string => $type->value,
+                array_filter(TransferType::cases(), fn (TransferType $type): bool => $type->isImport()),
+            ))],
+        ];
     }
 
     protected function handle(array $validated): Response

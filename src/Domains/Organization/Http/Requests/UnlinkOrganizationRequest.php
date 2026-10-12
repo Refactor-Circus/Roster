@@ -6,7 +6,6 @@ namespace RefactorCircus\Roster\Domains\Organization\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Organization\Actions\UnlinkOrganizationAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 
 final class UnlinkOrganizationRequest extends OrganizationRequest
@@ -14,16 +13,6 @@ final class UnlinkOrganizationRequest extends OrganizationRequest
     protected function ability(): string
     {
         return 'roster.organizations.update';
-    }
-
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
-    public function rules(): array
-    {
-        return UnlinkOrganizationAction::rules();
     }
 
     public function persist(): JsonResponse

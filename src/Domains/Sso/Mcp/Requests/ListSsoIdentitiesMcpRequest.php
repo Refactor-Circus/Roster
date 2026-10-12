@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Sso\Mcp\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Sso\Actions\ListSsoIdentitiesAction;
+use RefactorCircus\Roster\Domains\Sso\Data\ListSsoIdentitiesData;
 use RefactorCircus\Roster\Domains\Sso\Resources\SsoIdentityResource;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\UserMcpRequest;
 
@@ -24,20 +25,13 @@ final class ListSsoIdentitiesMcpRequest extends UserMcpRequest
 
     protected function rules(): array
     {
-        return ListSsoIdentitiesAction::rules() + $this->userRules();
+        return $this->userRules() + ListSsoIdentitiesData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $identities = app(ListSsoIdentitiesAction::class)->execute(['user' => $this->targetUser()->getRouteKey()] + $validated);
+        $identities = app(ListSsoIdentitiesAction::class)->execute(ListSsoIdentitiesData::fromValidated(['user' => $this->targetUser()->getRouteKey()] + $validated));
 
-        return $this->structuredCollection(SsoIdentityResource::collection($identities->items())->resolve(), [
-            'meta' => [
-                'current_page' => $identities->currentPage(),
-                'last_page' => $identities->lastPage(),
-                'per_page' => $identities->perPage(),
-                'total' => $identities->total(),
-            ],
-        ]);
+        return SsoIdentityResource::collection($identities)->toStructuredResponse();
     }
 }

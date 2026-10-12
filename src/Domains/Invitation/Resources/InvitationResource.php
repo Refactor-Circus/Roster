@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Invitation\Resources;
 
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
+use RefactorCircus\Roster\Domains\Invitation\Enums\InvitationStatus;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 
@@ -16,6 +19,25 @@ use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
  */
 final class InvitationResource extends JsonResource
 {
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'id' => $schema->string()->required(),
+            'email' => $schema->string()->required(),
+            'organization' => $schema->string()->nullable()->description('Organization slug.')->required(),
+            'teams' => $schema->array()->items($schema->string())->description('Team slugs.')->required(),
+            'status' => $schema->string()->enum(array_column(InvitationStatus::cases(), 'value'))->required(),
+            'expires_at' => $schema->string()->required(),
+            'accepted_at' => $schema->string()->nullable()->required(),
+            'declined_at' => $schema->string()->nullable()->required(),
+            'revoked_at' => $schema->string()->nullable()->required(),
+            'created_at' => $schema->string()->nullable()->required(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

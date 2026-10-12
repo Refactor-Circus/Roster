@@ -6,7 +6,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Actions\ShowOrganizationAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 
 final class ShowOrganizationMcpRequest extends OrganizationMcpRequest
 {
@@ -15,18 +15,8 @@ final class ShowOrganizationMcpRequest extends OrganizationMcpRequest
         return 'roster.organizations.view';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
-    protected function rules(): array
-    {
-        return ShowOrganizationAction::rules() + $this->organizationRules();
-    }
-
     protected function handle(array $validated): ResponseFactory
     {
-        return $this->respondWithOrganization(app(ShowOrganizationAction::class)->execute($this->organization()));
+        return (new OrganizationResource(app(ShowOrganizationAction::class)->execute($this->organization())))->toStructuredResponse();
     }
 }

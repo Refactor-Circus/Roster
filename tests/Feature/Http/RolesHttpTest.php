@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 
 it('manages permissions', function (): void {
@@ -32,7 +33,7 @@ it('manages roles', function (): void {
 it('assigns and revokes roles and reports permissions', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $ada = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
     $admin = RoleModel::query()->where('slug', 'admin')->sole();
 
     $assignment = $this->postJson(route('roster.users.roles.store', $ada->getRouteKey()), ['role' => $admin->id, 'organization' => 'acme'])

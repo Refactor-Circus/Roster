@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Impersonation\Mcp\Requests\StopImpersonationMcpRequest;
+use RefactorCircus\Roster\Domains\Impersonation\Resources\ImpersonationResource;
 
 #[Description('End an impersonation (or cancel an unused link). Ending someone else\'s needs roster.users.impersonate; their browser switches back on its next request.')]
 final class StopImpersonationTool extends Tool
@@ -24,5 +25,10 @@ final class StopImpersonationTool extends Tool
         return [
             'impersonation' => $schema->string()->description('The impersonation id.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return ImpersonationResource::structuredSchema($schema);
     }
 }

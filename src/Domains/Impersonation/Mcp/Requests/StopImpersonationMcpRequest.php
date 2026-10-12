@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\Impersonation\Mcp\Requests;
 
 use Illuminate\Database\Eloquent\Model;
-use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StopImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StopImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Impersonation\Resources\ImpersonationResource;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
@@ -31,7 +31,7 @@ final class StopImpersonationMcpRequest extends Request
     {
         $actor = $this->actor();
 
-        return $actor !== null && (string) $this->impersonation()->impersonator_id === (string) $actor->getKey() ? $actor : null;
+        return $this->impersonation()->startedBy($actor) ? $actor : null;
     }
 
     protected function rules(): array
@@ -41,11 +41,11 @@ final class StopImpersonationMcpRequest extends Request
 
     protected function handle(array $validated): ResponseFactory
     {
-        $impersonation = app(StopImpersonationAction::class)->execute($this->impersonation(), [
-            'why' => $this->self() !== null ? ImpersonationModel::ENDED_STOPPED : ImpersonationModel::ENDED_FORCED,
-        ]);
+        $impersonation = app(StopImpersonationAction::class)->execute($this->impersonation(), new StopImpersonationData(
+            why: $this->impersonation()->endReasonFor($this->actor()),
+        ));
 
-        return Response::structured(['data' => (new ImpersonationResource($impersonation))->resolve()]);
+        return (new ImpersonationResource($impersonation))->toStructuredResponse();
     }
 
     private function impersonation(): ImpersonationModel

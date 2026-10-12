@@ -6,8 +6,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
+use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
+use RefactorCircus\Roster\Tests\Fixtures\Policies\OpenPolicy;
 
 beforeEach(function (): void {
     config()->set('roster.authorization', true);
@@ -20,7 +24,7 @@ beforeEach(function (): void {
     grant($this->ada, 'super-admin');
     $this->actingAs($this->admin);
 
-    $started = app(StartImpersonationAction::class)->execute($this->ada, ['reason' => 'Ticket 42'], $this->admin);
+    $started = app(StartImpersonationAction::class)->execute($this->ada, new StartImpersonationData(reason: 'Ticket 42'), $this->admin);
     $this->get($started->url);
     $this->impersonation = $started->impersonation->refresh();
 });
@@ -35,11 +39,19 @@ it('blocks listed permissions and app abilities, even for super-admins', functio
 });
 
 it('locks the impersonated account email and password', function (): void {
-    expect(fn () => app(UpdateUserAction::class)->execute($this->ada, ['email' => 'mine@evil.test']))
+    expect(fn () => app(UpdateUserAction::class)->execute($this->ada, new UpdateUserData(email: 'mine@evil.test')))
         ->toThrow(ValidationException::class)
-        ->and(fn () => app(UpdateUserAction::class)->execute($this->ada, ['password' => 'new-password']))
+        ->and(fn () => app(UpdateUserAction::class)->execute($this->ada, new UpdateUserData(password: 'new-password')))
         ->toThrow(ValidationException::class);
 
     // Other fields, and other accounts, are fine.
-    expect(app(UpdateUserAction::class)->execute($this->ada, ['name' => 'Ada L'])->getAttribute('name'))->toBe('Ada L');
+    expect(app(UpdateUserAction::class)->execute($this->ada, new UpdateUserData(name: 'Ada L'))->getAttribute('name'))->toBe('Ada L');
+});
+
+it('blocks listed permissions whatever the configured policy says', function (): void {
+    Gate::policy(RoleModel::class, OpenPolicy::class);
+
+    expect(app(Authorizer::class)->check($this->ada, 'roster.roles.assign'))->toBeFalse()
+        ->and(app(Authorizer::class)->check($this->ada, 'roster.roles.view'))->toBeFalse()
+        ->and(app(Authorizer::class)->check($this->ada, 'roster.users.view'))->toBeTrue();
 });

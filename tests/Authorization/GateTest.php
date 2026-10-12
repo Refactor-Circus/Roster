@@ -6,32 +6,36 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
+use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\Permission\Actions\CreatePermissionAction;
+use RefactorCircus\Roster\Domains\Permission\Data\CreatePermissionData;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 
 it('answers can() for roster permissions in the given scope', function (): void {
-    app(CreatePermissionAction::class)->execute(['name' => 'invoices.edit']);
+    app(CreatePermissionAction::class)->execute(new CreatePermissionData(name: 'invoices.edit'));
     $role = roleWith(['invoices.edit'], 'organization');
 
     $acme = organization();
     $globex = organization(attributes: ['name' => 'Globex']);
     $ada = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $ada->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
     RoleAssignmentModel::query()->create(['role_id' => $role->id, 'user_id' => $ada->getKey(), 'organization_id' => $acme->id]);
 
     expect($ada->can('invoices.edit', $acme))->toBeTrue()
         ->and($ada->can('invoices.edit', $globex))->toBeFalse()
         // A team argument checks within its organization.
-        ->and($ada->can('invoices.edit', app(CreateTeamAction::class)->execute($acme, ['name' => 'Ops'])))->toBeTrue();
+        ->and($ada->can('invoices.edit', app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'))))->toBeTrue();
 });
 
 it('uses the current context when no scope is given', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $ada = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $ada->getRouteKey()]);
-    app(SwitchContextAction::class)->execute($ada, ['organization' => 'acme']);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
+    app(SwitchContextAction::class)->execute($ada, new SwitchContextData(organization: 'acme'));
     app(Permissions::class)->flush();
 
     expect($ada->can('roster.members.view'))->toBeTrue()

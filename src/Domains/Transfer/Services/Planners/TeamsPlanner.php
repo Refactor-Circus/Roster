@@ -10,6 +10,8 @@ use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Support\Users;
@@ -62,10 +64,10 @@ final class TeamsPlanner extends Planner
 
         /** @var OrganizationModel $organization */
         $organization = $transfer->organization;
-        $team = $this->team($organization, $values) ?? app(CreateTeamAction::class)->execute($organization, array_filter([
-            'name' => $values['name'],
-            'slug' => ($values['slug'] ?? '') !== '' ? $values['slug'] : null,
-        ]));
+        $team = $this->team($organization, $values) ?? app(CreateTeamAction::class)->execute($organization, new CreateTeamData(
+            name: $values['name'],
+            slug: ($values['slug'] ?? '') !== '' ? $values['slug'] : null,
+        ));
 
         [$members] = $this->members($transfer, $values['members'] ?? '');
 
@@ -73,7 +75,7 @@ final class TeamsPlanner extends Planner
             $user = $membership->user;
 
             if ($user instanceof Model && ! $team->hasMember($user)) {
-                app(AddTeamMemberAction::class)->execute($team, ['user' => $user]);
+                app(AddTeamMemberAction::class)->execute($team, new AddTeamMemberData(user: $user));
             }
         }
 

@@ -9,7 +9,9 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Roster\Domains\Scim\Data\ListScimTokensData;
 use RefactorCircus\Roster\Domains\Scim\Mcp\Requests\ListScimTokensMcpRequest;
+use RefactorCircus\Roster\Domains\Scim\Resources\ScimTokenResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesOrganization;
 
 #[Description('List an organization\'s SCIM provisioning tokens (never the token values) with when each was last used.')]
@@ -25,8 +27,11 @@ final class ListScimTokensTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return $this->organizationSchema($schema) + [
-            'per_page' => $schema->integer()->description('Results per page, 1-100.')->min(1)->max(100),
-            'page' => $schema->integer()->description('Page number, from 1.')->min(1),
-        ];
+        ] + ListScimTokensData::pagination()->schema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return ScimTokenResource::collectionSchema($schema);
     }
 }

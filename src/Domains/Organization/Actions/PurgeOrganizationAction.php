@@ -8,19 +8,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationPurgedActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationPurgingActionEvent;
+use RefactorCircus\Roster\Domains\Organization\Jobs\PurgeOrganizationJob;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 
 final class PurgeOrganizationAction
 {
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
     /**
      * Delete an organization for good, with its teams, memberships,
      * invitations, roles, SSO connections, SCIM tokens and links. It must be
@@ -29,13 +22,7 @@ final class PurgeOrganizationAction
      */
     public function execute(OrganizationModel $organization, bool $personal = false): void
     {
-        if ($organization->personal && ! $personal) {
-            throw ValidationException::withMessages(['organization' => __('roster::roster.cannot_delete_personal')]);
-        }
-
-        if (! $organization->trashed() && ! $personal) {
-            throw ValidationException::withMessages(['organization' => __('roster::roster.delete_before_purge')]);
-        }
+        $this->guard($organization, $personal);
 
         OrganizationPurgingActionEvent::dispatch($organization);
 
@@ -50,5 +37,29 @@ final class PurgeOrganizationAction
         });
 
         OrganizationPurgedActionEvent::dispatch($organization);
+    }
+
+    /**
+     * Purge it in the background, as the API, MCP and Atrium do: it is
+     * checked now, so a refusal still answers the caller, and removed by a
+     * queued PurgeOrganizationJob once the request's transaction commits.
+     * Its events fire when the job runs.
+     */
+    public function queue(OrganizationModel $organization): void
+    {
+        $this->guard($organization, false);
+
+        PurgeOrganizationJob::dispatch($organization);
+    }
+
+    private function guard(OrganizationModel $organization, bool $personal): void
+    {
+        if ($organization->personal && ! $personal) {
+            throw ValidationException::withMessages(['organization' => __('roster::roster.cannot_delete_personal')]);
+        }
+
+        if (! $organization->trashed() && ! $personal) {
+            throw ValidationException::withMessages(['organization' => __('roster::roster.delete_before_purge')]);
+        }
     }
 }

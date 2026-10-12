@@ -7,10 +7,12 @@ namespace RefactorCircus\Roster\Domains\Transfer\Mcp\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ListTransfersAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\ListTransfersData;
 use RefactorCircus\Roster\Domains\Transfer\Resources\TransferResource;
+use RefactorCircus\Roster\Domains\Transfer\Services\Transfers;
 use RefactorCircus\Roster\Mcp\Request;
+use RefactorCircus\Roster\Support\Scopes;
 
 /**
  * Everyone may list their own transfers. An organization's transfers need
@@ -25,9 +27,7 @@ final class ListTransfersMcpRequest extends Request
 
     protected function scope(): ?OrganizationModel
     {
-        $slug = $this->get('organization');
-
-        return is_string($slug) && $slug !== '' ? OrganizationModel::query()->where('slug', $slug)->first() : null;
+        return Scopes::organization($this->get('organization'));
     }
 
     protected function self(): ?Model
@@ -37,24 +37,13 @@ final class ListTransfersMcpRequest extends Request
 
     protected function rules(): array
     {
-        return ListTransfersAction::rules();
+        return ListTransfersData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        $actor = $this->actor();
-        $everyone = $this->scope() !== null || app(Authorizer::class)->check($actor, 'roster.users.view');
-        // Not everyone's: their own, plus those of the organizations they may see transfers in.
-        $organizations = $everyone ? [] : (app(Authorizer::class)->organizationsWith($actor, 'roster.members.view') ?? []);
-        $transfers = app(ListTransfersAction::class)->execute($validated, $everyone ? null : $actor, $organizations);
+        $transfers = app(ListTransfersAction::class)->execute(ListTransfersData::fromValidated($validated), ...app(Transfers::class)->visibleTo($this->actor(), $this->scope()));
 
-        return $this->structuredCollection(TransferResource::collection($transfers->items())->resolve(), [
-            'meta' => [
-                'current_page' => $transfers->currentPage(),
-                'last_page' => $transfers->lastPage(),
-                'per_page' => $transfers->perPage(),
-                'total' => $transfers->total(),
-            ],
-        ]);
+        return TransferResource::collection($transfers)->toStructuredResponse();
     }
 }

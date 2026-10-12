@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Permission\Mcp\Requests\UpdatePermissionMcpRequest;
+use RefactorCircus\Roster\Domains\Permission\Resources\PermissionResource;
 
 #[Description('Change a permission\'s description. Names cannot change.')]
 final class UpdatePermissionTool extends Tool
@@ -25,5 +26,10 @@ final class UpdatePermissionTool extends Tool
             'name' => $schema->string()->description('The permission name.')->required(),
             'description' => $schema->string()->description('New description, or null to clear.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return PermissionResource::structuredSchema($schema);
     }
 }

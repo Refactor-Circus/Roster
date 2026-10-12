@@ -5,10 +5,6 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\Invitation\Mcp\Requests;
 
 use Illuminate\Database\Eloquent\Model;
-use Laravel\Mcp\Response;
-use Laravel\Mcp\ResponseFactory;
-use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
-use RefactorCircus\Roster\Domains\Invitation\Resources\InvitationResource;
 use RefactorCircus\Roster\Mcp\Request;
 
 /**
@@ -24,7 +20,7 @@ abstract class InvitationResponseMcpRequest extends Request
         return '';
     }
 
-    protected function authorize(): bool
+    public function authorize(): bool
     {
         return $this->actor() !== null;
     }
@@ -33,10 +29,5 @@ abstract class InvitationResponseMcpRequest extends Request
     {
         /** @var Model */
         return $this->actor();
-    }
-
-    protected function respondWithInvitation(InvitationModel $invitation): ResponseFactory
-    {
-        return Response::structured(['data' => (new InvitationResource($invitation))->resolve()]);
     }
 }

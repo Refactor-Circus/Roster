@@ -6,6 +6,7 @@ require_once __DIR__.'/helpers.php';
 
 use RefactorCircus\Roster\Domains\Scim\Actions\CreateScimTokenAction;
 use RefactorCircus\Roster\Domains\Scim\Actions\RevokeScimTokenAction;
+use RefactorCircus\Roster\Domains\Scim\Data\CreateScimTokenData;
 use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
 
 beforeEach(function (): void {
@@ -32,7 +33,7 @@ it('refuses missing, wrong, revoked, expired and other-organization tokens', fun
 
             return $this->scimToken;
         })(),
-        'other organization' => app(CreateScimTokenAction::class)->execute(organization(attributes: ['name' => 'Globex']), ['name' => 'x'])->plain,
+        'other organization' => app(CreateScimTokenAction::class)->execute(organization(attributes: ['name' => 'Globex']), new CreateScimTokenData(name: 'x'))->plain,
     };
 
     scim('GET', '/Users', token: $token)

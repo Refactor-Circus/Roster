@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -25,11 +27,15 @@ use RefactorCircus\Roster\Support\Users;
  */
 final class RoleAssignmentModel extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
 
-    protected $table = 'roster_role_assignments';
-
     protected $fillable = ['role_id', 'user_id', 'organization_id', 'team_id'];
+
+    public function getTable(): string
+    {
+        return Tables::name('role_assignments');
+    }
 
     /**
      * @return BelongsTo<RoleModel, $this>

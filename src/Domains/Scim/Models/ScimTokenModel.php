@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * A bearer token an identity provider uses to provision one organization.
@@ -29,13 +31,17 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
  */
 final class ScimTokenModel extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
-
-    protected $table = 'roster_scim_tokens';
 
     protected $fillable = ['organization_id', 'name', 'token_hash', 'sso_connection_id', 'created_by', 'last_used_at', 'expires_at', 'revoked_at'];
 
     protected $hidden = ['token_hash'];
+
+    public function getTable(): string
+    {
+        return Tables::name('scim_tokens');
+    }
 
     /**
      * @return BelongsTo<OrganizationModel, $this>

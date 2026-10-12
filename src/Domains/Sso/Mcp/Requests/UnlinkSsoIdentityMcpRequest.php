@@ -29,7 +29,7 @@ final class UnlinkSsoIdentityMcpRequest extends Request
     {
         $actor = $this->actor();
 
-        return $actor !== null && (string) $this->identity()->user_id === (string) $actor->getKey() ? $actor : null;
+        return $this->identity()->ownedBy($actor) ? $actor : null;
     }
 
     private function identity(): SsoIdentityModel
@@ -39,7 +39,7 @@ final class UnlinkSsoIdentityMcpRequest extends Request
 
     protected function rules(): array
     {
-        return UnlinkSsoIdentityAction::rules() + ['identity' => ['required', 'string']];
+        return ['identity' => ['required', 'string']];
     }
 
     protected function handle(array $validated): Response

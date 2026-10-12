@@ -9,7 +9,9 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Roster\Domains\Impersonation\Data\ListImpersonationsData;
 use RefactorCircus\Roster\Domains\Impersonation\Mcp\Requests\ListImpersonationsMcpRequest;
+use RefactorCircus\Roster\Domains\Impersonation\Resources\ImpersonationResource;
 
 #[Description('List impersonations, newest first: who acted as whom, why, and when it ended.')]
 final class ListImpersonationsTool extends Tool
@@ -26,8 +28,11 @@ final class ListImpersonationsTool extends Tool
             'user' => $schema->string()->description('Only those acting as this user id.'),
             'impersonator' => $schema->string()->description('Only those by this user id.'),
             'organization' => $schema->string()->description('An organization slug.'),
-            'per_page' => $schema->integer()->description('Results per page, 1-100.')->min(1)->max(100),
-            'page' => $schema->integer()->description('Page number, from 1.')->min(1),
-        ];
+        ] + ListImpersonationsData::pagination()->schema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return ImpersonationResource::collectionSchema($schema);
     }
 }

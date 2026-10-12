@@ -24,7 +24,8 @@ final class PruneTransfersCommand extends Command
         TransferModel::query()
             ->where('created_at', '<', now()->subDays($days))
             ->where(fn (Builder $query): Builder => $query->whereNotNull('input_path')->orWhereNotNull('output_path'))
-            ->each(function (TransferModel $transfer) use ($transfers, &$pruned): void {
+            // By id, not offset: clearing the paths drops each row from the set being paged.
+            ->eachById(function (TransferModel $transfer) use ($transfers, &$pruned): void {
                 $transfers->disk()->deleteDirectory('roster/transfers/'.$transfer->id);
                 // The rows hold the imported values (emails, names) too.
                 $transfer->lines()->delete();

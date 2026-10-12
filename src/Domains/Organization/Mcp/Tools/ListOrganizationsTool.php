@@ -9,7 +9,9 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Roster\Domains\Organization\Data\ListOrganizationsData;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\ListOrganizationsMcpRequest;
+use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 
 #[Description('List organizations by name. Filter by a search term, a member user, or an external record (source, external_id, account_number). Paginated.')]
 final class ListOrganizationsTool extends Tool
@@ -28,8 +30,11 @@ final class ListOrganizationsTool extends Tool
             'source' => $schema->string()->description('Only organizations linked to this external system.'),
             'external_id' => $schema->string()->description('Only organizations with this id in an external system.'),
             'account_number' => $schema->string()->description('Only organizations with this account number in an external system.'),
-            'per_page' => $schema->integer()->description('Results per page, 1-100. Defaults to 15.')->min(1)->max(100),
-            'page' => $schema->integer()->description('Page number, from 1.')->min(1),
-        ];
+        ] + ListOrganizationsData::pagination()->schema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return OrganizationResource::collectionSchema($schema);
     }
 }

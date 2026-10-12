@@ -13,14 +13,6 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 final class DeleteOrganizationAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Delete an organization. It's a soft delete: everything it has is kept,
      * its slug and domains stay reserved, and it can be restored until it's
      * purged (PurgeOrganizationAction / roster:purge-deleted). A personal

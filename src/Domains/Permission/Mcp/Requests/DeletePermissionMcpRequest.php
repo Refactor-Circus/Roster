@@ -18,7 +18,7 @@ final class DeletePermissionMcpRequest extends Request
 
     protected function rules(): array
     {
-        return DeletePermissionAction::rules() + ['name' => ['required', 'string']];
+        return ['name' => ['required', 'string']];
     }
 
     protected function handle(array $validated): Response

@@ -6,9 +6,10 @@ namespace RefactorCircus\Roster\Domains\User\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Keystone\Data\Missing;
 use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
+use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
 use RefactorCircus\Roster\Domains\User\Events\UserUpdatedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserUpdatingActionEvent;
 use RefactorCircus\Roster\Support\Users;
@@ -17,43 +18,14 @@ final class UpdateUserAction
 {
     public function __construct(private readonly Users $users) {}
 
-    /**
-     * Pass the user being updated so its own email passes the unique check.
-     *
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(?Model $user = null): array
-    {
-        $users = app(Users::class);
-        $unique = Rule::unique($users->table(), $users->column('email') ?? 'email');
-
-        if ($user !== null) {
-            $unique->ignore($user->getKey(), $user->getKeyName());
-        }
-
-        $rules = [
-            'email' => ['sometimes', 'required', 'email', 'max:255', $unique],
-            'password' => ['sometimes', 'required', 'string', 'min:8', 'max:255'],
-        ];
-
-        if ($users->column('name') !== null) {
-            $rules = ['name' => ['sometimes', 'required', 'string', 'max:255']] + $rules;
-        }
-
-        return $rules;
-    }
-
-    /**
-     * @param  array<string, mixed>  $data
-     */
-    public function execute(Model $user, array $data): Model
+    public function execute(Model $user, UpdateUserData $data): Model
     {
         // An impersonator must not be able to take over the account.
         $impersonated = app(ImpersonationContext::class)->active()?->user_id;
 
         if ($impersonated !== null && (string) $impersonated === (string) $user->getKey()) {
             foreach (['email', 'password'] as $field) {
-                if (array_key_exists($field, $data)) {
+                if ($data->has($field)) {
                     throw ValidationException::withMessages([$field => __('roster::roster.impersonation_account_locked')]);
                 }
             }
@@ -62,11 +34,11 @@ final class UpdateUserAction
         UserUpdatingActionEvent::dispatch($user, $data);
 
         DB::transaction(function () use ($user, $data): void {
-            foreach (['name', 'email', 'password'] as $field) {
+            foreach (['name' => $data->name, 'email' => $data->email, 'password' => $data->password] as $field => $value) {
                 $column = $this->users->column($field);
 
-                if ($column !== null && array_key_exists($field, $data)) {
-                    $user->setAttribute($column, $data[$field]);
+                if ($column !== null && ! $value instanceof Missing) {
+                    $user->setAttribute($column, $value);
                 }
             }
 

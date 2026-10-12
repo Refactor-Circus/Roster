@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Transfer\Resources;
 
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\Facades\Route;
+use RefactorCircus\Keystone\Http\Resources\JsonResource;
+use RefactorCircus\Roster\Domains\Transfer\Enums\TransferStatus;
+use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferRowModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\Transfers;
@@ -55,6 +59,48 @@ final class TransferResource extends JsonResource
     private function rowsPage(): LengthAwarePaginator
     {
         return $this->rowsPaginator ??= $this->resource->lines()->paginate(100, ['*'], 'rows_page', $this->rowsPage);
+    }
+
+    /**
+     * @return array<string, Type>
+     */
+    public static function schema(JsonSchema $schema): array
+    {
+        return [
+            'id' => $schema->string()->required(),
+            'type' => $schema->string()->enum(array_column(TransferType::cases(), 'value'))->required(),
+            'status' => $schema->string()->enum(array_column(TransferStatus::cases(), 'value'))->required(),
+            'organization' => $schema->string()->nullable()->required(),
+            'requested_by' => $schema->object(UserSummaryResource::schema($schema))->nullable()->required(),
+            'row_count' => $schema->integer()->nullable()->required(),
+            'progress' => $schema->object([
+                'done' => $schema->integer()->required(),
+                'total' => $schema->integer()->required(),
+            ])->nullable()->description('Rows applied of the total, while an import runs.')->required(),
+            'summary' => $schema->object()->description('Planned rows per outcome.')->required(),
+            'results' => $schema->object()->description('Applied rows per outcome.')->required(),
+            'error' => $schema->string()->nullable()->required(),
+            'filters' => $schema->object()->nullable()->required(),
+            'rows' => $schema->array()->items($schema->object([
+                'line' => $schema->integer()->required(),
+                'values' => $schema->object(),
+                'action' => $schema->string(),
+                'reasons' => $schema->array()->items($schema->string()),
+                'result' => $schema->string(),
+                'result_reasons' => $schema->array()->items($schema->string()),
+            ]))->description('One page of rows, on a single transfer.'),
+            'rows_meta' => $schema->object([
+                'current_page' => $schema->integer()->required(),
+                'last_page' => $schema->integer()->required(),
+                'per_page' => $schema->integer()->required(),
+                'total' => $schema->integer()->required(),
+            ])->description('The page of rows, on a single transfer.'),
+            'download_url' => $schema->string()->nullable()->required(),
+            'expires_at' => $schema->string()->nullable()->required(),
+            'confirmed_at' => $schema->string()->nullable()->required(),
+            'finished_at' => $schema->string()->nullable()->required(),
+            'created_at' => $schema->string()->nullable()->required(),
+        ];
     }
 
     /**

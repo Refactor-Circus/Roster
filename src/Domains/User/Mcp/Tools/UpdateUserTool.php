@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\User\Mcp\Requests\UpdateUserMcpRequest;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesUser;
 
 #[Description('Update a user\'s account fields. Only the fields given change.')]
@@ -29,5 +30,10 @@ final class UpdateUserTool extends Tool
             'email' => $schema->string()->description('Unique email address.'),
             'password' => $schema->string()->description('New password, at least 8 characters.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return UserResource::structuredSchema($schema);
     }
 }

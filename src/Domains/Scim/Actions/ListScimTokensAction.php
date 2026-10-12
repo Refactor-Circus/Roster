@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Scim\Actions;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Scim\Data\ListScimTokensData;
 use RefactorCircus\Roster\Domains\Scim\Events\ScimTokensListedActionEvent;
 use RefactorCircus\Roster\Domains\Scim\Events\ScimTokensListingActionEvent;
 use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
@@ -13,33 +14,18 @@ use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
 final class ListScimTokensAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, ScimTokenModel>
      */
-    public function execute(OrganizationModel $organization, array $filters = []): LengthAwarePaginator
+    public function execute(OrganizationModel $organization, ListScimTokensData $filters = new ListScimTokensData): LengthAwarePaginator
     {
         ScimTokensListingActionEvent::dispatch($organization, $filters);
-
-        $perPage = is_numeric($filters['per_page'] ?? null) ? (int) $filters['per_page'] : 25;
-        $page = is_numeric($filters['page'] ?? null) ? (int) $filters['page'] : null;
 
         $tokens = ScimTokenModel::query()
             ->where('organization_id', $organization->getKey())
             ->with(['organization', 'ssoConnection'])
             ->latest()
             ->latest('id')
-            ->paginate($perPage, ['*'], 'page', $page);
+            ->paginate($filters->perPage, ['*'], 'page', $filters->page);
 
         ScimTokensListedActionEvent::dispatch($organization, $filters);
 

@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Team\Mcp\Requests;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Team\Actions\RemoveTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 use RefactorCircus\Roster\Support\Users;
 
 final class RemoveTeamMemberMcpRequest extends TeamMcpRequest
@@ -23,11 +24,11 @@ final class RemoveTeamMemberMcpRequest extends TeamMcpRequest
 
     protected function rules(): array
     {
-        return RemoveTeamMemberAction::rules() + $this->teamRules() + ['user' => ['required']];
+        return $this->teamRules() + ['user' => ['required']];
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        return $this->respondWithTeam(app(RemoveTeamMemberAction::class)->execute($this->team(), app(Users::class)->findOrFail($validated['user'])));
+        return (new TeamResource(app(RemoveTeamMemberAction::class)->execute($this->team(), app(Users::class)->findOrFail($validated['user']))))->toStructuredResponse();
     }
 }

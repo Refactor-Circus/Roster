@@ -21,17 +21,12 @@ final class ConfirmImportMcpRequest extends TransferMcpRequest
         return null;
     }
 
-    protected function rules(): array
-    {
-        return ConfirmImportAction::rules() + ['transfer' => ['required', 'string']];
-    }
-
     protected function handle(array $validated): Response|ResponseFactory
     {
         if (! $this->transfer()->type->isImport()) {
             return Response::error('Not found.');
         }
 
-        return Response::structured(['data' => (new TransferResource(app(ConfirmImportAction::class)->execute($this->transfer(), $this->actor())))->signed()->resolve()]);
+        return (new TransferResource(app(ConfirmImportAction::class)->execute($this->transfer(), $this->actor())))->signed()->toStructuredResponse();
     }
 }

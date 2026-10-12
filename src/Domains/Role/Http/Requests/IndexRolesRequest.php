@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Role\Http\Requests;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Actions\ListRolesAction;
+use RefactorCircus\Roster\Domains\Role\Data\ListRolesData;
 use RefactorCircus\Roster\Domains\Role\Resources\RoleResource;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Http\Request;
@@ -31,11 +32,11 @@ final class IndexRolesRequest extends Request
 
     public function rules(): array
     {
-        return ListRolesAction::rules();
+        return ListRolesData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        return RoleResource::collection(app(ListRolesAction::class)->execute($this->validated(), $this->organizations()))->response();
+        return RoleResource::collection(app(ListRolesAction::class)->execute(ListRolesData::fromValidated($this->validated()), $this->organizations()))->response();
     }
 }

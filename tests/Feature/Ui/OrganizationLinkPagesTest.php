@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use RefactorCircus\Roster\Domains\Organization\Actions\SyncOrganizationAction;
+use RefactorCircus\Roster\Domains\Organization\Data\SyncOrganizationData;
 
 it('links, shows and unlinks external records on the settings tab', function (): void {
     $this->actingAs(user());
@@ -21,7 +22,7 @@ it('links, shows and unlinks external records on the settings tab', function ():
 
 it('flags an organization with no owner', function (): void {
     $this->actingAs(user());
-    app(SyncOrganizationAction::class)->execute(['source' => 'erp', 'external_id' => 'C-1', 'name' => 'Initech']);
+    app(SyncOrganizationAction::class)->execute(new SyncOrganizationData(source: 'erp', externalId: 'C-1', name: 'Initech'));
 
     $this->get(route('atrium.roster.organizations.show', 'initech'))->assertOk()->assertSee('This organization has no owner yet.');
 });

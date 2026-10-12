@@ -9,10 +9,12 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Roster\Domains\Organization\Data\ListMembersData;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\ListMembersMcpRequest;
+use RefactorCircus\Roster\Domains\Organization\Resources\MemberResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesOrganization;
 
-#[Description('List an organization\'s members, oldest first, with how they joined and their teams. Paginated.')]
+#[Description('List an organization\'s members, oldest first, with how they joined and their teams, optionally only one team\'s. Paginated.')]
 final class ListMembersTool extends Tool
 {
     use DescribesOrganization;
@@ -25,8 +27,12 @@ final class ListMembersTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return $this->organizationSchema($schema) + [
-            'per_page' => $schema->integer()->description('Results per page, 1-100. Defaults to 15.')->min(1)->max(100),
-            'page' => $schema->integer()->description('Page number, from 1.')->min(1),
-        ];
+            'team' => $schema->string()->description('Only the members seated on the team with this slug.'),
+        ] + ListMembersData::pagination()->schema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return MemberResource::collectionSchema($schema);
     }
 }

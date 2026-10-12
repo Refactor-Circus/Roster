@@ -36,6 +36,15 @@ abstract class Planner
     abstract public function plan(array $values, TransferModel $transfer, ?Model $actor): array;
 
     /**
+     * Look up what plan() needs about a batch of rows at once, before the
+     * preview plans them one by one. Only the preview uses it: apply() always
+     * plans against the state at that moment.
+     *
+     * @param  array<int, array<string, string>>  $rows
+     */
+    public function prefetch(array $rows, TransferModel $transfer): void {}
+
+    /**
      * Apply the row; returns the action actually taken and why.
      *
      * @param  array<string, string>  $values

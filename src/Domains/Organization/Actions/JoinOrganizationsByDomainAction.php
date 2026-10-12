@@ -22,14 +22,6 @@ final class JoinOrganizationsByDomainAction
     public function __construct(private readonly Users $users) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Join the user to every auto-join organization that owns their email's
      * domain, returning the organizations newly joined.
      *
@@ -64,7 +56,8 @@ final class JoinOrganizationsByDomainAction
             return $organizations;
         });
 
-        $joined->load(['domains', 'links'])->loadCount(['memberships', 'teams']);
+        // Everything OrganizationResource reads, so the response costs no query per organization.
+        $joined->load(['owner', 'domains', 'links'])->loadCount(['memberships', 'teams']);
 
         DomainJoinedActionEvent::dispatch($user, $joined->pluck('slug')->all());
 

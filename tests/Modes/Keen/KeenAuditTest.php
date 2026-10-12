@@ -3,24 +3,32 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Gate;
-use RefactorCircus\Keen\Domains\Audit\Data\PendingAuditEntry;
 use RefactorCircus\Keen\Domains\Audit\Models\AuditEntryModel;
 use RefactorCircus\Keystone\Audit\History;
 use RefactorCircus\Keystone\Packages\Package;
 use RefactorCircus\Keystone\Packages\PackageRegistry;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
 use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
 use RefactorCircus\Roster\Domains\Role\Actions\UpdateRoleAction;
+use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
+use RefactorCircus\Roster\Domains\Role\Data\UpdateRoleData;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Sso\Actions\CreateSsoConnectionAction;
 use RefactorCircus\Roster\Domains\Sso\Actions\UpdateSsoConnectionAction;
+use RefactorCircus\Roster\Domains\Sso\Data\CreateSsoConnectionData;
+use RefactorCircus\Roster\Domains\Sso\Data\UpdateSsoConnectionData;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\TransferContext;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\SuspendUserData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
+use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
 use RefactorCircus\Roster\Facades\Roster;
+use RefactorCircus\Roster\Mcp\Tools\ListRosterHistoryTool;
 use RefactorCircus\Roster\Tests\Fixtures\Billing\InvoicePaidActionEvent;
 use RefactorCircus\Roster\Tests\Fixtures\Billing\InvoicePayingActionEvent;
 
@@ -40,10 +48,10 @@ it('records a suspension with the user as subject, the organization as scope and
     $acme = organization($grace, ['name' => 'Acme']);
 
     $this->actingAs($admin);
-    $started = app(StartImpersonationAction::class)->execute($ada, ['reason' => 'Ticket 42'], $admin);
+    $started = app(StartImpersonationAction::class)->execute($ada, new StartImpersonationData(reason: 'Ticket 42'), $admin);
     $this->get($started->url);
 
-    app(SuspendUserAction::class)->execute($grace, ['reason' => 'Spam']);
+    app(SuspendUserAction::class)->execute($grace, new SuspendUserData(reason: 'Spam'));
 
     $entry = keenEntry('user.suspended');
 
@@ -66,7 +74,7 @@ it('records a role assignment about the user, with the role in the diff', functi
     $acme = organization($ada, ['name' => 'Acme']);
     $admin = RoleModel::query()->where('slug', 'admin')->sole();
 
-    app(AssignRoleAction::class)->execute($ada, ['role' => $admin->id, 'organization' => $acme->slug]);
+    app(AssignRoleAction::class)->execute($ada, new AssignRoleData(role: $admin->id, organization: $acme->slug));
 
     $entry = keenEntry('role.assigned');
 
@@ -76,26 +84,30 @@ it('records a role assignment about the user, with the role in the diff', functi
 
 it('diffs a role\'s permissions and a user\'s profile', function (): void {
     $role = roleWith(['roster.users.view']);
-    app(UpdateRoleAction::class)->execute($role, ['permissions' => ['roster.users.view', 'roster.users.update']]);
+    app(UpdateRoleAction::class)->execute($role, new UpdateRoleData(permissions: ['roster.users.view', 'roster.users.update']));
 
     expect(keenEntry('role.updated')->changes['permissions'])->toBe([['roster.users.view'], ['roster.users.update', 'roster.users.view']]);
 
     $ada = user(['name' => 'Ada']);
-    app(UpdateProfileAction::class)->execute($ada, ['display_name' => 'Countess']);
+    app(UpdateProfileAction::class)->execute($ada, new UpdateProfileData(displayName: 'Countess'));
 
     expect(keenEntry('profile.updated')->changes['profile.display_name'])->toBe([null, 'Countess']);
 });
 
 it('redacts passwords and connection secrets', function (): void {
     $ada = user(['name' => 'Ada']);
-    app(UpdateUserAction::class)->execute($ada, ['password' => 'correct-horse-battery']);
+    app(UpdateUserAction::class)->execute($ada, new UpdateUserData(password: 'correct-horse-battery'));
 
     expect(keenEntry('user.updated')->changes['password'] ?? null)->toBe(['[redacted]', '[redacted]']);
 
-    $connection = app(CreateSsoConnectionAction::class)->execute(organization(), [
-        'name' => 'Okta', 'protocol' => 'oidc', 'issuer' => 'https://idp.test', 'client_id' => 'app', 'client_secret' => 'top-secret',
-    ]);
-    app(UpdateSsoConnectionAction::class)->execute($connection, ['client_secret' => 'rotated']);
+    $connection = app(CreateSsoConnectionAction::class)->execute(organization(), new CreateSsoConnectionData(
+        name: 'Okta',
+        protocol: 'oidc',
+        issuer: 'https://idp.test',
+        clientId: 'app',
+        clientSecret: 'top-secret',
+    ));
+    app(UpdateSsoConnectionAction::class)->execute($connection, new UpdateSsoConnectionData(clientSecret: 'rotated'));
 
     $log = json_encode(AuditEntryModel::query()->get()->toArray());
 
@@ -125,20 +137,18 @@ it('records the import a change came from', function (): void {
     expect(keenEntry('user.suspended')->context['transfer'])->toBe(['id' => $transfer->id, 'type' => 'import_users']);
 });
 
-it('delegates Roster::audit() to Keen', function (): void {
-    $acme = organization(attributes: ['name' => 'Acme']);
+it('keeps Roster out of the audit log when its auditing is turned off', function (): void {
+    config()->set('roster.audit.enabled', false);
 
-    $pending = Roster::audit('invoice.paid');
+    app(SuspendUserAction::class)->execute(user());
 
-    expect($pending)->toBeInstanceOf(PendingAuditEntry::class);
+    expect(AuditEntryModel::query()->where('source', 'roster')->count())->toBe(0)
+        ->and(Roster::auditing())->toBeFalse();
 
-    $pending->on($acme)->with(['amount' => 100])->save();
+    $this->actingAs($admin = user());
+    grant($admin, 'super-admin');
 
-    $entry = keenEntry('invoice.paid');
-
-    expect($entry->source)->toBe('app')
-        ->and($entry->subject_label)->toBe('Acme')
-        ->and($entry->context['amount'])->toBe(100);
+    $this->getJson(route('roster.history.index'))->assertNotFound()->assertJsonPath('message', 'Auditing is turned off for this package.');
 });
 
 it('leaves the subject and scope of other packages\' events to the audit log', function (): void {
@@ -172,4 +182,17 @@ it('serves Roster\'s history once Keen is installed, behind roster.audit.view', 
 
     expect(Gate::forUser($auditor)->allows(History::ABILITY, ['roster']))->toBeTrue()
         ->and(Gate::forUser($grace)->allows(History::ABILITY, ['roster']))->toBeFalse();
+});
+
+it('offers the history tool once Keen is installed, behind roster.audit.view', function (): void {
+    app(SuspendUserAction::class)->execute(user());
+    config()->set('roster.authorization', true);
+
+    mcpTool(ListRosterHistoryTool::class)->assertHasErrors(['Unauthorized.']);
+
+    $this->actingAs($viewer = user());
+    mcpTool(ListRosterHistoryTool::class)->assertHasErrors(['Unauthorized.']);
+
+    grant($viewer, roleWith(['roster.audit.view'])->slug);
+    mcpTool(ListRosterHistoryTool::class)->assertOk()->assertSee('user.suspended');
 });

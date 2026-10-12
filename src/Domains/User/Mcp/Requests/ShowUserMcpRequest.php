@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\User\Mcp\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\User\Actions\ShowUserAction;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class ShowUserMcpRequest extends UserMcpRequest
 {
@@ -20,13 +21,8 @@ final class ShowUserMcpRequest extends UserMcpRequest
         return $this->targetUser();
     }
 
-    protected function rules(): array
-    {
-        return ShowUserAction::rules() + $this->userRules();
-    }
-
     protected function handle(array $validated): ResponseFactory
     {
-        return $this->respond(app(ShowUserAction::class)->execute($this->targetUser()));
+        return (new UserResource(app(ShowUserAction::class)->execute($this->targetUser())))->toStructuredResponse();
     }
 }

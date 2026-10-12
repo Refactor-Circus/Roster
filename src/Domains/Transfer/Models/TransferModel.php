@@ -12,10 +12,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\TransferFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferStatus;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -40,17 +42,22 @@ use RefactorCircus\Roster\Support\Users;
  */
 final class TransferModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<TransferFactory> */
     use HasFactory;
 
     use HasUlids;
 
-    protected $table = 'roster_transfers';
-
     protected $fillable = [
         'type', 'organization_id', 'requested_by', 'status', 'impex_run_id', 'input_path', 'output_path',
         'filters', 'report', 'row_count', 'confirmed_at', 'finished_at', 'expires_at',
     ];
+
+    public function getTable(): string
+    {
+        return Tables::name('transfers');
+    }
 
     /**
      * @return BelongsTo<OrganizationModel, $this>

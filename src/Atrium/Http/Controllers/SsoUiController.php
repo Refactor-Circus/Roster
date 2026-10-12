@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Sso\Actions\CreateSsoConnectionAction;
 use RefactorCircus\Roster\Domains\Sso\Actions\DeleteSsoConnectionAction;
 use RefactorCircus\Roster\Domains\Sso\Actions\ShowSsoConnectionAction;
 use RefactorCircus\Roster\Domains\Sso\Actions\UnlinkSsoIdentityAction;
 use RefactorCircus\Roster\Domains\Sso\Actions\UpdateSsoConnectionAction;
+use RefactorCircus\Roster\Domains\Sso\Data\CreateSsoConnectionData;
+use RefactorCircus\Roster\Domains\Sso\Data\UpdateSsoConnectionData;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 
@@ -27,11 +28,11 @@ final class SsoUiController
 
     public function store(Request $request, string $organization): RedirectResponse
     {
-        $model = OrganizationModel::query()->where('slug', $organization)->firstOrFail();
+        $model = $this->organization($organization);
         $this->authorizeScreen('roster.sso.manage', $model);
         $this->booleans($request);
 
-        $connection = app(CreateSsoConnectionAction::class)->execute($model, $request->validate(CreateSsoConnectionAction::rules()));
+        $connection = app(CreateSsoConnectionAction::class)->execute($model, CreateSsoConnectionData::from($request->all()));
 
         return redirect()
             ->route('atrium.roster.sso.show', $connection->slug)
@@ -55,7 +56,7 @@ final class SsoUiController
         $this->authorizeScreen('roster.sso.manage', $model->organization);
         $this->booleans($request);
 
-        $model = app(UpdateSsoConnectionAction::class)->execute($model, $request->validate(UpdateSsoConnectionAction::rules($model)));
+        $model = app(UpdateSsoConnectionAction::class)->execute($model, UpdateSsoConnectionData::from($request->all(), $model));
 
         return redirect()
             ->route('atrium.roster.sso.show', $model->slug)
@@ -79,8 +80,8 @@ final class SsoUiController
     {
         $model = SsoIdentityModel::query()->whereKey($identity)->firstOrFail();
         $actor = $request->user();
-        $own = $actor instanceof Model && (string) $model->user_id === (string) $actor->getKey();
-        $this->authorizeScreen('roster.sso.manage', $model->connection?->organization, $own ? $actor : null);
+        $actor = $actor instanceof Model ? $actor : null;
+        $this->authorizeScreen('roster.sso.manage', $model->connection?->organization, $model->ownedBy($actor) ? $actor : null);
 
         $user = $model->user;
 

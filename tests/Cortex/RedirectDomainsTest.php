@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use RefactorCircus\Cortex\Domains\RedirectDomain\Actions\CreateRedirectDomainAction;
+use RefactorCircus\Cortex\Domains\RedirectDomain\Data\CreateRedirectDomainData;
 use RefactorCircus\Cortex\Domains\RedirectDomain\Models\RedirectDomainModel;
 use RefactorCircus\Cortex\Domains\RedirectDomain\Services\RedirectDomains;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
@@ -84,7 +85,7 @@ it('removes only the organization\'s own domains', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $globex = organization(attributes: ['name' => 'Globex']);
     $admin = domainManager([], $acme, ['roster.organizations.view', 'roster.organizations.update']);
-    $theirs = app(CreateRedirectDomainAction::class)->execute(['domain' => 'chatgpt.com'], $globex);
+    $theirs = app(CreateRedirectDomainAction::class)->execute(new CreateRedirectDomainData(domain: 'chatgpt.com'), $globex);
 
     $this->actingAs($admin)
         ->delete(route('atrium.roster.organizations.redirect-domains.destroy', [$acme, $theirs->id]))
@@ -132,7 +133,7 @@ it('manages a user\'s redirect domains on their page', function (): void {
 
 it('shows a user\'s domains read-only to those who may not edit users', function (): void {
     $target = user();
-    app(CreateRedirectDomainAction::class)->execute(['domain' => 'cursor.com'], $target);
+    app(CreateRedirectDomainAction::class)->execute(new CreateRedirectDomainData(domain: 'cursor.com'), $target);
     $viewer = domainManager(['roster.users.view']);
 
     $this->actingAs($viewer)

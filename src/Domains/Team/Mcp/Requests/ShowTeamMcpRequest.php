@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Team\Mcp\Requests;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Team\Actions\ShowTeamAction;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 
 final class ShowTeamMcpRequest extends TeamMcpRequest
 {
@@ -20,13 +21,8 @@ final class ShowTeamMcpRequest extends TeamMcpRequest
         return $this->team();
     }
 
-    protected function rules(): array
-    {
-        return ShowTeamAction::rules() + $this->teamRules();
-    }
-
     protected function handle(array $validated): ResponseFactory
     {
-        return $this->respondWithTeam(app(ShowTeamAction::class)->execute($this->team()));
+        return (new TeamResource(app(ShowTeamAction::class)->execute($this->team())))->toStructuredResponse();
     }
 }

@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\User\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
+use RefactorCircus\Roster\Domains\User\Data\SuspendUserData;
 use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class SuspendUserRequest extends UserRequest
@@ -17,12 +18,12 @@ final class SuspendUserRequest extends UserRequest
 
     public function rules(): array
     {
-        return SuspendUserAction::rules();
+        return SuspendUserData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $user = app(SuspendUserAction::class)->execute($this->targetUser(), $this->validated(), $this->actor());
+        $user = app(SuspendUserAction::class)->execute($this->targetUser(), SuspendUserData::fromValidated($this->validated()), $this->actor());
 
         return (new UserResource($user))->response();
     }

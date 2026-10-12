@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Testing\TestResponse;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Scim\Actions\CreateScimTokenAction;
+use RefactorCircus\Roster\Domains\Scim\Data\CreateScimTokenData;
 
 /**
  * Acme (owning acme.test) with a SCIM token; returns [organization, token].
@@ -14,7 +15,7 @@ use RefactorCircus\Roster\Domains\Scim\Actions\CreateScimTokenAction;
 function scimOrg(array $token = []): array
 {
     $acme = organization(attributes: ['name' => 'Acme', 'domains' => ['acme.test']]);
-    $issued = app(CreateScimTokenAction::class)->execute($acme, ['name' => 'Okta'] + $token);
+    $issued = app(CreateScimTokenAction::class)->execute($acme, CreateScimTokenData::from(['name' => 'Okta'] + $token));
 
     return [$acme, $issued->plain];
 }

@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Role\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\Role\Data\UpdateRoleData;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 
 /**
@@ -19,7 +20,6 @@ final class RoleUpdatingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public RoleModel $role,
-        /** @var array<string, mixed> */
-        public array $data,
+        public UpdateRoleData $data,
     ) {}
 }

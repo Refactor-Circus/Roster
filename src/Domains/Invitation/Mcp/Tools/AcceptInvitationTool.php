@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Invitation\Mcp\Requests\AcceptInvitationMcpRequest;
+use RefactorCircus\Roster\Domains\Invitation\Resources\InvitationResource;
 
 #[Description('Accept an invitation as the authenticated user, whose email must match the invitation.')]
 final class AcceptInvitationTool extends Tool
@@ -24,5 +25,10 @@ final class AcceptInvitationTool extends Tool
         return [
             'token' => $schema->string()->description('The token from the invitation link.')->required(),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return InvitationResource::structuredSchema($schema);
     }
 }

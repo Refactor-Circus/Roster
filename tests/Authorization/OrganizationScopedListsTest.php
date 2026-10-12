@@ -8,6 +8,7 @@ use RefactorCircus\Atrium\Domains\Navigation\Services\NavigationRegistry;
 use RefactorCircus\Atrium\Domains\Search\Data\SearchResult;
 use RefactorCircus\Atrium\Domains\Search\Services\SearchRegistry;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\ListOrganizationsTool;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
@@ -30,7 +31,7 @@ function twoOrganizations(): array
     RoleModel::factory()->create(['scope' => 'organization', 'organization_id' => $globex->id, 'name' => 'Globex billing', 'slug' => 'globex-billing']);
 
     $admin = user();
-    app(AddMemberAction::class)->execute($acme, ['user' => $admin->getRouteKey()]);
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $admin->getRouteKey()));
     grant($admin, 'admin', $acme);
 
     return ['acme' => $acme, 'globex' => $globex, 'admin' => $admin];
@@ -136,9 +137,12 @@ it('searches only the organizations the searcher may view', function (): void {
     $request = Request::create('/atrium/search');
     $request->setUserResolver(fn (): User => $admin);
 
-    $titles = array_map(fn (SearchResult $result): string => $result->title, app(SearchRegistry::class)->search($request, 'e'));
+    $titles = fn (string $query): array => array_map(fn (SearchResult $result): string => $result->title, app(SearchRegistry::class)->search($request, $query));
 
-    expect($titles)->toContain('Acme')->not->toContain('Globex');
+    expect($titles('acm'))->toContain('Acme')
+        ->and($titles('glo'))->not->toContain('Globex')
+        // Matched from the start of a field, not mid-word.
+        ->and($titles('cme'))->not->toContain('Acme');
 });
 
 /**

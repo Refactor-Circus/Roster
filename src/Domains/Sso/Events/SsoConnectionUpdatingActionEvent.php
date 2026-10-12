@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Sso\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\Sso\Data\UpdateSsoConnectionData;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 
 /**
@@ -19,7 +20,6 @@ final class SsoConnectionUpdatingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public SsoConnectionModel $connection,
-        /** @var array<string, mixed> */
-        public array $data,
+        public UpdateSsoConnectionData $data,
     ) {}
 }

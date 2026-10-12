@@ -37,6 +37,7 @@ php artisan migrate
 
 - Set `roster.users.key_type` (`int` | `ulid` | `uuid`) **before** migrating; it decides the type of the `roster_profiles.user_id` column.
 - If the users table uses other column names, set `roster.users.columns` (`name`, `email`, `password`; set `name` to `null` if there is none).
+- Rename any table under `roster.tables` (`organizations`, `memberships`, `team_members`, `permission_role`, ...) **before** migrating; migrations, models, rules and queries read the same keys. Never hard-code `roster_*` names: use the models, or `RefactorCircus\Roster\Support\Tables::name('memberships')`.
 - Pick a user mode:
   - Add `use RefactorCircus\Roster\Domains\User\Concerns\HasRoster;` to the user model (recommended). It provides `roster()`, `rosterStatus()`, `isRosterActive()` and the `rosterProfile` relation.
   - Or leave the model untouched. Roster registers `rosterProfile` dynamically; use `app(RefactorCircus\Roster\Support\Users::class)->profile($user)` / `->status($user)`.
@@ -44,7 +45,8 @@ php artisan migrate
 
 ### 3. Apply the Actions
 
-- Resolve with `app(Action::class)->execute(...)`. Validate input with `Action::rules()`; `UpdateUserAction::rules($user)` takes the user so its own email passes the unique check.
+- Resolve with `app(Action::class)->execute(...)`. Input is never an array: each Action takes its Data object, `{Action}Data` in the domain's `Data` namespace (`SuspendUserAction` → `Domains\User\Data\SuspendUserData`). Build it with `new XData(named: args)` from your own values, or `XData::from($request->all())` from untrusted input, which validates against `XData::rules()` and throws `ValidationException`. Some rules take context: `UpdateUserData::from($input, $user)` lets the user keep their own email.
+- Enum-valued fields take the enum (`RoleScope::Organization`, `TransferType::ImportMembers`, `UserStatus::Pending`). Update Data defaults fields to `RefactorCircus\Keystone\Data\Missing`: leave a field out to keep it, pass `null` to clear it; check with `$data->has('field')`.
 - Pass the acting user as `actor`. Status changes and deletes then refuse to act on yourself.
 - Business-rule failures throw `ValidationException`; let Laravel render them.
 
@@ -52,58 +54,61 @@ php artisan migrate
 
 - Create organizations with `CreateOrganizationAction` (`owner` is a user route key, or pass `owner:` a model). The owner becomes a member; only `TransferOwnershipAction` changes the owner.
 - Add members with `AddMemberAction`, then seat them on teams with `AddTeamMemberAction`; non-members are rejected.
-- Invite with `CreateInvitationAction($organization, ['email' => ..., 'teams' => [slugs]], actor: $user)`. The email links to Roster's signed page (behind `roster.invitations.middleware`); only a signed-in user with the invited email can accept. Use `roster.invitations.accept_url` for a custom page that calls `AcceptInvitationAction`.
+- List members a page at a time with `ListMembersAction($organization, new ListMembersData(team: 'ops'))` for one team's; `ShowTeamAction` carries only a team's first 100 members (`members_count` is the full count).
+- Invite with `CreateInvitationAction($organization, new CreateInvitationData(email: ..., teams: [slugs]), actor: $user)`. The email links to Roster's signed page (behind `roster.invitations.middleware`); only a signed-in user with the invited email can accept. Use `roster.invitations.accept_url` for a custom page that calls `AcceptInvitationAction`.
 - Domain auto-join: set an organization's `domains` and `auto_join`. It fires only for verified emails on models implementing `MustVerifyEmail`.
 - Read context with `$user->currentOrganization()` / `currentTeam()` (or `app(RefactorCircus\Roster\Roster::class)`); change it with `SwitchContextAction`.
 
 ### 5. Roles and permissions
 
-- Declare app permissions with `CreatePermissionAction` (`['name' => 'invoices.edit']`), bundle them with `CreateRoleAction` (`scope`: global | organization | team; `organization` for an organization's own role), and assign with `AssignRoleAction($user, ['role' => $id, 'organization' => slug, 'team' => slug])`.
+- Declare app permissions with `CreatePermissionAction(new CreatePermissionData(name: 'invoices.edit'))`, bundle them with `CreateRoleAction(new CreateRoleData(name: ..., scope: RoleScope::Organization, permissions: [...]))` (`scope`: Global | Organization | Team; `organization` for an organization's own role), and assign with `AssignRoleAction($user, new AssignRoleData(role: $id, organization: slug, team: slug))`.
 - Check with Laravel's Gate: `$user->can('invoices.edit', $organization)`, `@can`, `Gate::allows()`. Without an organization or team argument, the user's current context is used.
 - Bootstrap: `php artisan roster:grant-super-admin {email}`. Run `php artisan roster:sync-permissions` after upgrading.
 - Roster's own API, MCP tools and Atrium screens require the `roster.*` permissions (`roster.authorization`, on by default).
+- Permissions and role assignments are remembered per request and forgotten by Roster's own Actions. Opt in to keeping them in the cache store with `roster.permission_cache.ttl` (seconds) / `.store`; after writing roles, assignments or permissions without Roster's Actions or models, call `Permissions::forgetCache()`. Eager-load `organization` / `team` on records you check one by one with `$user->can($ability, $record)`.
 - With `refactor-circus/cortex` installed, every Roster tool is available to Cortex agents automatically. Agents act as the signed-in user; limit them with `roster.cortex.tools`.
 - The API and MCP are throttled by `throttle:roster` (`roster.rate_limit.per_minute`). Keep it in custom `middleware` lists.
 
-### 6. Audit log
+### 6. Auditing
 
-- Roster keeps no audit log of its own. Install refactor-circus/keen (`composer require refactor-circus/keen`, `php artisan migrate`) and every Roster change is recorded there, labelled, diffed (profile fields, role permissions, organization domains), scoped to its organization, and with the impersonator, import or SCIM token in its context. Roster registers this through refactor-circus/keystone's `AuditHooks` whether or not Keen is installed.
-- Read it in Keen (its API, MCP tools and Atrium section), on each Roster user, team and role page and the organization Activity tab (`<x-atrium::audit-trail source="roster" :subject="$model" />`, `roster.audit.view` in scope), or through `GET /roster/history` and `list-roster-history-tool` (global `roster.audit.view`). Roster defines the `viewAuditLog` Gate ability as global `roster.audit.view` unless the app defines it.
-- Record the app's own events with `Keen::record('invoice.paid')->on($model)->in($organization)->with([...])->save();` (facade `RefactorCircus\Keen\Facades\Keen`). `Roster::audit()` is deprecated: it delegates to Keen and throws `AuditLogNotInstalledException` without it.
-- Upgrading from Roster's own log: run `php artisan keen:import-roster` once; the `roster_audit_*` tables are kept for it. Add app secrets to `keen.redact`.
+- Roster has no audit log or audit code of its own. Install refactor-circus/keen (`composer require refactor-circus/keen`, `php artisan migrate`) and Keen records every Roster change, labelled, diffed (profile fields, role permissions, organization domains), scoped to its organization, and with the impersonator, import or SCIM token in its context. Without Keen there is no history anywhere in Roster.
+- Turn it off with `roster.audit.enabled => false` (Keen then records nothing of Roster's). `Roster::auditing()` says whether Roster audits now.
+- While it does, read history in Keen, on each Roster user, team and role page and the organization Activity tab (`roster.audit.view` in scope), or through `GET /roster/history` and `list-roster-history-tool` (global `roster.audit.view`). Roster defines the `viewAuditLog` Gate ability as global `roster.audit.view` unless the app defines it.
+- Record the app's own events with Keen: `Keen::record('invoice.paid')->on($model)->in($organization)->with([...])->save();`. Add app secrets to `keen.redact`.
 
 ### 7. Organizations from external systems
 
-- Sync an ERP or CRM record with `SyncOrganizationAction(['source' => 'erp', 'external_id' => $id, 'account_number' => ..., 'name' => ..., 'domains' => [...]])`. It creates or updates by `source` + `external_id`, writes only the fields given, and returns `->outcome` (created/updated/unchanged) and `->organization`.
-- Use `SyncOrganizationsAction(['records' => [...]])` for scheduled batches; it returns per-record results and never fails the whole batch. Use the `import_organizations` CSV type for files; `export_organizations` writes the same columns (`filters.external_source` for one system), so exports re-import unchanged.
-- Find organizations with `ListOrganizationsAction(['source' => 'erp', 'account_number' => 'A-42'])`. Each organization's `links` holds `source`, `external_id`, `account_number` and `synced_at`.
+- Sync an ERP or CRM record with `SyncOrganizationAction(new SyncOrganizationData(source: 'erp', externalId: $id, accountNumber: ..., name: ..., domains: [...]))`. It creates or updates by `source` + `external_id`, writes only the fields given, and returns `->outcome` (created/updated/unchanged) and `->organization`.
+- Use `SyncOrganizationsAction(new SyncOrganizationsData(records: [...]))` for scheduled batches (each record an array, validated on its own); it returns per-record results and never fails the whole batch. Use the `import_organizations` CSV type for files; `export_organizations` writes the same columns (`filters.external_source` for one system), so exports re-import unchanged.
+- Find organizations with `ListOrganizationsAction(new ListOrganizationsData(source: 'erp', accountNumber: 'A-42'))`. Each organization's `links` holds `source`, `external_id`, `account_number` and `synced_at`.
 - Synced organizations may have no owner; assign one with `TransferOwnershipAction`. Give the integration user `roster.organizations.sync`.
 
 ### 8. Single sign-on
 
 - Install the protocol packages you need: `laravel/socialite` plus `firebase/php-jwt` (OIDC), `socialiteproviders/microsoft-azure` (Entra ID) or `socialiteproviders/saml2` (SAML).
-- Create connections per organization with `CreateSsoConnectionAction($organization, ['name' => ..., 'protocol' => 'oidc'|'azure'|'saml', ...settings])`, and register the returned `callback_url` at the provider.
+- Create connections per organization with `CreateSsoConnectionAction($organization, new CreateSsoConnectionData(name: ..., protocol: 'oidc'|'azure'|'saml', clientId: ..., /* other settings */))`, and register the returned `callback_url` at the provider.
 - Link people to `route('roster.sso.discover', ['email' => $email])` or `route('roster.sso.start', $connection->slug)`.
 - When an organization enforces SSO, add `new \RefactorCircus\Roster\Domains\Sso\Support\NotSsoEnforced` to the app's password login validation.
 
 ### 9. SCIM provisioning
 
-- Issue a token with `CreateScimTokenAction($organization, ['name' => 'Okta', 'sso_connection' => $slug?])`; `$issued->plain` is the only copy. The provider's base URL is `url('scim/v2/'.$organization->slug)`.
+- Issue a token with `CreateScimTokenAction($organization, new CreateScimTokenData(name: 'Okta', ssoConnection: $slug))`; `$issued->plain` is the only copy. The provider's base URL is `url('scim/v2/'.$organization->slug)`.
 - The organization must own its email domains (`domains`), or SCIM refuses its users.
 - SCIM changes run through Roster's Actions: listen to the normal Action events, and find them in Keen's audit log under surface `scim`.
 
 ### 10. Impersonation
 
-- Grant `roster.users.impersonate` explicitly. Start with `StartImpersonationAction($user, ['reason' => ...], actor: $admin)` and redirect the impersonator's browser to `$started->url`.
+- Grant `roster.users.impersonate` explicitly. Start with `StartImpersonationAction($user, new StartImpersonationData(reason: ...), actor: $admin)` and redirect the impersonator's browser to `$started->url`.
+- Schedule `roster:end-expired-impersonations` (every five minutes) so sessions the impersonator abandons, and unused links, are ended as `expired` on the record.
 - Add `@include('roster::impersonation-banner')` to the app layout (Atrium's standalone banner, styled inline). List app abilities that must never run while impersonating in `roster.impersonation.blocked` (wildcards allowed).
 - Use `app(RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext::class)->active()` to detect an impersonated request.
 
 ### 11. CSV import and export
 
 - Requires `refactor-circus/impex`: `composer require refactor-circus/impex`, `php artisan vendor:publish --tag="impex-migrations"`, migrate, and run a queue worker and the scheduler. Schedule `roster:prune-transfers`.
-- Start with `StartImportAction(['type' => 'import_members'|'import_users'|'import_teams', 'organization' => slug, 'file' => $upload /* or 'content' => $csv */], $user)`. It only previews: read `$transfer->rows()` (`action` is create/link/invite/update/skip/error).
+- Start with `StartImportAction(new StartImportData(type: TransferType::ImportMembers /* ImportUsers, ImportTeams, ImportOrganizations */, organization: slug, file: $upload /* or content: $csv */), $user)`. It only previews: read `$transfer->rows()` (`action` is create/link/invite/update/skip/error).
 - Apply with `ConfirmImportAction($transfer, $user)`. Rows run as that user, with their permissions checked again. Cancel with `CancelTransferAction`.
-- Export with `StartExportAction(['type' => 'export_members'|'export_users'|'export_organizations', 'organization' => slug, 'filters' => [...]], $user)`, then serve the file through `route('roster.transfers.download', $transfer->id)` or Atrium.
+- Export with `StartExportAction(new StartExportData(type: TransferType::ExportMembers /* ExportUsers, ExportOrganizations */, organization: slug, filters: new ExportFiltersData(externalSource: 'erp')), $user)`, then serve the file through `route('roster.transfers.download', $transfer->id)` or Atrium.
 - Get a starting file with `ShowImportTemplateAction(TransferType::ImportMembers)` (or `GET /roster/imports/templates/{type}`); rows starting with `#` are ignored. Customize with `php artisan vendor:publish --tag="roster-import-templates"`.
 - Columns: members `email,name,display_name,teams,role`; users `email,name,display_name`; teams `name,slug,members`; organizations `source,external_id,name,account_number,slug,domains,owner`.
 - Without Impex, these Actions throw `RefactorCircus\Roster\Domains\Transfer\Exceptions\TransfersUnavailableException`.
@@ -120,43 +125,46 @@ php artisan migrate
 - Deletes are soft:
   - Add `SoftDeletes` (and a `deleted_at` column) to the user model so deleted users can be restored; without it, users are deleted permanently.
   - Restore with `RestoreUserAction` / `RestoreOrganizationAction`.
-  - Delete for good with `PurgeUserAction` / `PurgeOrganizationAction`, or schedule `roster:purge-deleted` (`roster.deletes.retention_days`, null keeps them forever).
+  - Delete for good with `PurgeUserAction` / `PurgeOrganizationAction` (organizations from the API, MCP and Atrium are purged by a queued `PurgeOrganizationJob`: the API answers 202; `PurgeOrganizationAction::queue()` does the same), or schedule `roster:purge-deleted` (`roster.deletes.retention_days`, null keeps them forever).
 - Manual acceptance:
   - Set `roster.users.registration_status` to `pending` for self-registration.
-  - Pass `'status' => 'pending'` to `CreateUserAction`.
+  - Pass `status: UserStatus::Pending` in `CreateUserData`.
   - Set an organization's `provisioned_status` for its SSO and SCIM accounts.
   - Accept with `ApproveUserAction`, or turn down with `RejectUserAction` (which deactivates).
-- Events: `RefactorCircus\Roster\Domains\{Domain}\Events\*ActionEvent`; listen to `RefactorCircus\Keystone\Contracts\ActionStartingEvent` / `ActionFinishedEvent` (shared by every Refactor Circus package; Roster's events are under `RefactorCircus\Roster\`) to see every action. Finished events fire after the transaction commits.
+- Events: every Action fires `RefactorCircus\Roster\Domains\{Domain}\Events\*ActionEvent` before (`...ingActionEvent`) and after (`...edActionEvent`); listen to `RefactorCircus\Keystone\Contracts\ActionStartingEvent` / `ActionFinishedEvent` (shared by every Refactor Circus package; Roster's events are under `RefactorCircus\Roster\`) to see every action. Each Action makes its writes in one transaction; finished events fire after it commits, so a write that rolls back (or an outer transaction that does) fires none. CSV steps fire `ImportValidating`/`Validated`, `ImportRowApplying`/`Applied`, `ExportBuilding`/`Built` and `TransferFinishing`/`Finished` action events too.
+- Model events: every model fires `{Entity}{Hook}Event` per Eloquent hook (`TeamCreatingEvent`, `OrganizationTrashedEvent`), implementing `RefactorCircus\Keystone\Contracts\ModelLifecycleEvent`; return `false` from a `creating`/`updating`/`saving`/`deleting` listener to stop the write.
+- Policies: every model's policy is set in `roster.policies`; swap one by pointing the model at your class (extend the bundled `Domains\{Domain}\Policies\*Policy`). Roster's API, MCP and Atrium checks ask the policy of the permission's resource (`roster.organizations.update` → `OrganizationModel` policy `update(?Model $user, ?Model $subject, ?Model $self)`, `roster.users.manage-status` → `UserModel` policy `manageStatus()`), so app `Gate::before` callbacks apply. Impersonation-blocked permissions are refused first.
 - HTTP routes are named `roster.users.*`, `roster.organizations.*`, `roster.invitations.*`; `{user}` is the user model's route key, organizations and teams use slugs.
 - Atrium: Users at `atrium.roster.users.index`, Organizations at `atrium.roster.organizations.index`. Access uses Atrium's `viewAtrium` gate. Lists of organizations, roles, impersonations and transfers, asked without an `organization`, open to users holding the permission in any organization and hold only what falls within those (`Authorizer::organizationsWith()`); Atrium's navigation follows. Pages show only the controls the viewer may use and organization tabs need their own permission; published views use `@rosterCan($permission, $scope, $self)`, the same check the screens make. Hide it with `atrium.disabled => ['roster']`, or by feature flag through `roster.atrium.features` (navigation, widgets and search hide and pages 404 while a feature is off; Atrium's feature resolver, e.g. refactor-circus/pennantplus, decides). The default is `RefactorCircus\Roster\Atrium\Features\RosterSupportFeature`, a PennantPlus `OnLayeredFeature` checked globally only; subclass it to change its default, and it is skipped when refactor-circus/pennantplus is not installed.
 
 ## Examples
 
 ```php
-use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
-use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
-use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
+use RefactorCircus\Roster\Domains\User\Actions\{CreateUserAction, SuspendUserAction, UpdateProfileAction};
+use RefactorCircus\Roster\Domains\User\Data\{CreateUserData, SuspendUserData, UpdateProfileData};
 
-$user = app(CreateUserAction::class)->execute([
-    'name' => 'Ada Lovelace',
-    'email' => 'ada@example.com',
-    'timezone' => 'Europe/London', // profile fields are accepted on create
-]);
+$user = app(CreateUserAction::class)->execute(new CreateUserData(
+    email: 'ada@example.com',
+    name: 'Ada Lovelace',
+    timezone: 'Europe/London', // profile fields are accepted on create
+));
 
-app(UpdateProfileAction::class)->execute($user, ['display_name' => 'Ada']);
+app(UpdateProfileAction::class)->execute($user, new UpdateProfileData(displayName: 'Ada'));
 
-app(SuspendUserAction::class)->execute($user, ['reason' => 'Chargeback'], actor: $request->user());
+app(SuspendUserAction::class)->execute($user, SuspendUserData::from($request->all()), actor: $request->user());
 
 $user->isRosterActive(); // false
 ```
 
 ```php
 use RefactorCircus\Roster\Domains\Invitation\Actions\CreateInvitationAction;
+use RefactorCircus\Roster\Domains\Invitation\Data\CreateInvitationData;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
+use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 
-$acme = app(CreateOrganizationAction::class)->execute(['name' => 'Acme', 'domains' => ['acme.com']], owner: $request->user());
+$acme = app(CreateOrganizationAction::class)->execute(new CreateOrganizationData(name: 'Acme', domains: ['acme.com']), owner: $request->user());
 
-app(CreateInvitationAction::class)->execute($acme, ['email' => 'ada@example.com'], actor: $request->user());
+app(CreateInvitationAction::class)->execute($acme, new CreateInvitationData(email: 'ada@example.com'), actor: $request->user());
 
 $request->user()->currentOrganization()?->slug; // 'acme'
 ```

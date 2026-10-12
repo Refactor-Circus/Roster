@@ -6,7 +6,7 @@ namespace RefactorCircus\Roster\Domains\Organization\Http\Requests;
 
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Organization\Actions\TransferOwnershipAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Organization\Data\TransferOwnershipData;
 use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 
 final class TransferOwnershipRequest extends OrganizationRequest
@@ -16,19 +16,14 @@ final class TransferOwnershipRequest extends OrganizationRequest
         return 'roster.organizations.transfer';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     public function rules(): array
     {
-        return TransferOwnershipAction::rules();
+        return TransferOwnershipData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $organization = app(TransferOwnershipAction::class)->execute($this->organization(), $this->validated());
+        $organization = app(TransferOwnershipAction::class)->execute($this->organization(), TransferOwnershipData::fromValidated($this->validated()));
 
         return (new OrganizationResource($organization))->response();
     }

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
+use RefactorCircus\Roster\Domains\Permission\Data\ListUserPermissionsData;
 
 /**
  * A user's effective permissions have been listed.
@@ -19,7 +20,6 @@ final class UserPermissionsListedActionEvent implements ActionFinishedEvent
 
     public function __construct(
         public Model $user,
-        /** @var array<string, mixed> */
-        public array $filters,
+        public ListUserPermissionsData $filters,
     ) {}
 }

@@ -10,11 +10,6 @@ use RefactorCircus\Roster\Domains\Transfer\Resources\TransferResource;
 
 final class CancelTransferRequest extends TransferRequest
 {
-    public function rules(): array
-    {
-        return CancelTransferAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return (new TransferResource(app(CancelTransferAction::class)->execute($this->transfer())))->response();

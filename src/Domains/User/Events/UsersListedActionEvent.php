@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\User\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
+use RefactorCircus\Roster\Domains\User\Data\ListUsersData;
 
 /**
  * Users have been listed.
@@ -17,7 +18,6 @@ final class UsersListedActionEvent implements ActionFinishedEvent
     use SerializesModels;
 
     public function __construct(
-        /** @var array<string, mixed> */
-        public array $filters,
+        public ListUsersData $filters,
     ) {}
 }

@@ -9,10 +9,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\ProfileFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -39,12 +41,12 @@ use RefactorCircus\Roster\Support\Users;
  */
 final class ProfileModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<ProfileFactory> */
     use HasFactory;
 
     use HasUlids;
-
-    protected $table = 'roster_profiles';
 
     protected $fillable = [
         'user_id',
@@ -64,6 +66,11 @@ final class ProfileModel extends Model
     protected $attributes = [
         'status' => 'active',
     ];
+
+    public function getTable(): string
+    {
+        return Tables::name('profiles');
+    }
 
     /**
      * @return BelongsTo<Model, $this>

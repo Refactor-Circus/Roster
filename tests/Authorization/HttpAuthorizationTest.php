@@ -6,6 +6,7 @@ require_once __DIR__.'/fixtures.php';
 
 use Illuminate\Support\Facades\Route;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 
 it('covers every roster API route', function (): void {
     $names = collect(Route::getRoutes()->getRoutesByName())
@@ -69,7 +70,7 @@ it('scopes organization permissions to that organization', function (): void {
     authorizationWorld();
     $other = organization(attributes: ['name' => 'Globex']);
     $admin = user();
-    app(AddMemberAction::class)->execute($other, ['user' => $admin->getRouteKey()]);
+    app(AddMemberAction::class)->execute($other, new AddMemberData(user: $admin->getRouteKey()));
     grant($admin, 'admin', $other);
 
     $this->actingAs($admin);
@@ -89,8 +90,8 @@ it('lets a team lead manage their team only', function (): void {
 });
 
 it('needs roster.audit.view for the shared history route', function (): void {
-    // Served by refactor-circus/keystone, which answers 403 to guests rather than 401.
-    $this->getJson(route('roster.history.index'))->assertForbidden();
+    // Served by refactor-circus/keystone, which answers guests 401 like Roster's own routes.
+    $this->getJson(route('roster.history.index'))->assertUnauthorized();
 
     $this->actingAs($viewer = user())->getJson(route('roster.history.index'))->assertForbidden();
 

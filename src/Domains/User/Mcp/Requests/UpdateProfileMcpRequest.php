@@ -7,6 +7,8 @@ namespace RefactorCircus\Roster\Domains\User\Mcp\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
+use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class UpdateProfileMcpRequest extends UserMcpRequest
 {
@@ -22,13 +24,11 @@ final class UpdateProfileMcpRequest extends UserMcpRequest
 
     protected function rules(): array
     {
-        return UpdateProfileAction::rules() + $this->userRules();
+        return $this->userRules() + UpdateProfileData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['user']);
-
-        return $this->respond(app(UpdateProfileAction::class)->execute($this->targetUser(), $validated));
+        return (new UserResource(app(UpdateProfileAction::class)->execute($this->targetUser(), UpdateProfileData::fromValidated($validated))))->toStructuredResponse();
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\Permission\Actions;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use RefactorCircus\Roster\Domains\Permission\Data\ListPermissionsData;
 use RefactorCircus\Roster\Domains\Permission\Events\PermissionsListedActionEvent;
 use RefactorCircus\Roster\Domains\Permission\Events\PermissionsListingActionEvent;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
@@ -12,36 +13,20 @@ use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 final class ListPermissionsAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:200'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<int, PermissionModel>
      */
-    public function execute(array $filters = []): LengthAwarePaginator
+    public function execute(ListPermissionsData $filters = new ListPermissionsData): LengthAwarePaginator
     {
         PermissionsListingActionEvent::dispatch($filters);
 
         $query = PermissionModel::query();
-        $search = $filters['search'] ?? null;
+        $search = $filters->search;
 
-        if (is_string($search) && $search !== '') {
+        if ($search !== null && $search !== '') {
             $query->where('name', 'like', '%'.$search.'%');
         }
 
-        $perPage = is_numeric($filters['per_page'] ?? null) ? (int) $filters['per_page'] : 50;
-        $page = is_numeric($filters['page'] ?? null) ? (int) $filters['page'] : null;
-
-        $permissions = $query->orderBy('name')->paginate($perPage, ['*'], 'page', $page);
+        $permissions = $query->orderBy('name')->paginate($filters->perPage, ['*'], 'page', $filters->page);
 
         PermissionsListedActionEvent::dispatch($filters);
 

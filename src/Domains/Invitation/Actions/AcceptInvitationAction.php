@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Invitation\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Domains\Invitation\Concerns\ResolvesInvitations;
+use RefactorCircus\Roster\Domains\Invitation\Data\AcceptInvitationData;
 use RefactorCircus\Roster\Domains\Invitation\Events\InvitationAcceptedActionEvent;
 use RefactorCircus\Roster\Domains\Invitation\Events\InvitationAcceptingActionEvent;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
@@ -24,25 +25,13 @@ final class AcceptInvitationAction
     public function __construct(private readonly Users $users) {}
 
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [
-            'token' => ['required', 'string', 'max:255'],
-        ];
-    }
-
-    /**
      * Accept an invitation as `$user`, whose email must match it. Joins the
      * organization and every invited team that still exists, and makes the
      * organization current when the user has none yet.
-     *
-     * @param  array<string, mixed>  $data
      */
-    public function execute(array $data, Model $user): InvitationModel
+    public function execute(AcceptInvitationData $data, Model $user): InvitationModel
     {
-        $invitation = $this->pendingInvitationFor($data['token'] ?? null, $user);
+        $invitation = $this->pendingInvitationFor($data->token, $user);
 
         InvitationAcceptingActionEvent::dispatch($invitation, $user);
 

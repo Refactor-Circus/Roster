@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Scim\Actions\CreateScimTokenAction;
 use RefactorCircus\Roster\Domains\Scim\Actions\RevokeScimTokenAction;
+use RefactorCircus\Roster\Domains\Scim\Data\CreateScimTokenData;
 use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
 
 /**
@@ -22,14 +21,12 @@ final class ScimUiController
 
     public function store(Request $request, string $organization): RedirectResponse
     {
-        $model = OrganizationModel::query()->where('slug', $organization)->firstOrFail();
+        $model = $this->organization($organization);
         $this->authorizeScreen('roster.scim.manage', $model);
-        $actor = $request->user();
-
         $issued = app(CreateScimTokenAction::class)->execute(
             $model,
-            $request->validate(CreateScimTokenAction::rules()),
-            $actor instanceof Model ? $actor : null,
+            CreateScimTokenData::from($request->all()),
+            $this->actor($request),
         );
 
         // Flashed for exactly one page view, then gone.

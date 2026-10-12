@@ -12,14 +12,6 @@ use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
 final class RevokeScimTokenAction
 {
     /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
-
-    /**
      * Stop a token working. Revoking twice changes nothing.
      */
     public function execute(ScimTokenModel $token): ScimTokenModel

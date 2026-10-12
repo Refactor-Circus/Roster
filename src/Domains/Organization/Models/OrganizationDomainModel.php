@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * An email domain whose verified users may auto-join the organization.
@@ -20,11 +22,15 @@ use Illuminate\Support\Carbon;
  */
 final class OrganizationDomainModel extends Model
 {
+    use DispatchesModelEvents;
     use HasUlids;
 
-    protected $table = 'roster_organization_domains';
-
     protected $fillable = ['organization_id', 'domain'];
+
+    public function getTable(): string
+    {
+        return Tables::name('organization_domains');
+    }
 
     /**
      * @return BelongsTo<OrganizationModel, $this>

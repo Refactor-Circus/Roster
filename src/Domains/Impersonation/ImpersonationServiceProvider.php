@@ -9,6 +9,7 @@ use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Http\Kernel;
 use Illuminate\Routing\Router;
 use RefactorCircus\Keystone\Support\ServiceProvider;
+use RefactorCircus\Roster\Domains\Impersonation\Console\Commands\EndExpiredImpersonationsCommand;
 use RefactorCircus\Roster\Domains\Impersonation\Http\Middleware\SyncImpersonation;
 use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
 use RefactorCircus\Roster\Domains\Impersonation\Services\Impersonator;
@@ -30,6 +31,10 @@ class ImpersonationServiceProvider extends ServiceProvider
 
         $this->loadApiRoutesFrom(__DIR__.'/routes.php');
         $this->loadRoutesFrom(__DIR__.'/web.php');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([EndExpiredImpersonationsCommand::class]);
+        }
     }
 
     private function registerMiddleware(): void

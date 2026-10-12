@@ -9,7 +9,9 @@ use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
+use RefactorCircus\Roster\Domains\Role\Data\ListRolesData;
 use RefactorCircus\Roster\Domains\Role\Mcp\Requests\ListRolesMcpRequest;
+use RefactorCircus\Roster\Domains\Role\Resources\RoleResource;
 
 #[Description('List roles. With organization, the roles usable there (shared ones plus its own). Filter by scope. Paginated.')]
 final class ListRolesTool extends Tool
@@ -24,8 +26,11 @@ final class ListRolesTool extends Tool
         return [
             'scope' => $schema->string()->description('global, organization or team.'),
             'organization' => $schema->string()->description('An organization slug.'),
-            'per_page' => $schema->integer()->description('Results per page, 1-100.')->min(1),
-            'page' => $schema->integer()->description('Page number, from 1.')->min(1),
-        ];
+        ] + ListRolesData::pagination()->schema($schema);
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return RoleResource::collectionSchema($schema);
     }
 }

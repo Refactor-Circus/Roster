@@ -6,16 +6,28 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
 use RefactorCircus\Roster\Domains\Invitation\Actions\CreateInvitationAction;
+use RefactorCircus\Roster\Domains\Invitation\Data\CreateInvitationData;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
+use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Permission\Actions\CreatePermissionAction;
+use RefactorCircus\Roster\Domains\Permission\Data\CreatePermissionData;
 use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
 use RefactorCircus\Roster\Domains\Role\Actions\CreateRoleAction;
+use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
+use RefactorCircus\Roster\Domains\Role\Data\CreateRoleData;
+use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Data\SuspendUserData;
+use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use Workbench\Database\Factories\UserFactory;
 
 /**
@@ -39,37 +51,37 @@ class DatabaseSeeder extends Seeder
         $alan = UserFactory::new()->create(['name' => 'Alan Turing', 'email' => 'alan@globex.test']);
         $eve = UserFactory::new()->create(['name' => 'Eve Example', 'email' => 'eve@example.com']);
 
-        $acme = app(CreateOrganizationAction::class)->execute(['name' => 'Acme', 'domains' => ['acme.test']], $ada);
-        $globex = app(CreateOrganizationAction::class)->execute(['name' => 'Globex'], $alan);
+        $acme = app(CreateOrganizationAction::class)->execute(new CreateOrganizationData(name: 'Acme', domains: ['acme.test']), $ada);
+        $globex = app(CreateOrganizationAction::class)->execute(new CreateOrganizationData(name: 'Globex'), $alan);
 
-        app(AddMemberAction::class)->execute($acme, ['user' => $grace->getRouteKey()]);
-        app(AddMemberAction::class)->execute($acme, ['user' => $admin->getRouteKey()]);
+        app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $grace->getRouteKey()));
+        app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $admin->getRouteKey()));
 
-        $engineering = app(CreateTeamAction::class)->execute($acme, ['name' => 'Engineering']);
-        app(CreateTeamAction::class)->execute($acme, ['name' => 'Support']);
-        app(CreateTeamAction::class)->execute($globex, ['name' => 'Research']);
+        $engineering = app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Engineering'));
+        app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Support'));
+        app(CreateTeamAction::class)->execute($globex, new CreateTeamData(name: 'Research'));
 
-        app(AddTeamMemberAction::class)->execute($engineering, ['user' => $grace->getRouteKey()]);
-        app(AssignRoleAction::class)->execute($grace, [
-            'role' => RoleModel::query()->where('slug', 'lead')->value('id'),
-            'organization' => $acme->slug,
-            'team' => $engineering->slug,
-        ]);
+        app(AddTeamMemberAction::class)->execute($engineering, new AddTeamMemberData(user: $grace->getRouteKey()));
+        app(AssignRoleAction::class)->execute($grace, new AssignRoleData(
+            role: RoleModel::query()->where('slug', 'lead')->value('id'),
+            organization: $acme->slug,
+            team: $engineering->slug,
+        ));
 
-        app(CreateInvitationAction::class)->execute($acme, ['email' => 'new.hire@acme.test', 'teams' => ['support']], $ada);
+        app(CreateInvitationAction::class)->execute($acme, new CreateInvitationData(email: 'new.hire@acme.test', teams: ['support']), $ada);
 
-        app(CreatePermissionAction::class)->execute(['name' => 'invoices.edit', 'description' => 'Edit invoices.']);
-        $billing = app(CreateRoleAction::class)->execute([
-            'name' => 'Billing',
-            'scope' => 'organization',
-            'permissions' => ['invoices.edit', 'roster.members.view'],
-        ]);
-        app(AssignRoleAction::class)->execute($grace, ['role' => $billing->id, 'organization' => $acme->slug]);
+        app(CreatePermissionAction::class)->execute(new CreatePermissionData(name: 'invoices.edit', description: 'Edit invoices.'));
+        $billing = app(CreateRoleAction::class)->execute(new CreateRoleData(
+            name: 'Billing',
+            scope: RoleScope::Organization,
+            permissions: ['invoices.edit', 'roster.members.view'],
+        ));
+        app(AssignRoleAction::class)->execute($grace, new AssignRoleData(role: $billing->id, organization: $acme->slug));
 
-        app(SuspendUserAction::class)->execute($eve, ['reason' => 'Demo: a suspended account.']);
+        app(SuspendUserAction::class)->execute($eve, new SuspendUserData(reason: 'Demo: a suspended account.'));
 
         // Demo: an account awaiting approval, also on Acme's Members tab.
-        $pat = app(CreateUserAction::class)->execute(['name' => 'Pat Pending', 'email' => 'pat@acme.test', 'status' => 'pending']);
-        app(AddMemberAction::class)->execute($acme, ['user' => $pat->getRouteKey()]);
+        $pat = app(CreateUserAction::class)->execute(new CreateUserData(name: 'Pat Pending', email: 'pat@acme.test', status: UserStatus::Pending));
+        app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $pat->getRouteKey()));
     }
 }

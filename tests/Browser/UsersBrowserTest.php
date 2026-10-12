@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__.'/helpers.php';
 
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use Workbench\App\Models\User;
 
@@ -40,7 +41,7 @@ it('creates a user and suspends them', function (): void {
 });
 
 it('approves a user who is waiting for approval', function (): void {
-    $pending = app(CreateUserAction::class)->execute(['name' => 'Pat Pending', 'email' => 'pat@example.com', 'status' => 'pending']);
+    $pending = app(CreateUserAction::class)->execute(new CreateUserData(name: 'Pat Pending', email: 'pat@example.com', status: UserStatus::Pending));
 
     visit('/atrium/roster/users?status=pending')->assertSee('Pat Pending');
 

@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Invitation\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
+use RefactorCircus\Roster\Domains\Invitation\Data\ListInvitationsData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 
 /**
@@ -19,7 +20,6 @@ final class InvitationsListedActionEvent implements ActionFinishedEvent
 
     public function __construct(
         public OrganizationModel $organization,
-        /** @var array<string, mixed> */
-        public array $filters,
+        public ListInvitationsData $filters,
     ) {}
 }

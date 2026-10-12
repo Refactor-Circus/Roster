@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Transfer\Mcp\Requests;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartExportAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartExportData;
 use RefactorCircus\Roster\Domains\Transfer\Resources\TransferResource;
 
 final class StartExportMcpRequest extends StartTransferMcpRequest
@@ -18,7 +19,7 @@ final class StartExportMcpRequest extends StartTransferMcpRequest
 
     protected function rules(): array
     {
-        return StartExportAction::rules();
+        return StartExportData::rules();
     }
 
     protected function handle(array $validated): Response|ResponseFactory
@@ -29,6 +30,6 @@ final class StartExportMcpRequest extends StartTransferMcpRequest
             return Response::error('Unauthorized.');
         }
 
-        return Response::structured(['data' => (new TransferResource(app(StartExportAction::class)->execute($validated, $actor)))->resolve()]);
+        return (new TransferResource(app(StartExportAction::class)->execute(StartExportData::fromValidated($validated), $actor)))->toStructuredResponse();
     }
 }

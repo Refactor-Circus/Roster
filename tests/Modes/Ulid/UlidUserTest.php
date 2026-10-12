@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Tests\Fixtures\UlidUser;
 
@@ -12,7 +13,7 @@ beforeEach(function (): void {
 });
 
 it('creates and manages a ulid-keyed user with mapped columns', function (): void {
-    $user = app(CreateUserAction::class)->execute(['name' => 'Ada', 'email' => 'ada@example.com']);
+    $user = app(CreateUserAction::class)->execute(new CreateUserData(name: 'Ada', email: 'ada@example.com'));
 
     expect($user)->toBeInstanceOf(UlidUser::class)
         ->and($user->getAttribute('full_name'))->toBe('Ada')
@@ -25,7 +26,7 @@ it('creates and manages a ulid-keyed user with mapped columns', function (): voi
 });
 
 it('serves the HTTP API by ulid route key', function (): void {
-    $user = app(CreateUserAction::class)->execute(['name' => 'Ada', 'email' => 'ada@example.com']);
+    $user = app(CreateUserAction::class)->execute(new CreateUserData(name: 'Ada', email: 'ada@example.com'));
 
     $this->getJson(route('roster.users.show', $user->getRouteKey()))
         ->assertOk()

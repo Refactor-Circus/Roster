@@ -8,6 +8,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Team\Data\ListTeamsData;
 
 /**
  * An organization's teams have been listed.
@@ -19,7 +20,6 @@ final class TeamsListedActionEvent implements ActionFinishedEvent
 
     public function __construct(
         public OrganizationModel $organization,
-        /** @var array<string, mixed> */
-        public array $filters,
+        public ListTeamsData $filters,
     ) {}
 }

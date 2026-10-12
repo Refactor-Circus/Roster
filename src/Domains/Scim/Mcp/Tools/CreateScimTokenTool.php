@@ -10,6 +10,7 @@ use Laravel\Mcp\ResponseFactory;
 use Laravel\Mcp\Server\Attributes\Description;
 use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Scim\Mcp\Requests\CreateScimTokenMcpRequest;
+use RefactorCircus\Roster\Domains\Scim\Resources\ScimTokenResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesOrganization;
 
 #[Description('Issue a SCIM token for an identity provider to provision the organization. The token is returned once; hand it to the operator configuring the identity provider, along with base_url.')]
@@ -29,5 +30,10 @@ final class CreateScimTokenTool extends Tool
             'expires_in_days' => $schema->integer()->description('Expire after this many days. Omit for no expiry.')->min(1),
             'sso_connection' => $schema->string()->description('An SSO connection slug: provisioned users\' externalIds become its SSO subjects.'),
         ];
+    }
+
+    public function outputSchema(JsonSchema $schema): array
+    {
+        return ScimTokenResource::structuredSchema($schema) + ['token' => $schema->string()->description('The token itself. Shown only this once; give it to the identity provider.')->required()];
     }
 }

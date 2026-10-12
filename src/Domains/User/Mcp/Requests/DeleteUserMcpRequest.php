@@ -14,11 +14,6 @@ final class DeleteUserMcpRequest extends UserMcpRequest
         return 'roster.users.delete';
     }
 
-    protected function rules(): array
-    {
-        return DeleteUserAction::rules() + $this->userRules();
-    }
-
     protected function handle(array $validated): Response
     {
         app(DeleteUserAction::class)->execute($this->targetUser(), $this->actor());

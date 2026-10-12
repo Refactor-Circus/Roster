@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Role\Http\Requests;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use RefactorCircus\Roster\Domains\Role\Actions\ListRoleAssignmentsAction;
+use RefactorCircus\Roster\Domains\Role\Data\ListRoleAssignmentsData;
 use RefactorCircus\Roster\Domains\Role\Resources\RoleAssignmentResource;
 use RefactorCircus\Roster\Domains\User\Http\Requests\UserRequest;
 
@@ -24,13 +25,11 @@ final class IndexUserRolesRequest extends UserRequest
 
     public function rules(): array
     {
-        return ListRoleAssignmentsAction::rules();
+        return ListRoleAssignmentsData::rules();
     }
 
     public function persist(): JsonResponse
     {
-        $filters = ['user' => $this->targetUser()->getRouteKey()] + $this->validated();
-
-        return RoleAssignmentResource::collection(app(ListRoleAssignmentsAction::class)->execute($filters))->response();
+        return RoleAssignmentResource::collection(app(ListRoleAssignmentsAction::class)->execute(ListRoleAssignmentsData::fromValidated(['user' => $this->targetUser()->getRouteKey()] + $this->validated())))->response();
     }
 }

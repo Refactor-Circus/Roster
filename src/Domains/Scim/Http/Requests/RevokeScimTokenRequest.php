@@ -25,11 +25,6 @@ final class RevokeScimTokenRequest extends Request
         return $this->token()->organization;
     }
 
-    public function rules(): array
-    {
-        return RevokeScimTokenAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return (new ScimTokenResource(app(RevokeScimTokenAction::class)->execute($this->token())))->response();

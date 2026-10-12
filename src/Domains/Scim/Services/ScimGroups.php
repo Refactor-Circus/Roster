@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Scim\Exceptions\ScimException;
 use RefactorCircus\Roster\Domains\Scim\Models\ScimGroupModel;
@@ -17,8 +18,12 @@ use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Actions\DeleteTeamAction;
 use RefactorCircus\Roster\Domains\Team\Actions\RemoveTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\UpdateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
+use RefactorCircus\Roster\Domains\Team\Data\UpdateTeamData;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * SCIM Groups for one organization: its teams, on top of Roster's Actions.
@@ -69,10 +74,13 @@ final class ScimGroups
             return;
         }
 
+        $memberships = Tables::name('memberships');
+        $seatsTable = Tables::name('team_members');
+
         $seats = TeamMemberModel::query()
-            ->join('roster_memberships', 'roster_memberships.id', '=', 'roster_team_members.membership_id')
-            ->whereIn('roster_team_members.team_id', $teamIds)
-            ->get(['roster_team_members.team_id', 'roster_memberships.user_id']);
+            ->join($memberships, $memberships.'.id', '=', $seatsTable.'.membership_id')
+            ->whereIn($seatsTable.'.team_id', $teamIds)
+            ->get([$seatsTable.'.team_id', $memberships.'.user_id']);
 
         $scimUsers = ScimUserModel::query()
             ->where('organization_id', $this->organization()->getKey())
@@ -82,8 +90,10 @@ final class ScimGroups
             ->get()
             ->groupBy(fn (ScimUserModel $scimUser): string => (string) $scimUser->user_id);
 
+        $seatsByTeam = $seats->groupBy(fn (TeamMemberModel $seat): string => (string) $seat->team_id);
+
         foreach ($groups as $group) {
-            $userIds = $seats->where('team_id', $group->team_id)->pluck('user_id')->map(fn (mixed $id): string => (string) $id)->all();
+            $userIds = ($seatsByTeam->get((string) $group->team_id) ?? collect())->pluck('user_id')->map(fn (mixed $id): string => (string) $id)->all();
 
             $this->context->members[$group->id] = collect($userIds)
                 ->flatMap(fn (string $userId): array => $scimUsers->get($userId)?->all() ?? [])
@@ -111,12 +121,12 @@ final class ScimGroups
         $organization = $this->organization();
         $externalId = is_scalar($data['externalId'] ?? null) ? (string) $data['externalId'] : null;
 
-        if ($organization->teams()->where('name', $name)->whereIn('id', ScimGroupModel::query()->select('team_id'))->exists()) {
+        if ($organization->teams()->where('name', $name)->whereIn('id', ScimGroupModel::query()->where('organization_id', $organization->getKey())->select('team_id'))->exists()) {
             throw ScimException::uniqueness("A group named [{$name}] already exists.");
         }
 
         return DB::transaction(function () use ($data, $name, $organization, $externalId): ScimGroupModel {
-            $team = app(CreateTeamAction::class)->execute($organization, ['name' => $name]);
+            $team = app(CreateTeamAction::class)->execute($organization, new CreateTeamData(name: $name));
 
             $group = ScimGroupModel::query()->create([
                 'organization_id' => $organization->getKey(),
@@ -140,7 +150,7 @@ final class ScimGroups
 
         return DB::transaction(function () use ($group, $team, $data, $name, $members): ScimGroupModel {
             if ($team->name !== $name) {
-                app(UpdateTeamAction::class)->execute($team, ['name' => $name]);
+                app(UpdateTeamAction::class)->execute($team, new UpdateTeamData(name: $name));
             }
 
             if (array_key_exists('externalId', $data)) {
@@ -197,22 +207,33 @@ final class ScimGroups
             throw ScimException::invalidValue('Every member must be a user provisioned in this organization.');
         }
 
-        $current = $team->memberships()->pluck('user_id')->map(fn (mixed $id): string => (string) $id)->all();
+        // Loaded once: the seats before any change, and which of them SCIM
+        // manages, rather than a query per seat on every group PATCH.
+        $seated = $team->memberships()->with('user')->get();
+        $current = $seated->map(fn (MembershipModel $membership): string => (string) $membership->user_id)->all();
+        $managed = ScimUserModel::query()
+            ->where('organization_id', $this->organization()->getKey())
+            ->whereIn('user_id', $seated->pluck('user_id')->all())
+            ->pluck('user_id')
+            ->map(fn (mixed $id): string => (string) $id)
+            ->all();
         $wantedUsers = $wanted->filter(fn (ScimUserModel $scimUser): bool => $scimUser->active && $scimUser->user instanceof Model);
 
         foreach ($wantedUsers as $scimUser) {
-            if (! in_array((string) $scimUser->user_id, $current, true)) {
-                $this->attempt(fn () => app(AddTeamMemberAction::class)->execute($team, ['user' => $scimUser->user?->getRouteKey()]));
+            $user = $scimUser->user;
+
+            if ($user instanceof Model && ! in_array((string) $scimUser->user_id, $current, true)) {
+                $this->attempt(fn () => app(AddTeamMemberAction::class)->execute($team, new AddTeamMemberData(user: $user)));
             }
         }
 
         $keep = $wantedUsers->map(fn (ScimUserModel $scimUser): string => (string) $scimUser->user_id)->all();
 
-        foreach ($team->memberships()->with('user')->get() as $membership) {
+        foreach ($seated as $membership) {
             // Only seats SCIM can see are SCIM's to remove.
-            $managed = ScimUserModel::query()->where('organization_id', $this->organization()->getKey())->where('user_id', $membership->user_id)->exists();
+            $userId = (string) $membership->user_id;
 
-            if ($managed && ! in_array((string) $membership->user_id, $keep, true) && $membership->user instanceof Model) {
+            if (in_array($userId, $managed, true) && ! in_array($userId, $keep, true) && $membership->user instanceof Model) {
                 $this->attempt(fn () => app(RemoveTeamMemberAction::class)->execute($team, $membership->user));
             }
         }
@@ -238,7 +259,7 @@ final class ScimGroups
         $scimUser = ScimUserModel::query()->where('organization_id', $this->organization()->getKey())->whereKey($scimUserId)->first();
         $membership = $scimUser?->user instanceof Model ? $this->organization()->membershipFor($scimUser->user) : null;
 
-        return $membership === null ? [] : $membership->teams()->pluck('roster_teams.id')->map(fn (mixed $id): string => (string) $id)->all();
+        return $membership === null ? [] : $membership->teams()->pluck(Tables::name('teams').'.id')->map(fn (mixed $id): string => (string) $id)->all();
     }
 
     /**

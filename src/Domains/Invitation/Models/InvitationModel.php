@@ -10,9 +10,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\InvitationFactory;
 use RefactorCircus\Roster\Domains\Invitation\Enums\InvitationStatus;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * An emailed invitation into an organization, optionally onto teams.
@@ -35,12 +37,12 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
  */
 final class InvitationModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<InvitationFactory> */
     use HasFactory;
 
     use HasUlids;
-
-    protected $table = 'roster_invitations';
 
     protected $fillable = [
         'organization_id',
@@ -55,6 +57,11 @@ final class InvitationModel extends Model
     ];
 
     protected $hidden = ['token_hash'];
+
+    public function getTable(): string
+    {
+        return Tables::name('invitations');
+    }
 
     /**
      * @return BelongsTo<OrganizationModel, $this>

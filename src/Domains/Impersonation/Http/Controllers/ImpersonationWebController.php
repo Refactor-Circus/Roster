@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\EnterImpersonationAction;
+use RefactorCircus\Roster\Domains\Impersonation\Data\EnterImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Impersonation\Services\Impersonator;
 
@@ -26,10 +27,7 @@ final class ImpersonationWebController
         $actor = $request->user();
         abort_unless($actor instanceof Model, 401);
 
-        $impersonation = app(EnterImpersonationAction::class)->execute(
-            $request->merge(['token' => $token])->validate(EnterImpersonationAction::rules()),
-            $actor,
-        );
+        $impersonation = app(EnterImpersonationAction::class)->execute(EnterImpersonationData::from(['token' => $token]), $actor);
 
         $this->impersonator->enter($impersonation, $request);
 

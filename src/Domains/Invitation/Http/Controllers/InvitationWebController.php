@@ -10,6 +10,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use RefactorCircus\Roster\Domains\Invitation\Actions\AcceptInvitationAction;
 use RefactorCircus\Roster\Domains\Invitation\Actions\DeclineInvitationAction;
+use RefactorCircus\Roster\Domains\Invitation\Data\AcceptInvitationData;
+use RefactorCircus\Roster\Domains\Invitation\Data\DeclineInvitationData;
 use RefactorCircus\Roster\Domains\Invitation\Exceptions\InvalidInvitationException;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Invitation\Services\InvitationTokens;
@@ -38,10 +40,7 @@ final class InvitationWebController
 
     public function accept(Request $request, string $token): RedirectResponse
     {
-        $invitation = app(AcceptInvitationAction::class)->execute(
-            $request->merge(['token' => $token])->validate(AcceptInvitationAction::rules()),
-            $this->user($request),
-        );
+        $invitation = app(AcceptInvitationAction::class)->execute(AcceptInvitationData::from(['token' => $token]), $this->user($request));
 
         return redirect((string) config('roster.invitations.redirect', '/'))
             ->with('status', __('roster::roster.invitation_accepted_flash', ['organization' => $invitation->organization?->name]));
@@ -49,10 +48,7 @@ final class InvitationWebController
 
     public function decline(Request $request, string $token): RedirectResponse
     {
-        app(DeclineInvitationAction::class)->execute(
-            $request->merge(['token' => $token])->validate(DeclineInvitationAction::rules()),
-            $this->user($request),
-        );
+        app(DeclineInvitationAction::class)->execute(DeclineInvitationData::from(['token' => $token]), $this->user($request));
 
         return redirect((string) config('roster.invitations.redirect', '/'))
             ->with('status', __('roster::roster.invitation_declined_flash'));

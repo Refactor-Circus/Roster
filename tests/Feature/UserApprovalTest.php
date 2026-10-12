@@ -7,12 +7,15 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Actions\UpdateOrganizationAction;
+use RefactorCircus\Roster\Domains\Organization\Data\UpdateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\User\Actions\ApproveUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\ReactivateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\RejectUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
+use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Domains\User\Data\RejectUserData;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Mcp\Tools\RejectUserTool;
 use RefactorCircus\Roster\Domains\User\Notifications\UserApprovedNotification;
@@ -24,7 +27,7 @@ use Workbench\App\Models\User;
 function pendingUser(array $attributes = []): User
 {
     /** @var User */
-    return app(CreateUserAction::class)->execute($attributes + ['name' => 'Pat', 'email' => 'pat@example.com', 'status' => 'pending']);
+    return app(CreateUserAction::class)->execute(CreateUserData::from($attributes + ['name' => 'Pat', 'email' => 'pat@example.com', 'status' => 'pending']));
 }
 
 beforeEach(function (): void {
@@ -37,7 +40,7 @@ it('creates users as pending when asked, and tells the approvers', function (): 
     $user = pendingUser();
 
     expect(app(Users::class)->status($user))->toBe(UserStatus::Pending)
-        ->and(app(Users::class)->status(app(CreateUserAction::class)->execute(['name' => 'Al', 'email' => 'al@example.com'])))->toBe(UserStatus::Active);
+        ->and(app(Users::class)->status(app(CreateUserAction::class)->execute(new CreateUserData(name: 'Al', email: 'al@example.com'))))->toBe(UserStatus::Active);
 
     Notification::assertSentOnDemand(UserAwaitingApprovalNotification::class, fn ($notification, $channels, $notifiable): bool => $notifiable->routes['mail'] === 'approver@example.com');
 });
@@ -50,7 +53,7 @@ it('approves a pending user and tells them', function (): void {
 });
 
 it('rejects a pending user by deactivating them with the reason', function (): void {
-    $user = app(RejectUserAction::class)->execute(pendingUser(), ['reason' => 'Not a customer'], $this->approver);
+    $user = app(RejectUserAction::class)->execute(pendingUser(), new RejectUserData(reason: 'Not a customer'), $this->approver);
 
     expect(app(Users::class)->status($user))->toBe(UserStatus::Deactivated)
         ->and($user->rosterProfile->status_reason)->toBe('Not a customer');
@@ -112,7 +115,7 @@ it('lets organizations choose whether their SCIM accounts need approval', functi
     test()->scimToken = $token;
 
     scim('POST', '/Users', oktaUser('one@acme.test', 'e1'))->assertCreated();
-    app(UpdateOrganizationAction::class)->execute($acme, ['provisioned_status' => 'pending']);
+    app(UpdateOrganizationAction::class)->execute($acme, new UpdateOrganizationData(provisionedStatus: UserStatus::Pending));
     scim('POST', '/Users', oktaUser('two@acme.test', 'e2'))->assertCreated();
 
     expect(app(Users::class)->status(User::query()->where('email', 'one@acme.test')->sole()))->toBe(UserStatus::Active)

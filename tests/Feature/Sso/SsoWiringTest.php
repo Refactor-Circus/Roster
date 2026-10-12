@@ -11,6 +11,8 @@ use Laravel\Socialite\Contracts\Provider;
 use Laravel\Socialite\Two\User as SocialiteUser;
 use RefactorCircus\Roster\Domains\Sso\Actions\CreateSsoConnectionAction;
 use RefactorCircus\Roster\Domains\Sso\Actions\UpdateSsoConnectionAction;
+use RefactorCircus\Roster\Domains\Sso\Data\CreateSsoConnectionData;
+use RefactorCircus\Roster\Domains\Sso\Data\UpdateSsoConnectionData;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 use RefactorCircus\Roster\Domains\Sso\Resources\SsoConnectionResource;
@@ -113,9 +115,13 @@ it('enforces SSO for the organization\'s domains, except for super-admins', func
 it('keeps secrets encrypted, hidden and redacted', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
 
-    $connection = app(CreateSsoConnectionAction::class)->execute($acme, [
-        'name' => 'Okta', 'protocol' => 'oidc', 'issuer' => 'https://idp.test', 'client_id' => 'app', 'client_secret' => 'top-secret',
-    ]);
+    $connection = app(CreateSsoConnectionAction::class)->execute($acme, new CreateSsoConnectionData(
+        name: 'Okta',
+        protocol: 'oidc',
+        issuer: 'https://idp.test',
+        clientId: 'app',
+        clientSecret: 'top-secret',
+    ));
 
     $raw = (string) DB::table('roster_sso_connections')->value('config');
 
@@ -123,15 +129,15 @@ it('keeps secrets encrypted, hidden and redacted', function (): void {
         ->and(json_encode((new SsoConnectionResource($connection))->resolve()))->not->toContain('top-secret');
 
     // A blank secret keeps the old one; a new one replaces it.
-    app(UpdateSsoConnectionAction::class)->execute($connection, ['client_secret' => '']);
+    app(UpdateSsoConnectionAction::class)->execute($connection, new UpdateSsoConnectionData(clientSecret: ''));
     expect($connection->refresh()->setting('client_secret'))->toBe('top-secret');
 
-    app(UpdateSsoConnectionAction::class)->execute($connection, ['client_secret' => 'rotated']);
+    app(UpdateSsoConnectionAction::class)->execute($connection, new UpdateSsoConnectionData(clientSecret: 'rotated'));
     expect($connection->refresh()->setting('client_secret'))->toBe('rotated');
 });
 
 it('validates the settings each protocol needs', function (array $data): void {
-    app(CreateSsoConnectionAction::class)->execute(organization(), ['name' => 'X'] + $data);
+    app(CreateSsoConnectionAction::class)->execute(organization(), CreateSsoConnectionData::from(['name' => 'X'] + $data));
 })->with([
     'oidc without secret' => [['protocol' => 'oidc', 'issuer' => 'https://idp.test', 'client_id' => 'a']],
     'azure without tenant' => [['protocol' => 'azure', 'client_id' => 'a', 'client_secret' => 'b']],

@@ -20,11 +20,6 @@ final class ConfirmImportRequest extends TransferRequest
         return null;
     }
 
-    public function rules(): array
-    {
-        return ConfirmImportAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         abort_unless($this->transfer()->type->isImport(), 404);

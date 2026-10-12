@@ -6,6 +6,8 @@ namespace RefactorCircus\Roster\Domains\Transfer\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * One row of an import: its values, what the preview planned, and what
@@ -22,11 +24,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 final class TransferRowModel extends Model
 {
+    use DispatchesModelEvents;
+
     public $timestamps = false;
 
-    protected $table = 'roster_transfer_rows';
-
     protected $fillable = ['transfer_id', 'line', 'values', 'action', 'reasons', 'result', 'result_reasons'];
+
+    public function getTable(): string
+    {
+        return Tables::name('transfer_rows');
+    }
 
     /**
      * @return BelongsTo<TransferModel, $this>

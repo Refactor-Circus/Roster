@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Transfer\Actions;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Impex\Domains\Run\Models\RunModel;
 use RefactorCircus\Impex\Impex;
@@ -16,14 +17,6 @@ use RefactorCircus\Roster\Domains\Transfer\Services\Transfers;
 final class CancelTransferAction
 {
     public function __construct(private readonly Transfers $transfers) {}
-
-    /**
-     * @return array<string, array<int, mixed>>
-     */
-    public static function rules(): array
-    {
-        return [];
-    }
 
     /**
      * Cancel an import awaiting confirmation (nothing was applied), or an
@@ -48,13 +41,17 @@ final class CancelTransferAction
             $impex->cancel($run, 'Cancelled in Roster.');
         }
 
-        $transfer->refresh();
+        // Impex settles the run on its own; Roster's write is only the
+        // transfer's status, if the run has not already closed it.
+        $transfer = DB::transaction(function () use ($transfer): TransferModel {
+            $transfer->refresh();
 
-        if (! $transfer->status->isFinished()) {
-            $transfer->update(['status' => TransferStatus::Cancelled, 'finished_at' => now()]);
-        }
+            if (! $transfer->status->isFinished()) {
+                $transfer->update(['status' => TransferStatus::Cancelled, 'finished_at' => now()]);
+            }
 
-        $transfer = $transfer->refresh();
+            return $transfer->refresh();
+        });
 
         TransferCancelledActionEvent::dispatch($transfer);
 

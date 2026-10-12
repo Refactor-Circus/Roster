@@ -6,7 +6,8 @@ namespace RefactorCircus\Roster\Domains\Organization\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Organization\Actions\LinkOrganizationAction;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Organization\Data\LinkOrganizationData;
+use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
 
 final class LinkOrganizationMcpRequest extends OrganizationMcpRequest
 {
@@ -15,20 +16,15 @@ final class LinkOrganizationMcpRequest extends OrganizationMcpRequest
         return 'roster.organizations.update';
     }
 
-    protected function scope(): OrganizationModel
-    {
-        return $this->organization();
-    }
-
     protected function rules(): array
     {
-        return LinkOrganizationAction::rules() + $this->organizationRules();
+        return $this->organizationRules() + LinkOrganizationData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        app(LinkOrganizationAction::class)->execute($this->organization(), $this->without($validated, 'organization'));
+        app(LinkOrganizationAction::class)->execute($this->organization(), LinkOrganizationData::fromValidated($validated));
 
-        return $this->respondWithOrganization($this->organization()->refresh()->load(['domains', 'links']));
+        return (new OrganizationResource($this->organization()->refresh()->load(['domains', 'links'])))->toStructuredResponse();
     }
 }

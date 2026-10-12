@@ -15,11 +15,6 @@ final class ShowSsoConnectionRequest extends SsoConnectionRequest
         return 'roster.sso.view';
     }
 
-    public function rules(): array
-    {
-        return ShowSsoConnectionAction::rules();
-    }
-
     public function persist(): JsonResponse
     {
         return (new SsoConnectionResource(app(ShowSsoConnectionAction::class)->execute($this->connection())))->response();

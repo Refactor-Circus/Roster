@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Database\Factories\OrganizationLinkFactory;
+use RefactorCircus\Roster\Support\Tables;
 
 /**
  * An organization's record in an external system: which system (`source`),
@@ -26,14 +28,19 @@ use RefactorCircus\Roster\Database\Factories\OrganizationLinkFactory;
  */
 final class OrganizationLinkModel extends Model
 {
+    use DispatchesModelEvents;
+
     /** @use HasFactory<OrganizationLinkFactory> */
     use HasFactory;
 
     use HasUlids;
 
-    protected $table = 'roster_organization_links';
-
     protected $fillable = ['organization_id', 'source', 'external_id', 'account_number', 'synced_at'];
+
+    public function getTable(): string
+    {
+        return Tables::name('organization_links');
+    }
 
     /**
      * @return BelongsTo<OrganizationModel, $this>

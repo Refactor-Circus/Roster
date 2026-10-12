@@ -8,11 +8,11 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use RefactorCircus\Cortex\Domains\RedirectDomain\Actions\ListRedirectDomainsAction;
-use RefactorCircus\Keystone\Audit\Contracts\AuditTrail;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Atrium\RedirectDomains;
 use RefactorCircus\Roster\Atrium\ScreenAccess;
 use RefactorCircus\Roster\Domains\Invitation\Actions\ListInvitationsAction;
+use RefactorCircus\Roster\Domains\Invitation\Data\ListInvitationsData;
 use RefactorCircus\Roster\Domains\Invitation\Enums\InvitationStatus;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
@@ -27,17 +27,31 @@ use RefactorCircus\Roster\Domains\Organization\Actions\ShowOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\TransferOwnershipAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\UnlinkOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\UpdateOrganizationAction;
+use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
+use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
+use RefactorCircus\Roster\Domains\Organization\Data\LinkOrganizationData;
+use RefactorCircus\Roster\Domains\Organization\Data\ListMembersData;
+use RefactorCircus\Roster\Domains\Organization\Data\ListOrganizationsData;
+use RefactorCircus\Roster\Domains\Organization\Data\TransferOwnershipData;
+use RefactorCircus\Roster\Domains\Organization\Data\UpdateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Actions\ListRoleAssignmentsAction;
 use RefactorCircus\Roster\Domains\Role\Actions\ListRolesAction;
+use RefactorCircus\Roster\Domains\Role\Data\ListRoleAssignmentsData;
+use RefactorCircus\Roster\Domains\Role\Data\ListRolesData;
 use RefactorCircus\Roster\Domains\Scim\Actions\ListScimTokensAction;
+use RefactorCircus\Roster\Domains\Scim\Data\ListScimTokensData;
 use RefactorCircus\Roster\Domains\Sso\Actions\ListSsoConnectionsAction;
+use RefactorCircus\Roster\Domains\Sso\Data\ListSsoConnectionsData;
 use RefactorCircus\Roster\Domains\Team\Actions\ListTeamsAction;
+use RefactorCircus\Roster\Domains\Team\Data\ListTeamsData;
+use RefactorCircus\Roster\Roster;
 use RefactorCircus\Roster\Support\Users;
 
 /**
  * The Atrium screens for organizations and their members. Each screen
- * validates with its Action's rules and calls that Action.
+ * builds its Action's input Data, which validates itself, and calls that
+ * Action.
  */
 final class OrganizationUiController
 {
@@ -67,7 +81,7 @@ final class OrganizationUiController
     {
         $within = $this->authorizeList('roster.organizations.view');
 
-        $filters = $request->validate(ListOrganizationsAction::rules());
+        $filters = ListOrganizationsData::from($request->query());
 
         /** @var view-string $view */
         $view = 'roster::ui.organizations.index';
@@ -94,7 +108,7 @@ final class OrganizationUiController
 
         $this->splitDomains($request);
 
-        $organization = app(CreateOrganizationAction::class)->execute($request->validate(CreateOrganizationAction::rules()));
+        $organization = app(CreateOrganizationAction::class)->execute(CreateOrganizationData::from($request->all()));
 
         return redirect()
             ->route('atrium.roster.organizations.show', $organization)
@@ -130,7 +144,7 @@ final class OrganizationUiController
         $view = 'roster::ui.organizations.show';
 
         // Only the open tab's data: each list is paginated and loaded on its own.
-        $page = ['per_page' => 25, 'page' => $request->integer('page', 1)];
+        $page = $request->integer('page', 1);
 
         return view($view, [
             'organization' => $model,
@@ -139,21 +153,21 @@ final class OrganizationUiController
             'pending' => InvitationStatus::Pending,
             'directory' => $this->users,
             ...match ($tab) {
-                'members' => ['members' => app(ListMembersAction::class)->execute($model, $page)->withQueryString()],
-                'teams' => ['teams' => app(ListTeamsAction::class)->execute($model, $page)->withQueryString()],
+                'members' => ['members' => app(ListMembersAction::class)->execute($model, new ListMembersData(perPage: 25, page: $page))->withQueryString()],
+                'teams' => ['teams' => app(ListTeamsAction::class)->execute($model, new ListTeamsData(perPage: 25, page: $page))->withQueryString()],
                 'invitations' => [
-                    'invitations' => app(ListInvitationsAction::class)->execute($model, $page)->withQueryString(),
+                    'invitations' => app(ListInvitationsAction::class)->execute($model, new ListInvitationsData(perPage: 25, page: $page))->withQueryString(),
                     // Every team, as the invitation form's options.
                     'teams' => $model->teams()->orderBy('name')->get(['id', 'organization_id', 'name', 'slug']),
                 ],
                 'roles' => [
-                    'roles' => app(ListRolesAction::class)->execute(['organization' => $model, 'per_page' => 100]),
-                    'assignments' => app(ListRoleAssignmentsAction::class)->execute(['organization' => $model] + $page)->withQueryString(),
+                    'roles' => app(ListRolesAction::class)->execute(new ListRolesData(organization: $model, perPage: 100)),
+                    'assignments' => app(ListRoleAssignmentsAction::class)->execute(new ListRoleAssignmentsData(organization: $model, perPage: 25, page: $page))->withQueryString(),
                 ],
-                'sso' => ['ssoConnections' => app(ListSsoConnectionsAction::class)->execute(['organization' => $model] + $page)->withQueryString()],
+                'sso' => ['ssoConnections' => app(ListSsoConnectionsAction::class)->execute(new ListSsoConnectionsData(organization: $model, perPage: 25, page: $page))->withQueryString()],
                 'scim' => [
-                    'scimTokens' => app(ListScimTokensAction::class)->execute($model, $page)->withQueryString(),
-                    'ssoConnections' => app(ListSsoConnectionsAction::class)->execute(['organization' => $model, 'per_page' => 100]),
+                    'scimTokens' => app(ListScimTokensAction::class)->execute($model, new ListScimTokensData(perPage: 25, page: $page))->withQueryString(),
+                    'ssoConnections' => app(ListSsoConnectionsAction::class)->execute(new ListSsoConnectionsData(organization: $model, perPage: 100)),
                 ],
                 'mcp' => ['redirectDomains' => app(ListRedirectDomainsAction::class)->execute($model)],
                 default => [],
@@ -163,20 +177,20 @@ final class OrganizationUiController
 
     public function update(Request $request, string $organization): RedirectResponse
     {
-        $model = $this->find($organization);
+        $model = $this->organization($organization);
         $this->authorizeScreen('roster.organizations.update', $model);
 
         $request->merge(['auto_join' => $request->boolean('auto_join')]);
         $this->splitDomains($request);
 
-        $model = app(UpdateOrganizationAction::class)->execute($model, $request->validate(UpdateOrganizationAction::rules($model)));
+        $model = app(UpdateOrganizationAction::class)->execute($model, UpdateOrganizationData::from($request->all(), $model));
 
         return $this->backTo($model, 'settings', 'roster::roster.organization_updated');
     }
 
     public function destroy(Request $request, string $organization): RedirectResponse
     {
-        $model = $this->find($organization);
+        $model = $this->organization($organization);
         $this->authorizeScreen('roster.organizations.delete', $model);
         // The page asks for a ticked "I understand" before deleting.
         $request->validate(['confirm' => ['accepted']]);
@@ -190,27 +204,27 @@ final class OrganizationUiController
 
     public function transfer(Request $request, string $organization): RedirectResponse
     {
-        $model = $this->find($organization);
+        $model = $this->organization($organization);
         $this->authorizeScreen('roster.organizations.transfer', $model);
 
-        $model = app(TransferOwnershipAction::class)->execute($model, $request->validate(TransferOwnershipAction::rules()));
+        $model = app(TransferOwnershipAction::class)->execute($model, TransferOwnershipData::from($request->all()));
 
         return $this->backTo($model, 'members', 'roster::roster.ownership_transferred');
     }
 
     public function addMember(Request $request, string $organization): RedirectResponse
     {
-        $model = $this->find($organization);
+        $model = $this->organization($organization);
         $this->authorizeScreen('roster.members.manage', $model);
 
-        app(AddMemberAction::class)->execute($model, $request->validate(AddMemberAction::rules()));
+        app(AddMemberAction::class)->execute($model, AddMemberData::from($request->all()));
 
         return $this->backTo($model, 'members', 'roster::roster.member_added');
     }
 
     public function removeMember(string $organization, string $user): RedirectResponse
     {
-        $model = $this->find($organization);
+        $model = $this->organization($organization);
         $this->authorizeScreen('roster.members.manage', $model);
 
         app(RemoveMemberAction::class)->execute($model, $this->users->findOrFail($user));
@@ -220,22 +234,22 @@ final class OrganizationUiController
 
     public function link(Request $request, string $organization): RedirectResponse
     {
-        $model = $this->find($organization);
+        $model = $this->organization($organization);
         $this->authorizeScreen('roster.organizations.update', $model);
 
-        app(LinkOrganizationAction::class)->execute($model, $request->validate(LinkOrganizationAction::rules()));
+        app(LinkOrganizationAction::class)->execute($model, LinkOrganizationData::from($request->all()));
 
-        return $this->backTo($model, 'settings', __('roster::roster.organization_linked'));
+        return $this->backTo($model, 'settings', 'roster::roster.organization_linked');
     }
 
     public function unlink(string $organization, string $source): RedirectResponse
     {
-        $model = $this->find($organization);
+        $model = $this->organization($organization);
         $this->authorizeScreen('roster.organizations.update', $model);
 
         app(UnlinkOrganizationAction::class)->execute($model, $source);
 
-        return $this->backTo($model, 'settings', __('roster::roster.organization_unlinked'));
+        return $this->backTo($model, 'settings', 'roster::roster.organization_unlinked');
     }
 
     public function restore(string $organization): RedirectResponse
@@ -245,7 +259,7 @@ final class OrganizationUiController
 
         app(RestoreOrganizationAction::class)->execute($model);
 
-        return $this->backTo($model, 'members', __('roster::roster.organization_restored'));
+        return $this->backTo($model, 'members', 'roster::roster.organization_restored');
     }
 
     public function purge(Request $request, string $organization): RedirectResponse
@@ -254,11 +268,11 @@ final class OrganizationUiController
         $this->authorizeScreen('roster.organizations.purge', $model);
         $request->validate(['confirm' => ['accepted']]);
 
-        app(PurgeOrganizationAction::class)->execute($model);
+        app(PurgeOrganizationAction::class)->queue($model);
 
         return redirect()
             ->route('atrium.roster.organizations.index', ['trashed' => 'only'])
-            ->with('status', __('roster::roster.deleted_permanently'));
+            ->with('status', __('roster::roster.organization_purge_queued'));
     }
 
     /**
@@ -268,15 +282,10 @@ final class OrganizationUiController
     private function offers(string $tab): bool
     {
         return match ($tab) {
-            'activity' => app(AuditTrail::class)->available(),
+            'activity' => app(Roster::class)->auditing(),
             'mcp' => RedirectDomains::available(),
             default => true,
         };
-    }
-
-    private function find(string $slug): OrganizationModel
-    {
-        return OrganizationModel::query()->where('slug', $slug)->firstOrFail();
     }
 
     private function backTo(OrganizationModel $organization, string $tab, string $message): RedirectResponse

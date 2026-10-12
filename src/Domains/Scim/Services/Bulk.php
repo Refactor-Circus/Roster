@@ -107,9 +107,9 @@ final class Bulk
         }
 
         $model = $users ? $this->users->find($id) : $this->groups->find($id);
-        $current = $this->present($model);
 
-        if ($version !== null && ! Scim::matches($version, (string) $current['meta']['version'])) {
+        // Built only to compare versions: a group's view reads all its members.
+        if ($version !== null && ! Scim::matches($version, (string) $this->present($model)['meta']['version'])) {
             throw ScimException::preconditionFailed();
         }
 

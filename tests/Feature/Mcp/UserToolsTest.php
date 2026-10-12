@@ -90,3 +90,8 @@ it('reports an unknown user as not found', function (): void {
 it('reports validation failures as tool errors', function (): void {
     mcpTool(CreateUserTool::class, ['name' => 'Ada'])->assertHasErrors();
 });
+
+it('reports every validation failure in one error, identifiers and input together', function (): void {
+    mcpTool(SuspendUserTool::class, ['reason' => str_repeat('x', 1001)])
+        ->assertHasErrors(['The user field is required.', 'The reason field must not be greater than 1000 characters.']);
+});

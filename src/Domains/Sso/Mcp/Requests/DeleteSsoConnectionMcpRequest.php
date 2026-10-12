@@ -14,11 +14,6 @@ final class DeleteSsoConnectionMcpRequest extends SsoConnectionMcpRequest
         return 'roster.sso.manage';
     }
 
-    protected function rules(): array
-    {
-        return DeleteSsoConnectionAction::rules() + ['connection' => ['required', 'string']];
-    }
-
     protected function handle(array $validated): Response
     {
         app(DeleteSsoConnectionAction::class)->execute($this->connection());

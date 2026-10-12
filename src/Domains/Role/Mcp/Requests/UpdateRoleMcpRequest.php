@@ -6,6 +6,8 @@ namespace RefactorCircus\Roster\Domains\Role\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\Role\Actions\UpdateRoleAction;
+use RefactorCircus\Roster\Domains\Role\Data\UpdateRoleData;
+use RefactorCircus\Roster\Domains\Role\Resources\RoleResource;
 
 final class UpdateRoleMcpRequest extends RoleMcpRequest
 {
@@ -16,13 +18,11 @@ final class UpdateRoleMcpRequest extends RoleMcpRequest
 
     protected function rules(): array
     {
-        return UpdateRoleAction::rules() + $this->roleRules();
+        return $this->roleRules() + UpdateRoleData::rules();
     }
 
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['role']);
-
-        return $this->respondWithRole(app(UpdateRoleAction::class)->execute($this->role(), $validated, $this->actor()));
+        return (new RoleResource(app(UpdateRoleAction::class)->execute($this->role(), UpdateRoleData::fromValidated($validated), $this->actor())))->toStructuredResponse();
     }
 }

@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\User\Mcp\Requests;
 
 use Laravel\Mcp\ResponseFactory;
 use RefactorCircus\Roster\Domains\User\Actions\ReactivateUserAction;
+use RefactorCircus\Roster\Domains\User\Resources\UserResource;
 
 final class ReactivateUserMcpRequest extends UserMcpRequest
 {
@@ -14,15 +15,8 @@ final class ReactivateUserMcpRequest extends UserMcpRequest
         return 'roster.users.manage-status';
     }
 
-    protected function rules(): array
-    {
-        return ReactivateUserAction::rules() + $this->userRules();
-    }
-
     protected function handle(array $validated): ResponseFactory
     {
-        unset($validated['user']);
-
-        return $this->respond(app(ReactivateUserAction::class)->execute($this->targetUser(), $validated, $this->actor()));
+        return (new UserResource(app(ReactivateUserAction::class)->execute($this->targetUser(), $this->actor())))->toStructuredResponse();
     }
 }

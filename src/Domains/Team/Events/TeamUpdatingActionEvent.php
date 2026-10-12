@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster\Domains\Team\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionStartingEvent;
+use RefactorCircus\Roster\Domains\Team\Data\UpdateTeamData;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 
 /**
@@ -19,7 +20,6 @@ final class TeamUpdatingActionEvent implements ActionStartingEvent
 
     public function __construct(
         public TeamModel $team,
-        /** @var array<string, mixed> */
-        public array $data,
+        public UpdateTeamData $data,
     ) {}
 }
