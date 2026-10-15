@@ -43,8 +43,8 @@ use RefactorCircus\Roster\Domains\User\Data\RejectUserData;
 use RefactorCircus\Roster\Domains\User\Data\SuspendUserData;
 use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Roster;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -71,7 +71,7 @@ final class UserUiController
             'users' => app(ListUsersAction::class)->execute($filters)->withQueryString(),
             'filters' => $filters,
             'softDeletes' => $this->users->softDeletes(),
-            'statuses' => UserStatus::cases(),
+            'statuses' => Statuses::users()::cases(),
             'directory' => $this->users,
         ]);
     }
@@ -170,11 +170,11 @@ final class UserUiController
     {
         $this->authorizeScreen('roster.users.manage-status');
 
-        $target = $request->validate(['status' => ['required', Rule::in([UserStatus::Active->value, UserStatus::Suspended->value, UserStatus::Deactivated->value])]])['status'];
+        $target = $request->validate(['status' => ['required', Rule::in([Statuses::users()::active()->value, Statuses::users()::suspended()->value, Statuses::users()::deactivated()->value])]])['status'];
 
-        return match (UserStatus::from($target)) {
-            UserStatus::Suspended => $this->suspend($request, $user),
-            UserStatus::Deactivated => $this->deactivate($request, $user),
+        return match (Statuses::user($target)) {
+            Statuses::users()::suspended() => $this->suspend($request, $user),
+            Statuses::users()::deactivated() => $this->deactivate($request, $user),
             default => $this->reactivate($request, $user),
         };
     }

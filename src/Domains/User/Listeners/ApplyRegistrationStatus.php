@@ -6,8 +6,8 @@ namespace RefactorCircus\Roster\Domains\User\Listeners;
 
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\Eloquent\Model;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Services\Approvals;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -22,17 +22,17 @@ final class ApplyRegistrationStatus
         $user = $event->user;
         $users = app(Users::class);
 
-        if (! $user instanceof Model || ! is_a($user, $users->model()) || config('roster.users.registration_status') !== UserStatus::Pending->value) {
+        if (! $user instanceof Model || ! is_a($user, $users->model()) || config('roster.users.registration_status') !== Statuses::users()::pending()->value) {
             return;
         }
 
         $profile = $users->profile($user);
 
-        if ($profile->status !== UserStatus::Active || $profile->status_changed_at !== null) {
+        if ($profile->status !== Statuses::users()::active() || $profile->status_changed_at !== null) {
             return;
         }
 
-        $profile->update(['status' => UserStatus::Pending, 'status_changed_at' => now()]);
+        $profile->update(['status' => Statuses::users()::pending(), 'status_changed_at' => now()]);
 
         app(Approvals::class)->pending($user);
     }

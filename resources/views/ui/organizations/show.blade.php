@@ -361,13 +361,15 @@
                     <x-atrium::form.input name="slug" :label="__('roster::roster.slug')" :value="old('slug', $organization->slug)" required />
                     <x-atrium::form.textarea name="domains" :label="__('roster::roster.domains')" :value="old('domains', $organization->domains->pluck('domain')->join(PHP_EOL))" :hint="__('roster::roster.domains_hint')" rows="3" />
                     <x-atrium::form.checkbox name="auto_join" value="1" :checked="$organization->auto_join" :label="__('roster::roster.auto_join')" :hint="__('roster::roster.auto_join_hint')" />
+                    @php($accountStatuses = \RefactorCircus\Roster\Support\Statuses::users())
                     <x-atrium::form.select
                         name="provisioned_status"
                         :label="__('roster::roster.provisioned_status')"
                         :hint="__('roster::roster.provisioned_status_hint')"
-                        :options="[\RefactorCircus\Roster\Domains\User\Enums\UserStatus::Active->value => \RefactorCircus\Roster\Domains\User\Enums\UserStatus::Active->label(), \RefactorCircus\Roster\Domains\User\Enums\UserStatus::Pending->value => \RefactorCircus\Roster\Domains\User\Enums\UserStatus::Pending->label()]"
+                        :options="[$accountStatuses::active()->value => $accountStatuses::active()->label(), $accountStatuses::pending()->value => $accountStatuses::pending()->label()]"
                         :selected="old('provisioned_status', $organization->provisioned_status)"
                         wrapper="w-72" />
+                    @include('roster::ui.partials.status-fields', ['statuses' => \RefactorCircus\Roster\Support\Statuses::organizations()::cases(), 'record' => $organization])
 
                     <div>
                         <x-atrium::icon-button icon="check" :label="__('roster::roster.save')" variant="primary" type="submit" data-testid="save-organization" />

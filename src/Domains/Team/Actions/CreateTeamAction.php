@@ -11,6 +11,7 @@ use RefactorCircus\Roster\Domains\Team\Events\TeamCreatedActionEvent;
 use RefactorCircus\Roster\Domains\Team\Events\TeamCreatingActionEvent;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Support\Slugs;
+use RefactorCircus\Roster\Support\Statuses;
 
 final class CreateTeamAction
 {
@@ -28,6 +29,9 @@ final class CreateTeamAction
                 'organization_id' => $organization->getKey(),
                 'name' => $name,
                 'slug' => $slug,
+                'status' => $data->status ?? Statuses::teams()::default(),
+                'status_reason' => $data->statusReason,
+                'status_changed_at' => $data->status !== null ? now() : null,
             ]);
         });
 

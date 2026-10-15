@@ -28,7 +28,7 @@ use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Domains\User\Data\DeactivateUserData;
 use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
@@ -112,7 +112,7 @@ final class ScimUsers
 
             if ($user === null) {
                 // The organization decides whether its new accounts need approval.
-                $user = app(CreateUserAction::class)->execute(new CreateUserData(email: $email, name: $this->name($data, $email), status: UserStatus::from($organization->provisioned_status)));
+                $user = app(CreateUserAction::class)->execute(new CreateUserData(email: $email, name: $this->name($data, $email), status: Statuses::user($organization->provisioned_status)));
                 $created = true;
             }
 
@@ -234,7 +234,7 @@ final class ScimUsers
         }
 
         $orphaned = ! MembershipModel::query()->where('user_id', $user->getKey())->exists();
-        $deactivate = $scimUser->created_by_scim && $orphaned && $this->users->status($user) === UserStatus::Active;
+        $deactivate = $scimUser->created_by_scim && $orphaned && $this->users->status($user)->allowsAccess();
 
         if ($deactivate) {
             app(DeactivateUserAction::class)->execute($user, new DeactivateUserData(reason: __('roster::roster.scim_deprovisioned', ['organization' => $organization->name])));
@@ -251,7 +251,7 @@ final class ScimUsers
             return;
         }
 
-        if ($scimUser->deactivated_by_scim && $this->users->status($user) === UserStatus::Deactivated) {
+        if ($scimUser->deactivated_by_scim && $this->users->status($user) === Statuses::users()::deactivated()) {
             app(ReactivateUserAction::class)->execute($user);
         }
 

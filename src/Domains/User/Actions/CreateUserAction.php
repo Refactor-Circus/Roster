@@ -12,11 +12,11 @@ use RefactorCircus\Roster\Domains\Organization\Actions\JoinOrganizationsByDomain
 use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\User\Concerns\ProfileRules;
 use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Events\UserCreatedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserCreatingActionEvent;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Domains\User\Services\Approvals;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 final class CreateUserAction
@@ -56,8 +56,8 @@ final class CreateUserAction
 
             $user->save();
 
-            $pending = $data->status === UserStatus::Pending;
-            $profile = ProfileModel::query()->create(['user_id' => $user->getKey()] + self::profileAttributes($data) + ($pending ? ['status' => UserStatus::Pending, 'status_changed_at' => now()] : []));
+            $pending = $data->status === Statuses::users()::pending();
+            $profile = ProfileModel::query()->create(['user_id' => $user->getKey()] + self::profileAttributes($data) + ($pending ? ['status' => Statuses::users()::pending(), 'status_changed_at' => now()] : []));
 
             if (config('roster.organizations.personal') === true) {
                 $name = $this->users->name($user) ?? $this->users->email($user) ?? 'Personal';
@@ -72,7 +72,7 @@ final class CreateUserAction
 
         UserCreatedActionEvent::dispatch($user);
 
-        if ($this->users->status($user) === UserStatus::Pending) {
+        if ($this->users->status($user) === Statuses::users()::pending()) {
             app(Approvals::class)->pending($user);
         }
 

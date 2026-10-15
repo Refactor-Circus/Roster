@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use InvalidArgumentException;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Contracts\AccountStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 
 /**
@@ -271,9 +271,9 @@ final class Users
     /**
      * The user's status. A user without a profile row is active.
      */
-    public function status(Model $user): UserStatus
+    public function status(Model $user): AccountStatus
     {
-        return $this->profileIfExists($user)->status ?? UserStatus::Active;
+        return $this->profileIfExists($user)->status ?? Statuses::users()::active();
     }
 
     private function string(mixed $value): ?string

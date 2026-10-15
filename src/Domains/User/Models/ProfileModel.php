@@ -10,10 +10,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
+use RefactorCircus\Roster\Contracts\AccountStatus;
 use RefactorCircus\Roster\Database\Factories\ProfileFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
@@ -31,7 +32,7 @@ use RefactorCircus\Roster\Support\Users;
  * @property string|null $locale
  * @property string|null $bio
  * @property array<string, mixed>|null $meta
- * @property UserStatus $status
+ * @property AccountStatus $status
  * @property string|null $status_reason
  * @property Carbon|null $status_changed_at
  * @property string|null $current_organization_id
@@ -63,10 +64,6 @@ final class ProfileModel extends Model
         'current_team_id',
     ];
 
-    protected $attributes = [
-        'status' => 'active',
-    ];
-
     public function getTable(): string
     {
         return Tables::name('profiles');
@@ -96,6 +93,16 @@ final class ProfileModel extends Model
         return $this->belongsTo(TeamModel::class, 'current_team_id');
     }
 
+    /**
+     * New profiles start with the configured enum's default status.
+     */
+    protected static function booted(): void
+    {
+        self::creating(function (self $profile): void {
+            $profile->status ??= Statuses::users()::default();
+        });
+    }
+
     protected static function newFactory(): ProfileFactory
     {
         return ProfileFactory::new();
@@ -105,7 +112,7 @@ final class ProfileModel extends Model
     {
         return [
             'meta' => 'array',
-            'status' => UserStatus::class,
+            'status' => Statuses::users(),
             'status_changed_at' => 'datetime',
         ];
     }

@@ -26,7 +26,7 @@ final class SyncOrganizationAction
     /**
      * The organization fields a record may set; anything left out is kept.
      */
-    private const array FIELDS = ['name', 'slug', 'domains', 'auto_join'];
+    private const array FIELDS = ['name', 'slug', 'domains', 'auto_join', 'status', 'status_reason'];
 
     public function __construct(private readonly Users $users) {}
 
@@ -241,6 +241,7 @@ final class SyncOrganizationAction
         return match ($field) {
             'domains' => $this->normalized((array) $value) !== $this->normalized($organization->loadMissing('domains')->domains->pluck('domain')->all()),
             'auto_join' => (bool) $value !== $organization->auto_join,
+            'status' => $value !== $organization->status,
             'slug' => $value !== null && $value !== '' && $value !== $organization->slug,
             default => (string) $value !== (string) $organization->getAttribute($field),
         };

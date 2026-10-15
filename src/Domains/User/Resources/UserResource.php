@@ -10,9 +10,9 @@ use Illuminate\Http\Request;
 use Illuminate\JsonSchema\Types\Type;
 use Illuminate\Support\Carbon;
 use RefactorCircus\Keystone\Http\Resources\JsonResource;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Roster;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -33,7 +33,7 @@ final class UserResource extends JsonResource
             'id' => $schema->union(['integer', 'string'])->description('The user\'s route key.')->required(),
             'name' => $schema->string()->nullable()->required(),
             'email' => $schema->string()->nullable()->required(),
-            'status' => $schema->string()->enum(array_column(UserStatus::cases(), 'value'))->required(),
+            'status' => $schema->string()->enum(array_column(Statuses::users()::cases(), 'value'))->required(),
             'status_reason' => $schema->string()->nullable()->required(),
             'status_changed_at' => $schema->string()->nullable()->required(),
             'profile' => $schema->object(ProfileResource::schema($schema))->required(),
@@ -60,7 +60,7 @@ final class UserResource extends JsonResource
             'id' => $user->getRouteKey(),
             'name' => $users->name($user),
             'email' => $users->email($user),
-            'status' => ($profile->status ?? UserStatus::Active)->value,
+            'status' => ($profile->status ?? Statuses::users()::active())->value,
             'status_reason' => $profile->status_reason,
             'status_changed_at' => $profile->status_changed_at?->toIso8601String(),
             'profile' => (new ProfileResource($profile))->resolve($request),

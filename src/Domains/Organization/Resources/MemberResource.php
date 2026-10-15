@@ -12,8 +12,8 @@ use RefactorCircus\Keystone\Http\Resources\JsonResource;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Resources\UserSummaryResource;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -29,7 +29,7 @@ final class MemberResource extends JsonResource
         return [
             'user' => $schema->object(UserSummaryResource::schema($schema))->nullable()->required(),
             'owner' => $schema->boolean()->required(),
-            'status' => $schema->string()->enum([...array_column(UserStatus::cases(), 'value'), null])->nullable()->required(),
+            'status' => $schema->string()->enum([...array_column(Statuses::users()::cases(), 'value'), null])->nullable()->required(),
             'source' => $schema->string()->enum(array_column(MembershipSource::cases(), 'value'))->required(),
             'teams' => $schema->array()->items($schema->string())->description('Team slugs, when loaded.'),
             'joined_at' => $schema->string()->nullable()->required(),

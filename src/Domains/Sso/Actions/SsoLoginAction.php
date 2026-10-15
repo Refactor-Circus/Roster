@@ -20,7 +20,7 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 final class SsoLoginAction
@@ -61,7 +61,7 @@ final class SsoLoginAction
             // After the transaction: an account waiting for approval (just
             // created, or earlier) is kept, linked and a member - only the
             // sign-in is refused.
-            if ($this->users->status($user) === UserStatus::Pending) {
+            if ($this->users->status($user) === Statuses::users()::pending()) {
                 $this->fail($connection, $claims, 'pending');
             }
         } catch (SsoLoginRefused $refused) {
@@ -93,7 +93,9 @@ final class SsoLoginAction
                 [$user, $method] = $this->linkOrCreate($connection, $claims);
             }
 
-            if (! in_array($this->users->status($user), [UserStatus::Active, UserStatus::Pending], true)) {
+            $status = $this->users->status($user);
+
+            if (! $status->allowsAccess() && $status !== Statuses::users()::pending()) {
                 $this->fail($connection, $claims, 'inactive');
             }
 
@@ -138,7 +140,7 @@ final class SsoLoginAction
             email: $email,
             name: $claims->name ?? Str::before($email, '@'),
             // The organization decides whether its new accounts need approval.
-            status: UserStatus::from($organization->provisioned_status),
+            status: Statuses::user($organization->provisioned_status),
         ));
 
         // The identity provider is authoritative for this domain, so the

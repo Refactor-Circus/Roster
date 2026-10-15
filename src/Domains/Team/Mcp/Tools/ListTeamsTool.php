@@ -13,6 +13,7 @@ use RefactorCircus\Roster\Domains\Team\Data\ListTeamsData;
 use RefactorCircus\Roster\Domains\Team\Mcp\Requests\ListTeamsMcpRequest;
 use RefactorCircus\Roster\Domains\Team\Resources\TeamResource;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesOrganization;
+use RefactorCircus\Roster\Support\Statuses;
 
 #[Description('List an organization\'s teams by name, with member counts. Paginated.')]
 final class ListTeamsTool extends Tool
@@ -27,6 +28,7 @@ final class ListTeamsTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return $this->organizationSchema($schema) + [
+            'status' => $schema->string()->enum(Statuses::values(Statuses::teams()))->description('Only teams with this status.'),
         ] + ListTeamsData::pagination()->schema($schema);
     }
 

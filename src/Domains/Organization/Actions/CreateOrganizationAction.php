@@ -15,6 +15,7 @@ use RefactorCircus\Roster\Domains\Organization\Events\OrganizationCreatedActionE
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationCreatingActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Support\Slugs;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 final class CreateOrganizationAction
@@ -57,7 +58,10 @@ final class CreateOrganizationAction
                 'owner_id' => $owner?->getKey(),
                 'personal' => $personal,
                 'auto_join' => $data->autoJoin,
-                'provisioned_status' => $data->provisionedStatus->value,
+                'provisioned_status' => ($data->provisionedStatus ?? Statuses::users()::active())->value,
+                'status' => $data->status ?? Statuses::organizations()::default(),
+                'status_reason' => $data->statusReason,
+                'status_changed_at' => $data->status !== null ? now() : null,
             ]);
 
             $this->syncDomains($organization, $data->domains);

@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Domains\User\Concerns\ChangesStatus;
 use RefactorCircus\Roster\Domains\User\Data\DeactivateUserData;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Events\UserDeactivatedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserDeactivatingActionEvent;
+use RefactorCircus\Roster\Support\Statuses;
 
 final class DeactivateUserAction
 {
@@ -22,13 +22,13 @@ final class DeactivateUserAction
      */
     public function execute(Model $user, DeactivateUserData $data = new DeactivateUserData, ?Model $actor = null): Model
     {
-        $this->guardTransition($user, UserStatus::Deactivated, $actor);
+        $this->guardTransition($user, Statuses::users()::deactivated(), $actor);
 
         $reason = $data->reason;
 
         UserDeactivatingActionEvent::dispatch($user, $reason);
 
-        DB::transaction(fn () => $this->changeStatus($user, UserStatus::Deactivated, $reason));
+        DB::transaction(fn () => $this->changeStatus($user, Statuses::users()::deactivated(), $reason));
 
         $user = $user->load('rosterProfile');
 

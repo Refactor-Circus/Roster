@@ -14,11 +14,12 @@
                 @endif
                 <x-atrium::form.input name="email" type="email" :label="__('roster::roster.email')" :value="old('email')" required />
                 <x-atrium::form.input name="password" type="password" :label="__('roster::roster.password')" :hint="__('roster::roster.password_create_hint')" />
+                @php($accountStatuses = \RefactorCircus\Roster\Support\Statuses::users())
                 <x-atrium::form.select
                     name="status"
                     :label="__('roster::roster.initial_status')"
-                    :options="[\RefactorCircus\Roster\Domains\User\Enums\UserStatus::Active->value => \RefactorCircus\Roster\Domains\User\Enums\UserStatus::Active->label(), \RefactorCircus\Roster\Domains\User\Enums\UserStatus::Pending->value => \RefactorCircus\Roster\Domains\User\Enums\UserStatus::Pending->label()]"
-                    :selected="old('status', 'active')"
+                    :options="[$accountStatuses::active()->value => $accountStatuses::active()->label(), $accountStatuses::pending()->value => $accountStatuses::pending()->label()]"
+                    :selected="old('status', $accountStatuses::active()->value)"
                     data-testid="initial-status" />
 
                 @include('roster::ui.users.partials.profile-fields', ['profile' => null])

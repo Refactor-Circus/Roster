@@ -17,7 +17,6 @@ use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Support\Concerns\ResolvesScopes;
 use RefactorCircus\Roster\Support\Users;
 
@@ -77,7 +76,7 @@ final class StartImpersonationAction
             $fail('impersonate_nested');
         }
 
-        if ($this->users->status($user) !== UserStatus::Active) {
+        if (! $this->users->status($user)->allowsAccess()) {
             $fail('impersonate_inactive');
         }
 

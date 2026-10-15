@@ -7,6 +7,7 @@ use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Impersonation\Policies\ImpersonationPolicy;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Invitation\Policies\InvitationPolicy;
+use RefactorCircus\Roster\Domains\Organization\Enums\OrganizationStatus;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationDomainModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationLinkModel;
@@ -31,6 +32,7 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 use RefactorCircus\Roster\Domains\Sso\Policies\SsoConnectionPolicy;
 use RefactorCircus\Roster\Domains\Sso\Policies\SsoIdentityPolicy;
+use RefactorCircus\Roster\Domains\Team\Enums\TeamStatus;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Team\Policies\TeamMemberPolicy;
@@ -39,6 +41,7 @@ use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferRowModel;
 use RefactorCircus\Roster\Domains\Transfer\Policies\TransferPolicy;
 use RefactorCircus\Roster\Domains\Transfer\Policies\TransferRowPolicy;
+use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Domains\User\Models\UserModel;
 use RefactorCircus\Roster\Domains\User\Policies\ProfilePolicy;
@@ -328,6 +331,34 @@ return [
     'organizations' => [
         'personal' => false,
         'sync_batch' => 500,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Statuses
+    |--------------------------------------------------------------------------
+    |
+    | The string-backed enum each record's `status` column holds. Point a key
+    | at an enum of your own to rename, relabel or add statuses.
+    |
+    | users:         Implements RefactorCircus\Roster\Contracts\AccountStatus,
+    |                naming the cases Roster's flows use (`active()`,
+    |                `pending()`, `suspended()`, `deactivated()`) and, through
+    |                `allowsAccess()`, which statuses let a user in.
+    | organizations: Implement RefactorCircus\Roster\Contracts\Status. Roster
+    | teams:         stores and shows these statuses only; it grants and
+    |                refuses nothing by them.
+    |
+    | Every enum's `default()` is the status new records start with. Removing
+    | a case that stored rows still hold makes reading those rows fail:
+    | move the rows to another status first.
+    |
+    */
+
+    'statuses' => [
+        'users' => UserStatus::class,
+        'organizations' => OrganizationStatus::class,
+        'teams' => TeamStatus::class,
     ],
 
     /*

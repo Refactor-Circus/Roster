@@ -6,7 +6,8 @@ namespace RefactorCircus\Roster\Domains\User\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Contracts\AccountStatus;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -15,16 +16,16 @@ use RefactorCircus\Roster\Support\Users;
  */
 trait ChangesStatus
 {
-    private function guardTransition(Model $user, UserStatus $to, ?Model $actor): void
+    private function guardTransition(Model $user, AccountStatus $to, ?Model $actor): void
     {
-        if ($actor !== null && $actor->is($user) && $to !== UserStatus::Active) {
+        if ($actor !== null && $actor->is($user) && $to !== Statuses::users()::active()) {
             throw ValidationException::withMessages([
                 'user' => __('roster::roster.cannot_change_own_status'),
             ]);
         }
 
         // A pending account is accepted with ApproveUserAction, on the record.
-        if ($to === UserStatus::Active && app(Users::class)->status($user) === UserStatus::Pending) {
+        if ($to === Statuses::users()::active() && app(Users::class)->status($user) === Statuses::users()::pending()) {
             throw ValidationException::withMessages(['status' => __('roster::roster.approve_instead')]);
         }
 
@@ -41,7 +42,7 @@ trait ChangesStatus
      */
     private function guardPending(Model $user, ?Model $actor): void
     {
-        if (app(Users::class)->status($user) !== UserStatus::Pending) {
+        if (app(Users::class)->status($user) !== Statuses::users()::pending()) {
             throw ValidationException::withMessages(['user' => __('roster::roster.not_pending')]);
         }
 
@@ -50,7 +51,7 @@ trait ChangesStatus
         }
     }
 
-    private function changeStatus(Model $user, UserStatus $to, ?string $reason): void
+    private function changeStatus(Model $user, AccountStatus $to, ?string $reason): void
     {
         app(Users::class)->profile($user)->update([
             'status' => $to,

@@ -69,7 +69,7 @@ class User extends Authenticatable
 }
 
 $user->roster();          // the Profile, created on first access
-$user->rosterStatus();    // UserStatus::Active | Suspended | Deactivated
+$user->rosterStatus();    // a case of the roster.statuses.users enum: UserStatus::Active | Pending | Suspended | Deactivated by default
 $user->isRosterActive();
 ```
 
@@ -405,7 +405,7 @@ $result->organization->links;       // [OrganizationLink{source: erp, external_i
 ```
 
 - **Matching** is by `source` + `external_id`. An unknown record creates an organization. To link an existing organization on its first sync, pass `organization` (its slug) instead.
-- **Only the fields you send are written:** `name`, `slug`, `domains`, `auto_join` and `account_number`. Anything left out stays as it is. Local edits are allowed, and the next sync overwrites them.
+- **Only the fields you send are written:** `name`, `slug`, `domains`, `auto_join`, `status`, `status_reason` and `account_number`. Anything left out stays as it is. Local edits are allowed, and the next sync overwrites them.
 - **Owners.** A new organization has no owner unless the record names one (`owner`, a user key). An owner is only applied to an organization that doesn't have one yet; sync never replaces an existing owner.
 - **Several systems:** an organization can be linked to one record per source, for example `erp` and `crm`. Manage links by hand with `LinkOrganizationAction` / `UnlinkOrganizationAction`, or on the organization's Settings tab in Atrium.
 - **Finding them:** `ListOrganizationsAction` and `GET /roster/organizations` take `source`, `external_id` and `account_number` filters.
@@ -609,7 +609,43 @@ CSV imports create active users.
 Route::middleware(['auth', 'roster.active'])->group(...);
 ```
 
-Suspended and deactivated users get a 403, and so do users awaiting approval (with their own message). A user with no profile row is active.
+Suspended and deactivated users get a 403, and so do users awaiting approval (with their own message). A user with no profile row is active. With your own status enum, every status whose `allowsAccess()` is false is refused.
+
+## Statuses
+
+Users, organizations and teams each have a `status` (with `status_reason` and `status_changed_at`). Which statuses exist is up to you: each is a string-backed enum named under `roster.statuses`.
+
+| Key | Default enum | Contract | Cases |
+|-----|--------------|----------|-------|
+| `users` | `Domains\User\Enums\UserStatus` | `RefactorCircus\Roster\Contracts\AccountStatus` | `active`, `pending`, `suspended`, `deactivated` |
+| `organizations` | `Domains\Organization\Enums\OrganizationStatus` | `RefactorCircus\Roster\Contracts\Status` | `active`, `inactive` |
+| `teams` | `Domains\Team\Enums\TeamStatus` | `RefactorCircus\Roster\Contracts\Status` | `active`, `inactive` |
+
+`Status` asks for a `label()`, an Atrium `badge()` variant and the `default()` new records start with. `AccountStatus` adds the cases Roster's flows move users between (`active()`, `pending()`, `suspended()`, `deactivated()`) and `allowsAccess()`, so an enum can rename those cases or add its own, such as a `trial` that lets users in:
+
+```php
+use RefactorCircus\Roster\Contracts\Status;
+
+enum CustomerStatus: string implements Status
+{
+    case Active = 'active';
+    case OnHold = 'on_hold';
+    case Blocked = 'blocked';
+
+    public static function default(): static { return self::Active; }
+    public function label(): string { return __('customers.status.'.$this->value); }
+    public function badge(): string { return $this === self::Active ? 'success' : 'warning'; }
+}
+
+// config/roster.php
+'statuses' => ['organizations' => CustomerStatus::class, /* ... */],
+```
+
+- **Organization and team statuses are data only.** Roster stores, shows and filters by them, but grants and refuses nothing by them; check them in your own middleware or policies if they should block anything.
+- **Setting them:** pass `status` (and optionally `status_reason`) to `CreateOrganizationData`, `UpdateOrganizationData`, `SyncOrganizationData`, `CreateTeamData` and `UpdateTeamData`, the matching API routes and MCP tools, or the Settings forms in Atrium. A changed status stamps `status_changed_at`; the reason is kept until you send another.
+- **Finding them:** `ListOrganizationsAction` / `ListTeamsAction` (and their routes and tools) take a `status` filter.
+- **Code** reads the configured enum through `RefactorCircus\Roster\Support\Statuses`: `Statuses::users()::pending()`, `Statuses::organization('inactive')`.
+- **Changing enums** only changes what new values may be. Rows keep the value they hold, and reading a row whose value is no longer a case fails, so move rows off a status before removing it. New organizations and teams default to the enum's `default()`; the migration gives existing rows the default of the enum configured when it runs.
 
 ## HTTP API and MCP
 

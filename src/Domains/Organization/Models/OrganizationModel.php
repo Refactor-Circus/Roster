@@ -13,9 +13,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
+use RefactorCircus\Roster\Contracts\Status;
 use RefactorCircus\Roster\Database\Factories\OrganizationFactory;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
 
@@ -29,6 +31,9 @@ use RefactorCircus\Roster\Support\Users;
  * @property bool $personal
  * @property bool $auto_join
  * @property string $provisioned_status
+ * @property Status $status
+ * @property string|null $status_reason
+ * @property Carbon|null $status_changed_at
  * @property Carbon|null $deleted_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -43,7 +48,7 @@ final class OrganizationModel extends Model
     use HasUlids;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'slug', 'owner_id', 'personal', 'auto_join', 'provisioned_status'];
+    protected $fillable = ['name', 'slug', 'owner_id', 'personal', 'auto_join', 'provisioned_status', 'status', 'status_reason', 'status_changed_at'];
 
     protected $attributes = [
         'personal' => false,
@@ -127,6 +132,16 @@ final class OrganizationModel extends Model
         return $this->memberships()->where('user_id', $user->getKey())->first();
     }
 
+    /**
+     * New organizations start with the configured enum's default status.
+     */
+    protected static function booted(): void
+    {
+        self::creating(function (self $organization): void {
+            $organization->status ??= Statuses::organizations()::default();
+        });
+    }
+
     protected static function newFactory(): OrganizationFactory
     {
         return OrganizationFactory::new();
@@ -137,6 +152,8 @@ final class OrganizationModel extends Model
         return [
             'personal' => 'boolean',
             'auto_join' => 'boolean',
+            'status' => Statuses::organizations(),
+            'status_changed_at' => 'datetime',
         ];
     }
 }

@@ -7,7 +7,7 @@ namespace RefactorCircus\Roster\Domains\User\Http\Middleware;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -28,11 +28,11 @@ final class EnsureUserIsActive
         if ($user instanceof Model) {
             $status = $this->users->status($user);
 
-            if ($status === UserStatus::Pending) {
+            if ($status === Statuses::users()::pending()) {
                 abort(403, __('roster::roster.account_pending'));
             }
 
-            if ($status !== UserStatus::Active) {
+            if (! $status->allowsAccess()) {
                 abort(403, __('roster::roster.account_inactive'));
             }
         }

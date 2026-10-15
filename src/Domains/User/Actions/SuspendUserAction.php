@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Domains\User\Concerns\ChangesStatus;
 use RefactorCircus\Roster\Domains\User\Data\SuspendUserData;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Events\UserSuspendedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserSuspendingActionEvent;
+use RefactorCircus\Roster\Support\Statuses;
 
 final class SuspendUserAction
 {
@@ -21,13 +21,13 @@ final class SuspendUserAction
      */
     public function execute(Model $user, SuspendUserData $data = new SuspendUserData, ?Model $actor = null): Model
     {
-        $this->guardTransition($user, UserStatus::Suspended, $actor);
+        $this->guardTransition($user, Statuses::users()::suspended(), $actor);
 
         $reason = $data->reason;
 
         UserSuspendingActionEvent::dispatch($user, $reason);
 
-        DB::transaction(fn () => $this->changeStatus($user, UserStatus::Suspended, $reason));
+        DB::transaction(fn () => $this->changeStatus($user, Statuses::users()::suspended(), $reason));
 
         $user = $user->load('rosterProfile');
 

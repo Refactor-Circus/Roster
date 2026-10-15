@@ -56,6 +56,7 @@
                 @method('PATCH')
                 <x-atrium::form.input name="name" :label="__('roster::roster.name')" :value="old('name', $team->name)" required />
                 <x-atrium::form.input name="slug" :label="__('roster::roster.slug')" :value="old('slug', $team->slug)" required />
+                @include('roster::ui.partials.status-fields', ['statuses' => \RefactorCircus\Roster\Support\Statuses::teams()::cases(), 'record' => $team])
                 <div>
                     <x-atrium::icon-button icon="check" :label="__('roster::roster.save')" variant="primary" type="submit" data-testid="save-team" />
                 </div>

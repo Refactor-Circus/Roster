@@ -1,4 +1,4 @@
-@use(RefactorCircus\Roster\Domains\User\Enums\UserStatus)
+@use(RefactorCircus\Roster\Support\Statuses)
 @use(RefactorCircus\Roster\Atrium\ScreenAccess)
 
 @php($title = $profile?->display_name ?? $directory->name($user) ?? $directory->email($user) ?? __('roster::roster.user'))
@@ -50,7 +50,7 @@
         </x-atrium::card>
         @endrosterCan
 
-        @if ($status === UserStatus::Pending && ScreenAccess::allows('roster.users.approve'))
+        @if ($status === Statuses::users()::pending() && ScreenAccess::allows('roster.users.approve'))
             <x-atrium::card :title="__('roster::roster.awaiting_approval')" class="lg:col-span-2" data-testid="approval-card">
                 <p class="mb-4 text-sm">{{ __('roster::roster.awaiting_approval_hint') }}</p>
 
@@ -79,8 +79,8 @@
                 <p class="mb-4 text-sm">{{ __('roster::roster.reason') }}: {{ $profile->status_reason }}</p>
             @endif
 
-            @php($choices = collect([UserStatus::Active, UserStatus::Suspended, UserStatus::Deactivated])
-                ->reject(fn ($choice) => $choice === $status || ($status === UserStatus::Pending && $choice === UserStatus::Active))
+            @php($choices = collect([Statuses::users()::active(), Statuses::users()::suspended(), Statuses::users()::deactivated()])
+                ->reject(fn ($choice) => $choice === $status || ($status === Statuses::users()::pending() && $choice === Statuses::users()::active()))
                 ->mapWithKeys(fn ($choice) => [$choice->value => $choice->label()]))
 
             {{-- One form: pick the new status, give a reason. Pending accounts are activated from the approval card. --}}

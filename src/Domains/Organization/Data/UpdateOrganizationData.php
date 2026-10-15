@@ -7,17 +7,23 @@ namespace RefactorCircus\Roster\Domains\Organization\Data;
 use Illuminate\Validation\Rule;
 use RefactorCircus\Keystone\Data\Data;
 use RefactorCircus\Keystone\Data\Missing;
+use RefactorCircus\Roster\Contracts\AccountStatus;
+use RefactorCircus\Roster\Contracts\Status;
 use RefactorCircus\Roster\Domains\Organization\Concerns\OrganizationRules;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Concerns\PreparesStatuses;
+use RefactorCircus\Roster\Support\Statuses;
 
 /**
  * Input for UpdateOrganizationAction: the fields and settings to change.
  * Fields left out are kept; a given `domains` list replaces the old one.
+ * A new `status` stamps `status_changed_at`; `status_reason` is kept unless
+ * given.
  */
 final readonly class UpdateOrganizationData extends Data
 {
     use OrganizationRules;
+    use PreparesStatuses;
 
     /**
      * @param  array<int, string>|Missing  $domains
@@ -26,8 +32,10 @@ final readonly class UpdateOrganizationData extends Data
         public string|Missing $name = new Missing,
         public string|Missing $slug = new Missing,
         public bool|Missing $autoJoin = new Missing,
-        public UserStatus|Missing $provisionedStatus = new Missing,
+        public AccountStatus|Missing $provisionedStatus = new Missing,
         public array|Missing $domains = new Missing,
+        public Status|Missing $status = new Missing,
+        public string|Missing|null $statusReason = new Missing,
     ) {}
 
     /**
@@ -48,5 +56,13 @@ final readonly class UpdateOrganizationData extends Data
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'slug' => ['sometimes', 'required', 'string', 'alpha_dash', 'max:255', $slug],
         ] + self::settingsRules($organization);
+    }
+
+    protected static function prepare(array $validated): array
+    {
+        return self::prepareStatuses($validated, [
+            'provisioned_status' => Statuses::user(...),
+            'status' => Statuses::organization(...),
+        ]);
     }
 }

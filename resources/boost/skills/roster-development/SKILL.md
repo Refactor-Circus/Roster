@@ -120,8 +120,8 @@ php artisan migrate
 
 ## Rules, References, and Templates
 
-- Config: `config/roster.php` (users, authorization, super_admins, roles, impersonation, sso, scim, transfers, organizations, invitations, routes, mcp).
-- Statuses: `RefactorCircus\Roster\Domains\User\Enums\UserStatus` (`Active`, `Pending`, `Suspended`, `Deactivated`). A user with no profile row is `Active`.
+- Config: `config/roster.php` (users, authorization, super_admins, roles, impersonation, sso, scim, transfers, organizations, statuses, invitations, routes, mcp).
+- Statuses: `roster.statuses` names a string-backed enum per record. Users default to `RefactorCircus\Roster\Domains\User\Enums\UserStatus` (`Active`, `Pending`, `Suspended`, `Deactivated`), implementing `Contracts\AccountStatus` (`active()`, `pending()`, `suspended()`, `deactivated()`, `allowsAccess()`); a user with no profile row has the `active()` status. Organizations and teams default to `OrganizationStatus` / `TeamStatus` (`Active`, `Inactive`), implementing `Contracts\Status`; set them with `status` / `status_reason` on the create, update and sync Data, filter lists by `status`. They are data only: Roster refuses nothing by them. Read the configured enum with `RefactorCircus\Roster\Support\Statuses` (`Statuses::users()::pending()`).
 - Deletes are soft:
   - Add `SoftDeletes` (and a `deleted_at` column) to the user model so deleted users can be restored; without it, users are deleted permanently.
   - Restore with `RestoreUserAction` / `RestoreOrganizationAction`.
