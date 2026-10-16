@@ -8,7 +8,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Validation\Rule;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationDomainModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Statuses;
 
 /**
  * Validation shared by the Data objects that write an organization's
@@ -30,7 +30,9 @@ trait OrganizationRules
         return [
             'auto_join' => ['sometimes', 'boolean'],
             // Accounts created through its SSO or SCIM: active, or waiting for approval.
-            'provisioned_status' => ['sometimes', Rule::in([UserStatus::Active->value, UserStatus::Pending->value])],
+            'provisioned_status' => ['sometimes', Rule::in([Statuses::users()::active()->value, Statuses::users()::pending()->value])],
+            'status' => ['sometimes', Rule::enum(Statuses::organizations())],
+            'status_reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'domains' => ['sometimes', 'array', 'max:50'],
             'domains.*' => ['string', 'distinct', 'max:253', 'regex:/^(?!-)[a-z0-9-]+(\.[a-z0-9-]+)+$/i', $domain],
         ];

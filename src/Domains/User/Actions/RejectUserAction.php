@@ -8,10 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Domains\User\Concerns\ChangesStatus;
 use RefactorCircus\Roster\Domains\User\Data\RejectUserData;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Events\UserRejectedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserRejectingActionEvent;
 use RefactorCircus\Roster\Domains\User\Services\Approvals;
+use RefactorCircus\Roster\Support\Statuses;
 
 final class RejectUserAction
 {
@@ -30,7 +30,7 @@ final class RejectUserAction
 
         UserRejectingActionEvent::dispatch($user, $reason);
 
-        DB::transaction(fn () => $this->changeStatus($user, UserStatus::Deactivated, $reason));
+        DB::transaction(fn () => $this->changeStatus($user, Statuses::users()::deactivated(), $reason));
 
         $user = $user->load('rosterProfile');
 

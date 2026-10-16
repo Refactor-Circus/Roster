@@ -12,6 +12,7 @@ use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Organization\Data\OrganizationSyncResult;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\SyncOrganizationMcpRequest;
 use RefactorCircus\Roster\Domains\Organization\Resources\OrganizationResource;
+use RefactorCircus\Roster\Support\Statuses;
 
 #[Description('Create or update one organization from its record in an external system (ERP, CRM, ...), matched by source + external_id. Only the fields given are written; the result says created, updated or unchanged. A new organization has no owner unless one is given.')]
 final class SyncOrganizationTool extends Tool
@@ -33,6 +34,8 @@ final class SyncOrganizationTool extends Tool
             'auto_join' => $schema->boolean()->description('Let verified users on its domains join automatically.'),
             'owner' => $schema->string()->description('Owner user id; applied only when the organization has no owner yet.'),
             'organization' => $schema->string()->description('On the first sync, the slug of an existing organization to link instead of creating one.'),
+            'status' => $schema->string()->enum(Statuses::values(Statuses::organizations()))->description('The organization\'s status in that system.'),
+            'status_reason' => $schema->string()->description('Why it has that status.'),
         ];
     }
 

@@ -44,6 +44,10 @@ final class ListOrganizationsAction
                 ->orWhere('slug', 'like', '%'.$search.'%'));
         }
 
+        if ($filters->status !== null) {
+            $query->where('status', $filters->status);
+        }
+
         if ($filters->user !== null) {
             $user = $this->users->resolve($filters->user);
 

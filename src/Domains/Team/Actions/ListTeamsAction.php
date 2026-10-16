@@ -20,9 +20,13 @@ final class ListTeamsAction
     {
         TeamsListingActionEvent::dispatch($organization, $filters);
 
-        $teams = $organization->teams()
-            ->with('organization')
-            ->withCount('seats')
+        $query = $organization->teams()->with('organization')->withCount('seats');
+
+        if ($filters->status !== null) {
+            $query->where('status', $filters->status);
+        }
+
+        $teams = $query
             ->orderBy('name')
             ->orderBy('id')
             ->paginate($filters->perPage, ['*'], 'page', $filters->page);

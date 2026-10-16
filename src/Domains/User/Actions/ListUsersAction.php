@@ -8,11 +8,11 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use RefactorCircus\Roster\Domains\User\Data\ListUsersData;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Events\UsersListedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UsersListingActionEvent;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Roster;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 final class ListUsersAction
@@ -55,8 +55,8 @@ final class ListUsersAction
 
         // A user without a profile row is active, so "active" means "no
         // profile with another status" rather than "a profile marked active".
-        if ($status === UserStatus::Active) {
-            $query->whereNotIn($key, ProfileModel::query()->select('user_id')->where('status', '!=', UserStatus::Active));
+        if ($status === Statuses::users()::active()) {
+            $query->whereNotIn($key, ProfileModel::query()->select('user_id')->where('status', '!=', Statuses::users()::active()));
         } elseif ($status !== null) {
             $query->whereIn($key, ProfileModel::query()->select('user_id')->where('status', $status));
         }

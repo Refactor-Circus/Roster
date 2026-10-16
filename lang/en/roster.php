@@ -34,6 +34,7 @@ return [
     'status_active' => 'Active',
     'status_suspended' => 'Suspended',
     'status_deactivated' => 'Deactivated',
+    'status_inactive' => 'Inactive',
     'suspend' => 'Suspend',
     'deactivate' => 'Deactivate',
     'reactivate' => 'Reactivate',

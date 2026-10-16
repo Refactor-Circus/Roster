@@ -27,7 +27,7 @@ use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
 use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Domains\User\Data\SuspendUserData;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Statuses;
 use Workbench\Database\Factories\UserFactory;
 
 /**
@@ -81,7 +81,7 @@ class DatabaseSeeder extends Seeder
         app(SuspendUserAction::class)->execute($eve, new SuspendUserData(reason: 'Demo: a suspended account.'));
 
         // Demo: an account awaiting approval, also on Acme's Members tab.
-        $pat = app(CreateUserAction::class)->execute(new CreateUserData(name: 'Pat Pending', email: 'pat@acme.test', status: UserStatus::Pending));
+        $pat = app(CreateUserAction::class)->execute(new CreateUserData(name: 'Pat Pending', email: 'pat@acme.test', status: Statuses::users()::pending()));
         app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $pat->getRouteKey()));
     }
 }

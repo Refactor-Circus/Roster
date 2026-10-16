@@ -150,3 +150,25 @@ it('shows each member\'s status on the members tab', function (): void {
 
     $this->getJson(route('roster.organizations.members.index', 'acme'))->assertOk()->assertJsonFragment(['status' => 'pending']);
 });
+
+it('edits organization and team statuses', function (): void {
+    $organization = organization($this->admin);
+    app(CreateTeamAction::class)->execute($organization, CreateTeamData::from(['name' => 'Ops']));
+
+    $this->get(route('atrium.roster.organizations.show', [$organization, 'tab' => 'settings']))
+        ->assertOk()
+        ->assertSee('data-testid="status"', false);
+
+    $this->patch(route('atrium.roster.organizations.update', $organization), [
+        'name' => $organization->name,
+        'slug' => $organization->slug,
+        'status' => 'inactive',
+        'status_reason' => 'Blocked',
+    ])->assertRedirect();
+
+    $this->patch(route('atrium.roster.teams.update', [$organization, 'ops']), ['name' => 'Ops', 'slug' => 'ops', 'status' => 'inactive'])->assertRedirect();
+
+    expect($organization->refresh()->status->value)->toBe('inactive')
+        ->and($organization->status_reason)->toBe('Blocked')
+        ->and($organization->teams()->sole()->status->value)->toBe('inactive');
+});

@@ -24,7 +24,7 @@ final class SyncOrganizationsTool extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'records' => $schema->array()->items($schema->object())->description('Records, each {source, external_id, name?, account_number?, slug?, domains?, auto_join?, owner?, organization?}.')->required(),
+            'records' => $schema->array()->items($schema->object())->description('Records, each {source, external_id, name?, account_number?, slug?, domains?, auto_join?, status?, status_reason?, owner?, organization?}.')->required(),
         ];
     }
 

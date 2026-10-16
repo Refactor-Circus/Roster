@@ -7,10 +7,10 @@ namespace RefactorCircus\Roster\Domains\User\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Domains\User\Concerns\ChangesStatus;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Events\UserApprovedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserApprovingActionEvent;
 use RefactorCircus\Roster\Domains\User\Services\Approvals;
+use RefactorCircus\Roster\Support\Statuses;
 
 final class ApproveUserAction
 {
@@ -25,7 +25,7 @@ final class ApproveUserAction
 
         UserApprovingActionEvent::dispatch($user);
 
-        DB::transaction(fn () => $this->changeStatus($user, UserStatus::Active, null));
+        DB::transaction(fn () => $this->changeStatus($user, Statuses::users()::active(), null));
 
         $user = $user->load('rosterProfile');
 

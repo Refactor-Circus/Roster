@@ -8,17 +8,24 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Validation\Rule;
 use RefactorCircus\Keystone\Data\Data;
 use RefactorCircus\Keystone\Data\Missing;
+use RefactorCircus\Roster\Contracts\Status;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Concerns\PreparesStatuses;
+use RefactorCircus\Roster\Support\Statuses;
 
 /**
  * Input for UpdateTeamAction: the team fields to change. Fields left out are
- * kept.
+ * kept. A new `status` stamps `status_changed_at`.
  */
 final readonly class UpdateTeamData extends Data
 {
+    use PreparesStatuses;
+
     public function __construct(
         public string|Missing $name = new Missing,
         public string|Missing $slug = new Missing,
+        public Status|Missing $status = new Missing,
+        public string|Missing|null $statusReason = new Missing,
     ) {}
 
     /**
@@ -38,6 +45,13 @@ final readonly class UpdateTeamData extends Data
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'slug' => ['sometimes', 'required', 'string', 'alpha_dash', 'max:255', $slug],
+            'status' => ['sometimes', Rule::enum(Statuses::teams())],
+            'status_reason' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ];
+    }
+
+    protected static function prepare(array $validated): array
+    {
+        return self::prepareStatuses($validated, ['status' => Statuses::team(...)]);
     }
 }

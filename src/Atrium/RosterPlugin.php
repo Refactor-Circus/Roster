@@ -33,8 +33,8 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -372,7 +372,7 @@ class RosterPlugin extends Plugin
         $total = app(Users::class)->query()->count();
 
         $counts = ProfileModel::query()
-            ->where('status', '!=', UserStatus::Active)
+            ->where('status', '!=', Statuses::users()::active())
             ->selectRaw('status, count(*) as aggregate')
             ->groupBy('status')
             ->pluck('aggregate', 'status')
@@ -381,11 +381,12 @@ class RosterPlugin extends Plugin
 
         $others = array_sum($counts);
 
-        $result = [UserStatus::Active->value => max(0, $total - $others)];
+        $active = (string) Statuses::users()::active()->value;
+        $result = [$active => max(0, $total - $others)];
 
-        foreach (UserStatus::cases() as $status) {
-            if ($status !== UserStatus::Active) {
-                $result[$status->value] = $counts[$status->value] ?? 0;
+        foreach (Statuses::values(Statuses::users()) as $status) {
+            if ($status !== $active) {
+                $result[$status] = $counts[$status] ?? 0;
             }
         }
 

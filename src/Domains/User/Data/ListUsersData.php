@@ -7,7 +7,9 @@ namespace RefactorCircus\Roster\Domains\User\Data;
 use Illuminate\Validation\Rule;
 use RefactorCircus\Keystone\Data\Data;
 use RefactorCircus\Keystone\Pagination\Pagination;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Contracts\AccountStatus;
+use RefactorCircus\Roster\Support\Concerns\PreparesStatuses;
+use RefactorCircus\Roster\Support\Statuses;
 
 /**
  * Input for ListUsersAction: filters and the page to show.
@@ -17,9 +19,11 @@ use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
  */
 final readonly class ListUsersData extends Data
 {
+    use PreparesStatuses;
+
     public function __construct(
         public ?string $search = null,
-        public ?UserStatus $status = null,
+        public ?AccountStatus $status = null,
         public ?string $trashed = null,
         public int $perPage = 15,
         public ?int $page = null,
@@ -40,8 +44,13 @@ final readonly class ListUsersData extends Data
     {
         return [
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'status' => ['sometimes', 'nullable', Rule::enum(UserStatus::class)],
+            'status' => ['sometimes', 'nullable', Rule::enum(Statuses::users())],
             'trashed' => ['sometimes', 'nullable', Rule::in(['only', 'with'])],
         ] + self::pagination()->rules();
+    }
+
+    protected static function prepare(array $validated): array
+    {
+        return self::prepareStatuses($validated, ['status' => Statuses::user(...)]);
     }
 }

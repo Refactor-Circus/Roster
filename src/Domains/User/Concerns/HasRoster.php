@@ -8,12 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use RefactorCircus\Roster\Contracts\AccountStatus;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Roster;
 use RefactorCircus\Roster\Support\Tables;
@@ -97,13 +97,13 @@ trait HasRoster
         return app(Users::class)->profile($this);
     }
 
-    public function rosterStatus(): UserStatus
+    public function rosterStatus(): AccountStatus
     {
         return app(Users::class)->status($this);
     }
 
     public function isRosterActive(): bool
     {
-        return $this->rosterStatus() === UserStatus::Active;
+        return $this->rosterStatus()->allowsAccess();
     }
 }

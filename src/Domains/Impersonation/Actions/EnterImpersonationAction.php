@@ -11,7 +11,6 @@ use RefactorCircus\Roster\Domains\Impersonation\Data\EnterImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Events\ImpersonationEnteredActionEvent;
 use RefactorCircus\Roster\Domains\Impersonation\Events\ImpersonationEnteringActionEvent;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Support\Users;
 
 final class EnterImpersonationAction
@@ -36,7 +35,7 @@ final class EnterImpersonationAction
 
         $user = $impersonation->user;
 
-        if (! $user instanceof Model || $this->users->status($user) !== UserStatus::Active) {
+        if (! $user instanceof Model || ! $this->users->status($user)->allowsAccess()) {
             throw ValidationException::withMessages(['token' => __('roster::roster.impersonate_inactive')]);
         }
 

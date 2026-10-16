@@ -7,9 +7,9 @@ namespace RefactorCircus\Roster\Domains\User\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Domains\User\Concerns\ChangesStatus;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Events\UserReactivatedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserReactivatingActionEvent;
+use RefactorCircus\Roster\Support\Statuses;
 
 final class ReactivateUserAction
 {
@@ -20,11 +20,11 @@ final class ReactivateUserAction
      */
     public function execute(Model $user, ?Model $actor = null): Model
     {
-        $this->guardTransition($user, UserStatus::Active, $actor);
+        $this->guardTransition($user, Statuses::users()::active(), $actor);
 
         UserReactivatingActionEvent::dispatch($user);
 
-        DB::transaction(fn () => $this->changeStatus($user, UserStatus::Active, null));
+        DB::transaction(fn () => $this->changeStatus($user, Statuses::users()::active(), null));
 
         $user = $user->load('rosterProfile');
 

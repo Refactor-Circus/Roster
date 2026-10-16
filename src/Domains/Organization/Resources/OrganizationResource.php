@@ -12,7 +12,7 @@ use RefactorCircus\Keystone\Http\Resources\JsonResource;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationDomainModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationLinkModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
+use RefactorCircus\Roster\Support\Statuses;
 
 /**
  * @mixin OrganizationModel
@@ -30,7 +30,10 @@ final class OrganizationResource extends JsonResource
             'owner' => $schema->union(['integer', 'string', 'null'])->description('The owner\'s user route key.')->required(),
             'personal' => $schema->boolean()->required(),
             'auto_join' => $schema->boolean()->required(),
-            'provisioned_status' => $schema->string()->enum(array_column(UserStatus::cases(), 'value'))->required(),
+            'provisioned_status' => $schema->string()->enum(Statuses::values(Statuses::users()))->required(),
+            'status' => $schema->string()->enum(Statuses::values(Statuses::organizations()))->required(),
+            'status_reason' => $schema->string()->nullable()->required(),
+            'status_changed_at' => $schema->string()->nullable()->required(),
             'domains' => $schema->array()->items($schema->string())->description('Email domains, when loaded.'),
             'links' => $schema->array()->items($schema->object([
                 'source' => $schema->string()->required(),
@@ -58,6 +61,9 @@ final class OrganizationResource extends JsonResource
             'personal' => $this->personal,
             'auto_join' => $this->auto_join,
             'provisioned_status' => $this->provisioned_status,
+            'status' => $this->status->value,
+            'status_reason' => $this->status_reason,
+            'status_changed_at' => $this->status_changed_at?->toIso8601String(),
             'domains' => $this->whenLoaded('domains', fn (): array => $this->domains
                 ->map(fn (OrganizationDomainModel $domain): string => $domain->domain)
                 ->sort()

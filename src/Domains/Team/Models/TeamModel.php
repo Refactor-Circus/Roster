@@ -12,9 +12,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
+use RefactorCircus\Roster\Contracts\Status;
 use RefactorCircus\Roster\Database\Factories\TeamFactory;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Tables;
 
 /**
@@ -24,6 +26,9 @@ use RefactorCircus\Roster\Support\Tables;
  * @property string $organization_id
  * @property string $name
  * @property string $slug
+ * @property Status $status
+ * @property string|null $status_reason
+ * @property Carbon|null $status_changed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -36,7 +41,7 @@ final class TeamModel extends Model
 
     use HasUlids;
 
-    protected $fillable = ['organization_id', 'name', 'slug'];
+    protected $fillable = ['organization_id', 'name', 'slug', 'status', 'status_reason', 'status_changed_at'];
 
     public function getTable(): string
     {
@@ -72,8 +77,26 @@ final class TeamModel extends Model
         return $this->memberships()->where('user_id', $user->getKey())->exists();
     }
 
+    /**
+     * New teams start with the configured enum's default status.
+     */
+    protected static function booted(): void
+    {
+        self::creating(function (self $team): void {
+            $team->status ??= Statuses::teams()::default();
+        });
+    }
+
     protected static function newFactory(): TeamFactory
     {
         return TeamFactory::new();
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'status' => Statuses::teams(),
+            'status_changed_at' => 'datetime',
+        ];
     }
 }
