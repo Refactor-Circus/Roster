@@ -26,6 +26,7 @@ return [
     'no_users' => 'No users found.',
     'account' => 'Account',
     'profile' => 'Profile',
+    'overview' => 'Overview',
     'display_name' => 'Display name',
     'avatar_url' => 'Avatar URL',
     'timezone' => 'Timezone',
