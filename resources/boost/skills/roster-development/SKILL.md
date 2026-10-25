@@ -118,6 +118,29 @@ php artisan migrate
 - Add `roster.active` middleware to routes only active users may use, and `roster.organization` to routes that need a tenant.
 - The HTTP API (`roster.routes.enabled`) and MCP (`roster.mcp.web.enabled`, `roster.mcp.local.enabled`) are off by default and do **no authorization** themselves. Only enable them with auth plus admin-only middleware in the `middleware` config.
 
+### 13. Registered tabs
+
+- Add the app's own tabs to Roster's Atrium organization and user screens from a service provider's `boot()` (never `register()`, middleware or controllers: the registry lives for the whole process):
+
+```php
+use RefactorCircus\Roster\Atrium\{TabDefinition, Tabs};
+
+app(Tabs::class)
+    ->organization(TabDefinition::make('acme.orders')->label('Orders')->icon('shopping-cart')
+        ->view('acme::roster.orders')
+        ->resolve(fn (OrganizationModel $organization): array => ['orders' => Order::where('organization_id', $organization->getKey())->get()])
+        ->permission('orders.view'))
+    ->user(TabDefinition::make('acme.devices')->label('Devices')->component('acme::user-devices')
+        ->authorize(fn (Request $request, Model $user): bool => $request->user()?->is($user) === true));
+```
+
+- Keys: lowercase letters, digits, `.`, `-`, `_`. Use `vendor.key` (`acme.orders`): new built-in keys may arrive in minor releases, and built-in keys (`Tabs::ORGANIZATION_TABS`, `overview` on users) or a duplicate key throw `InvalidArgumentException`. Each tab needs a `view()` or a `component()`.
+- Visibility is default-deny: give a `permission()` (checked in the organization, or for the user, like the built-in tabs), an `authorize(fn (Request, Model $record): bool)` closure (both must pass when both are set), or `public()` (anyone who may open the screen; only for data no more sensitive than the screen). A hidden tab's `?tab=` answers 403.
+- `authorize` closures run on every render, for any request method: keep them cheap and non-throwing (a throwing one hides the tab and is reported). The resolver runs only for the open tab, after access checks; its errors, and view errors, surface as page errors. A missing view or component fails only when the tab is opened.
+- A view gets the resolver's data under Roster's variables (`organization` / `user`, `tab`, `tabs`, `registeredTab`, `errors`, which always win; don't return those or `__env`, `app`, `loop`); a component gets the record prop and one `data` prop.
+- On the user screen the tab bar, with an `overview` tab holding the existing page, appears only while a registered tab is visible. Apps that published `roster-views` must re-publish or merge them to get registered tabs.
+- In tests, `app(Tabs::class)->flush()` forgets every registered tab; there is no unregistering at runtime.
+
 ## Rules, References, and Templates
 
 - Config: `config/roster.php` (users, authorization, super_admins, roles, impersonation, sso, scim, transfers, organizations, statuses, invitations, routes, mcp).
@@ -187,6 +210,7 @@ In app tests, assert with `expect($user->rosterStatus())->toBe(UserStatus::Suspe
 - Expecting an audit trail without refactor-circus/keen installed; Roster records nothing on its own.
 - Putting secrets in `Keen::record()->with()` without listing their keys in `keen.redact`.
 - Styling Roster's views with `<style>`, `style=` or classes outside Atrium's safelist; publish and use Atrium components instead.
+- Publishing Roster's views to add a tab to the organization or user screen; register it on `Tabs` instead.
 - Logging users in as someone else with `Auth::login()` for support. Use impersonation, which is time-limited, blocked from sensitive abilities, and audited.
 - Emailing or posting impersonation links. They only work in the impersonator's own browser.
 - Using multi-tenant Entra authorities (`common`, `organizations`) or the Entra `mail` attribute for identity. Roster refuses both.

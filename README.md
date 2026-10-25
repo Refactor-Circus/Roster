@@ -796,6 +796,68 @@ class RosterFeature extends RosterSupportFeature
 
 A class name that no longer ends in `SupportFeature` also follows per-user values.
 
+### Registered tabs
+
+Your app and other packages can add their own tabs to the organization and user screens, so your data (an organization's orders, a user's devices) shows next to the record, only to those allowed to see it. Register them on `RefactorCircus\Roster\Atrium\Tabs` from a service provider's `boot()`:
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
+use RefactorCircus\Roster\Atrium\TabDefinition;
+use RefactorCircus\Roster\Atrium\Tabs;
+use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+
+public function boot(): void
+{
+    app(Tabs::class)
+        ->organization(
+            TabDefinition::make('acme.orders')
+                ->label('Orders')
+                ->icon('shopping-cart')
+                ->view('acme::roster.orders')
+                ->resolve(fn (OrganizationModel $organization): array => [
+                    'orders' => Order::where('organization_id', $organization->getKey())->latest()->limit(50)->get(),
+                ])
+                ->permission('orders.view'),
+        )
+        ->user(
+            TabDefinition::make('acme.devices')
+                ->label('Devices')
+                ->icon('device-phone-mobile')
+                ->component('acme::user-devices')
+                ->resolve(fn (Model $user): array => ['devices' => $user->devices])
+                ->authorize(fn (Request $request, Model $user): bool => $request->user()?->is($user) === true),
+        );
+}
+```
+
+**Registering.** Register in `boot()` only: not in `register()` (Roster's `Tabs` may not be bound yet), and never in middleware, controllers or other code that runs per request, since the registry lives as long as the process (Octane, queue workers) and a second registration of the same key throws. The screens read the registry when they render, so a tab registered after Roster booted still shows. Registration validates the definition and keeps a copy of it: later calls on your instance change nothing. Tabs can't be removed or replaced at runtime; `app(Tabs::class)->flush()` forgets them all and is meant for tests only. Registration works whether or not Atrium shows Roster; the tabs only ever render on Roster's Atrium screens.
+
+**Keys.** A key is lowercase letters, digits, `.`, `-` and `_`, starting with a letter or digit. Registering a built-in key (`Tabs::ORGANIZATION_TABS` on the organization screen, `overview` on the user screen), the same key twice on one screen, or a tab with neither a `view()` nor a `component()` throws an `InvalidArgumentException` naming the key and the screen. New built-in tab keys may be added in minor releases, so prefix yours with your vendor, as `vendor.key` (`acme.orders`).
+
+**Who sees a tab.** A tab is hidden unless it says who may see it:
+
+- `permission('orders.view')` shows it to viewers holding that Roster permission, checked in the organization on the organization screen and for the user on the user screen, exactly as the built-in tabs and `@rosterCan` check theirs. A permission nobody holds hides the tab.
+- `authorize(fn (Request $request, Model $record): bool => ...)` shows it when the closure returns `true`. With both a permission and a closure, both must pass.
+- `public()` shows it to anyone who may open the screen. Use it with care: your view may show more sensitive data than the screen itself does, so prefer a permission or a closure.
+
+Roster's own check for the screen always runs first, so your closures and resolvers never run for a viewer refused the screen. Opening a tab the viewer can't see with `?tab=` answers 403; a key that is neither built-in nor registered opens the screen's default tab.
+
+`authorize` closures run on every render of the screen, once per request for each tab registered on it, so keep them cheap and don't let them throw. They get the current request whatever its method, so don't assume a GET. A closure that throws counts as a refusal: the tab is hidden, `?tab=` answers 403, the exception is reported once per request, and the screen still renders.
+
+**Where tabs show.** On the organization screen, registered tabs follow the visible built-in tabs, in registration order; the default tab is always a built-in one. On the user screen, a tab bar appears only once at least one registered tab is visible to the viewer: its first tab, `overview`, holds the page as it was (and is the default, so the page's forms still return to it). With none visible the user page is unchanged. Deleted organizations and users show their deleted page, never registered tabs.
+
+Labels are shown as given (escaped), so translate them yourself. `icon()` takes an Atrium icon name (default `squares-2x2`); a name Atrium doesn't know falls back to `squares-2x2`.
+
+**Rendering.** The resolver gets the record and returns the data the tab needs. It runs only for the open tab, after the viewer's access is checked, so other tabs cost nothing.
+
+- A `view()` gets the resolver's data plus Roster's variables, which always win over it: `organization` (or `user`), `tab` (the open key), `tabs`, `registeredTab` (the definition) and `errors`. Those names and Blade's own `__env`, `app` and `loop` are reserved: don't return them from a resolver.
+- A `component()` gets the record as its `organization` (or `user`) prop and the resolver's data as one `data` prop, never spread into its attributes.
+
+Roster doesn't catch errors in your code: a resolver, view or component that throws surfaces as an error page on Roster's screen. Roster doesn't check that a view or component exists when you register the tab (your views may be loaded later), so a missing one fails only when someone opens the tab. Forms inside a tab post to your own routes; Roster adds none.
+
+If you published Roster's views (`roster-views`), your copies of the organization and user pages show no registered tabs (and no user tab bar), without any error. Re-publish them with `php artisan vendor:publish --tag="roster-views" --force`, or merge the new tab partials into your copies.
+
 ## Trying it locally
 
 The workbench is a demo app with Atrium and seeded data:
