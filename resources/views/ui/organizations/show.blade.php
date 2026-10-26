@@ -12,20 +12,22 @@
         @include('roster::impersonation-banner', ['bannerClass' => 'rounded-radius'])
         <x-atrium::flash />
 
-        <nav class="flex flex-wrap gap-2" aria-label="{{ $organization->name }}">
-            @php($tabIcons = ['members' => 'users', 'teams' => 'user-group', 'invitations' => 'envelope', 'roles' => 'shield-check', 'sso' => 'arrow-right-end-on-rectangle', 'scim' => 'server-stack', 'mcp' => 'globe-alt', 'activity' => 'clipboard-document-list', 'settings' => 'cog'])
-            @foreach ($tabs as $name)
-                <x-atrium::icon-button
-                    :icon="$tabIcons[$name]"
-                    :label="__('roster::roster.'.$name)"
-                    :variant="$tab === $name ? 'primary' : 'ghost'"
-                    :href="route('atrium.roster.organizations.show', [$organization, 'tab' => $name])"
-                    :aria-current="$tab === $name ? 'page' : null"
-                    data-testid="tab-{{ $name }}" />
-            @endforeach
-        </nav>
+        @include('roster::ui.partials.tabs', [
+            'label' => $organization->name,
+            'tabs' => $tabs,
+            'tab' => $tab,
+            'icons' => ['members' => 'users', 'teams' => 'user-group', 'invitations' => 'envelope', 'roles' => 'shield-check', 'sso' => 'arrow-right-end-on-rectangle', 'scim' => 'server-stack', 'mcp' => 'globe-alt', 'activity' => 'clipboard-document-list', 'settings' => 'cog'],
+            'registered' => $registeredTabs,
+            'href' => fn (string $name): string => route('atrium.roster.organizations.show', [$organization, 'tab' => $name]),
+        ])
 
-        @if ($tab === 'members')
+        @if ($registeredTab !== null)
+            @include('roster::ui.partials.registered-tab', [
+                'registeredTab' => $registeredTab,
+                'data' => $registeredData,
+                'roster' => ['organization' => $organization, 'tab' => $tab, 'tabs' => $tabs, 'registeredTab' => $registeredTab, 'errors' => $errors],
+            ])
+        @elseif ($tab === 'members')
             @if ($organization->owner_id === null)
                 <x-atrium::alert variant="warning" data-testid="no-owner">{{ __('roster::roster.no_owner') }}</x-atrium::alert>
             @endif

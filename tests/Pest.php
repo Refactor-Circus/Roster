@@ -6,6 +6,7 @@ use Laravel\Mcp\Server\Testing\TestResponse;
 use Laravel\Mcp\Server\Tool;
 use RefactorCircus\Keystone\Testing\McpTools;
 use RefactorCircus\Keystone\Testing\Parity;
+use RefactorCircus\Roster\Atrium\Tabs;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
@@ -42,6 +43,15 @@ foreach (['Traces', 'Screenshots', 'Screenshots/Sliders', 'Screenshots/ImageDiff
 }
 
 uses(TestCase::class)->in('Feature');
+// Tabs and TabDefinition read the container (the singleton binding, the
+// scoped visibility memo and ScreenAccess), so their unit tests boot Roster.
+uses(TestCase::class)->in('Unit');
+// Registered tabs live on an app-lifetime singleton: start and end every
+// screen test with none.
+uses()
+    ->beforeEach(fn () => app(Tabs::class)->flush())
+    ->afterEach(fn () => app(Tabs::class)->flush())
+    ->in('Feature/Ui');
 uses(AuthorizationTestCase::class)->in('Authorization');
 uses(CortexTestCase::class)->in('Cortex');
 uses(BrowserTestCase::class)->in('Browser');

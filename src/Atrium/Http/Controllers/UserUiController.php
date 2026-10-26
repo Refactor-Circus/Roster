@@ -13,6 +13,9 @@ use Illuminate\Validation\Rule;
 use RefactorCircus\Cortex\Domains\RedirectDomain\Actions\ListRedirectDomainsAction;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Atrium\RedirectDomains;
+use RefactorCircus\Roster\Atrium\TabDefinition;
+use RefactorCircus\Roster\Atrium\Tabs;
+use RefactorCircus\Roster\Atrium\TabVisibility;
 use RefactorCircus\Roster\Domains\Organization\Actions\JoinOrganizationsByDomainAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
 use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
@@ -99,7 +102,7 @@ final class UserUiController
             ->with('status', __('roster::roster.user_created'));
     }
 
-    public function show(string $user): View
+    public function show(Request $request, string $user): View
     {
         $target = $this->users->findWithTrashedOrFail($user);
         $this->authorizeScreen('roster.users.view', null, $target);
@@ -112,7 +115,22 @@ final class UserUiController
         }
 
         $model = app(ShowUserAction::class)->execute($target);
-        $memberships = MembershipModel::query()->where('user_id', $model->getKey())->whereHas('organization')->with(['organization', 'teams'])->get();
+
+        // A string only: ?tab[]=x and the like count as no tab.
+        $requested = $request->query('tab');
+        $requested = is_string($requested) ? $requested : null;
+
+        // The registered tabs this viewer may see, asked once and used for
+        // both the tab bar and ?tab=; a hidden one is refused. Anything else
+        // (overview, an unknown key) opens the overview.
+        $all = app(Tabs::class)->users();
+        $visibility = app(TabVisibility::class);
+        $registered = array_filter($all, fn (TabDefinition $definition): bool => $visibility->allows('user', $definition, $request, $model, null, $model));
+        $registeredTab = null;
+
+        if ($requested !== null && isset($all[$requested])) {
+            $registeredTab = $registered[$requested] ?? abort(403);
+        }
 
         /** @var view-string $view */
         $view = 'roster::ui.users.show';
@@ -122,22 +140,15 @@ final class UserUiController
             'profile' => $model->getRelation('rosterProfile'),
             'status' => $this->users->status($model),
             'directory' => $this->users,
-            'memberships' => $memberships,
-            'currentOrganization' => app(Roster::class)->organization($model),
-            'currentTeam' => app(Roster::class)->team($model),
-            'assignments' => app(ListRoleAssignmentsAction::class)->execute(new ListRoleAssignmentsData(user: $model, perPage: 100)),
-            'effective' => app(ListUserPermissionsAction::class)->execute($model),
-            // Shared roles, and the custom roles of this user's organizations:
-            // another organization's own roles can't be assigned to them.
-            'assignableRoles' => RoleModel::query()
-                ->where(fn (Builder $query): Builder => $query->whereNull('organization_id')->orWhereIn('organization_id', $memberships->pluck('organization_id')->all()))
-                ->with('organization')
-                ->orderBy('scope')
-                ->orderBy('name')
-                ->get(),
-            'ssoIdentities' => app(ListSsoIdentitiesAction::class)->execute(new ListSsoIdentitiesData(user: $model, perPage: 50)),
-            // The user's MCP redirect domains, while Cortex keeps them.
-            'redirectDomains' => RedirectDomains::available() ? app(ListRedirectDomainsAction::class)->execute($model) : null,
+            'tab' => $registeredTab === null ? Tabs::USER_DEFAULT : $registeredTab->key,
+            // No tab bar at all until a registered tab is visible.
+            'tabs' => $registered === [] ? [] : [Tabs::USER_DEFAULT, ...array_map(fn (TabDefinition $definition): string => $definition->key, array_values($registered))],
+            'registeredTabs' => $registered,
+            'registeredTab' => $registeredTab,
+            // The host's data for the open registered tab only, after its access check.
+            'registeredData' => $registeredTab?->resolveData($model) ?? [],
+            // The overview's own data only while it is the open tab.
+            ...($registeredTab === null ? $this->overview($model) : []),
         ]);
     }
 
@@ -286,6 +297,36 @@ final class UserUiController
         return redirect()
             ->route('atrium.roster.users.index', $this->users->softDeletes() ? ['trashed' => 'only'] : [])
             ->with('status', __('roster::roster.user_deleted'));
+    }
+
+    /**
+     * Everything the overview tab shows: the page's own content. Not loaded
+     * while a registered tab is open.
+     *
+     * @return array<string, mixed>
+     */
+    private function overview(Model $model): array
+    {
+        $memberships = MembershipModel::query()->where('user_id', $model->getKey())->whereHas('organization')->with(['organization', 'teams'])->get();
+
+        return [
+            'memberships' => $memberships,
+            'currentOrganization' => app(Roster::class)->organization($model),
+            'currentTeam' => app(Roster::class)->team($model),
+            'assignments' => app(ListRoleAssignmentsAction::class)->execute(new ListRoleAssignmentsData(user: $model, perPage: 100)),
+            'effective' => app(ListUserPermissionsAction::class)->execute($model),
+            // Shared roles, and the custom roles of this user's organizations:
+            // another organization's own roles can't be assigned to them.
+            'assignableRoles' => RoleModel::query()
+                ->where(fn (Builder $query): Builder => $query->whereNull('organization_id')->orWhereIn('organization_id', $memberships->pluck('organization_id')->all()))
+                ->with('organization')
+                ->orderBy('scope')
+                ->orderBy('name')
+                ->get(),
+            'ssoIdentities' => app(ListSsoIdentitiesAction::class)->execute(new ListSsoIdentitiesData(user: $model, perPage: 50)),
+            // The user's MCP redirect domains, while Cortex keeps them.
+            'redirectDomains' => RedirectDomains::available() ? app(ListRedirectDomainsAction::class)->execute($model) : null,
+        ];
     }
 
     private function backTo(Model $user, string $message): RedirectResponse

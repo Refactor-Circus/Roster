@@ -49,7 +49,8 @@ it('maps every status to a colour, giving pending one of its own', function (): 
 
 it('searches users and organizations as separate atrium sources', function (): void {
     user(['name' => 'Ada Lovelace', 'email' => 'ada@example.com']);
-    organization(attributes: ['name' => 'Adams & Co']);
+    // A fixed owner, so a random name or email can't also match "ada".
+    organization(user(['name' => 'Owen Owner', 'email' => 'owner@example.com']), ['name' => 'Adams & Co']);
 
     [$users, $organizations] = app(RosterPlugin::class)->search();
 
