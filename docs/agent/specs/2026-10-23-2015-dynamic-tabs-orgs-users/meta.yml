@@ -1,0 +1,15 @@
+id: 2026-10-23-2015-dynamic-tabs-orgs-users
+title: Let host apps register tabs on organization and user screens
+status: merged
+pr: { number: 5, url: https://github.com/Refactor-Circus/Roster/pull/5 }
+created: 2026-10-23
+ticket: { provider: github, key: "#4", url: https://github.com/Refactor-Circus/Roster/issues/4 }
+standards:
+  refactor-circus/standards:
+    version: dev-main
+    reference: 2e6440f82ca5
+runs:
+  - { workflow: ring-master-factory, run_id: wf_8bb54b4a-e0f, result: "prepare failed: Bash denied to subagents (don't-ask mode), no worktree created", round: 0, date: 2026-10-23 }
+  - { workflow: ring-master-factory, run_id: wf_b9c34c78-9d1, result: "escalated at build: group 2 agent returned no structured output (work left uncommitted); groups 1, 4 committed", round: 0, date: 2026-10-25 }
+  - { workflow: ring-master-factory, run_id: wf_b9c34c78-9d1, result: "resumed; group 2 committed (88e2134); escalated at build: group 3 agent returned no structured output (work left uncommitted)", round: 0, date: 2026-10-25 }
+  - { workflow: ring-master-factory, run_id: wf_b9c34c78-9d1, result: "approved: gate green, no findings; PR #5", round: 2, date: 2026-10-25 }
