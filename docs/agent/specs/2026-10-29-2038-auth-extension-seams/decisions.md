@@ -73,3 +73,26 @@ D-001 to D-003 are recorded in `shape.md`.
 - Rationale: Same choice the user made for the Atrium spec (Atrium D-020).
 - Date: 2026-10-29
 - Raised by: spec review recheck (scope)
+
+## D-016: SCIM audit closure return value on error
+- Choice: Return `[]`, not null. Keystone `AuditHooks::contextFor()` spreads each result, so null would throw a TypeError. The closure also returns `[]` unless the event belongs to the `roster` package, because AuditHooks has no package filter (Keystone/src/Audit/AuditHooks.php:106-111, :184-193).
+- Rationale: The user accepted it. This keeps the intent of D-012.
+- Date: 2026-10-29
+- Raised by: the in-place rewrite
+
+## D-017: How do Roster's own domains register roster.* despite the reservation?
+- Choice: An `@internal` method on `Resources` and `PermissionCatalogue` that accepts only `roster.*`. The public `resource()` and `permission()` reject that prefix.
+- Rationale: The user accepted it.
+- Date: 2026-10-29
+- Raised by: the in-place rewrite
+
+## D-018: Null provisioned_status
+- Choice: Fall back to active without reporting. Only invalid stored values are reported (D-011).
+- Rationale: The user accepted it.
+- Date: 2026-10-29
+- Raised by: the in-place rewrite
+
+## D-019: Approval
+- Choice: Approved for tasks and the factory
+- Date: 2026-10-29
+- Raised by: spec review (approval)
