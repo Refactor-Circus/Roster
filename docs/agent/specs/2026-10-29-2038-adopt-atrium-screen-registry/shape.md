@@ -29,6 +29,7 @@ In scope:
 - D-002: the built-in organization tab keys stay reserved as Atrium built-ins for `roster.organization`. `activity` and `mcp` stop being built-in, so Keen and Cortex can register them.
 - D-003: the behaviour pinned by Roster PR #5 (criteria 1 to 18) is preserved through Atrium's registry. Its tests move to, or are re-expressed against, the Atrium API.
 - D-004: SSO and SCIM stay in Roster for this spec, and only their screens switch to Atrium's components. The extraction is in `remove-sso-and-scim` and the Guardian spec.
+- D-005: the replacement tabs are vendor-prefixed: `keen.activity` and `cortex.mcp` (Atrium D-008). Old `?tab=activity` and `?tab=mcp` URLs fall back to the default tab (200), and the CHANGELOG notes it.
 
 ## Context
 
