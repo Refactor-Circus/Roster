@@ -1,0 +1,39 @@
+# Decisions
+
+D-001 to D-003 are recorded in `shape.md`.
+
+## D-004: Remove Roster::ssoRequiredFor() now, or keep it as a deprecated wrapper?
+- Choice: Remove it now, with a CHANGELOG upgrade note
+- Rationale: Accepted the recommendation. A wrapper would keep an SSO type in Roster core.
+- Date: 2026-10-29
+- Raised by: spec review (scope, risk, testability)
+
+## D-005: Does app code still get an enum from memberships.source after it becomes a string cast?
+- Choice: A string cast plus an enum helper on MembershipModel, `sourceEnum(): ?MembershipSource`, which returns the built-in enum case or null for registered sources
+- Rationale: The user chose to keep enum access for built-ins.
+- Date: 2026-10-29
+- Raised by: spec review (risk, testability)
+
+## D-006: Where do other packages add audit context to Roster entries?
+- Choice: Directly on Keystone's `AuditHooks`, filtered to `roster` package entries. Roster adds no audit API (`Audit::context()` is dropped from this spec). Roster's in-tree SCIM domain moves its `scim_token` context onto AuditHooks the same way. The `impersonator` and `transfer` contexts stay in `Support\Audit`.
+- Rationale: Accepted the recommendation. Roster's CLAUDE.md forbids audit APIs in Roster, and Keystone is the only shared requirement (Atrium D-017/D-018).
+- Date: 2026-10-29
+- Raised by: spec review (scope)
+
+## D-007: What happens when a registered SignInRequirement throws?
+- Choice: Fail closed: rethrow, so the login fails and the exception is reported
+- Rationale: Accepted the recommendation. This is a security control.
+- Date: 2026-10-29
+- Raised by: spec review (risk)
+
+## D-008: What happens when a registered resource's model has no Gate policy?
+- Choice: Throw `InvalidArgumentException` naming the resource the first time a permission resolves to it
+- Rationale: Accepted the recommendation. Policies register in boot(), so the check can't happen when the resource is registered.
+- Date: 2026-10-29
+- Raised by: spec review (risk)
+
+## D-009: How is a throwing audit-context contributor reported?
+- Choice: Laravel `report($e)`. The entry is written without that key.
+- Rationale: Accepted the recommendation.
+- Date: 2026-10-29
+- Raised by: spec review (testability)
