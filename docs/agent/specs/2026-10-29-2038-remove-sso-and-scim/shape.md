@@ -27,6 +27,8 @@ Also add:
 - D-001: the table data moves through Guardian's rename-upgrade migration, never dropped by Roster. Roster's removed migrations must not leave a down-migration that drops data. (User, 2026-10-29: "rename, ship upgrade".)
 - D-002: Roster keeps `organizations.provisioned_status` and the seams from `auth-extension-seams`. Only SSO/SCIM-specific code leaves.
 - D-003: open for spec review: whether `MembershipSource::Scim` values already stored stay readable, by keeping the value registered by Guardian through the seam.
+- D-004: the `roster.sso.*` / `roster.scim.*` permissions become `guardian.sso.*` / `guardian.scim.*`, and Guardian's upgrade migration renames existing role grants. Roster's catalogue drops the old names. (User, 2026-10-29.)
+- D-005: the organization tabs become `guardian.sso` / `guardian.scim`, registered by Guardian. Old `?tab=sso` and `?tab=scim` links fall back to the default tab.
 
 ## Context
 
