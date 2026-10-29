@@ -46,3 +46,8 @@ In scope:
 - atrium/components: tab bars through Atrium components only (`StylesTest` stays green).
 - http/authorization: `ScreenAccess::allows()` is the access check Roster passes to Atrium for registered tabs and sections.
 - testing/test-layers: the feature suites for the organization, user, team and SSO screens keep passing, along with the browser suite.
+
+## Addendum (2026-10-29): every screen declares slots and tab bar
+
+User decision (Atrium D-013): every Atrium screen in this package declares itself with `Screen::make("{package}.{screen}")`, renders the Atrium tab bar (only visible once at least 2 tabs are visible), and declares the standard slots: `header.actions`, `before` and `after` on all screens; `aside` and `history` (when audited) on detail screens; the `row.actions` row slot on list screens. Screens without built-in tabs get a default `overview` tab. With nothing registered, every existing feature and browser test passes unchanged. A feature test per screen registers a tab and a section in each standard slot and asserts that they render.
+Roster screens (about 15): users index, create and show; organizations index, create and show; team; roles index and show; permissions; impersonations; transfers index, show and templates; invitation accept. The SSO connection screen moves to Guardian.
