@@ -17,3 +17,23 @@ Changed:
 - Risks: rewritten as "Open:" items, with the "spec review decides" wording removed.
 
 Why: each finding was a scope contradiction, an untestable clause or an unspecified failure behaviour. Where a finding's fix depended on a user decision, the spec states the requirement that holds either way and marks the choice open.
+
+
+## Round 1 (revision against the second set of findings)
+
+Revised `spec.md`. The open questions were left undecided and are all listed under Risks as "Open:": screen slots and tab bars, registering under the core `roster.` prefix and impersonation-blocked coverage, reporting an invalid `provisionedStatus()` value, who catches a throwing audit contributor, `->value` versus `sourceEnum()` in the four assertions, and which call site throws for a policy gap.
+
+Changed:
+- Folded the addendum (D-004 to D-009) into the body and turned the addendum into a change log. Goal now counts four Roster registries plus the `provisionedStatus()` accessor, and says audit context is not a Roster seam. Why: the body and addendum contradicted each other.
+- Criterion 5 rewritten: no `Audit::context()`; the SCIM domain registers `scim_token` on `AuditHooks` at the same moment as `Support\Audit`, only when auditing, only for Roster events. Checked `../Keystone/src/Audit/AuditHooks.php`: `context()` already takes a closure from any package, so no Keystone change is needed; `contextFor()` has no try/catch, which is why the catcher is an open question. Tests added: existing SCIM test unchanged, non-Roster entry gets no `scim_token`, throwing contributor reported. Why: removes stale text and the hidden Keystone dependency.
+- Criteria 1 and 2: policy gap now throws `InvalidArgumentException` (D-008), no `report()` wording, never converts to allow, memo stores nothing for a throwing check; `ScreenAccess` and `@rosterCan` test added. Late registration: `Resources` has its own `generation()`, the memo keys on it plus `Permissions::generation()`.
+- Criterion 3: added the unregistered-system-permission warning test and a boot-order migration test through `migrate` with the domain providers registered.
+- Criterion 4: `sourceEnum()` and its tests, duplicate registration test, consumer audit (arch/grep over `src/`), CHANGELOG naming `sourceEnum()` and the silent-false hazard, raw display of unregistered values noted.
+- Criterion 6: `ssoRequiredFor()` removed; `externalSignInFor()` does not catch; super-admin check runs before any requirement; call-site listing; tests for propagation and the `NotSsoEnforced` result. Dropped "report() is called either way".
+- Criterion 7: named the remap example, the null case and the fallback (`Statuses::user()` resolution of `active`).
+- Criterion 8: reworded to "core references neither domain", exact file list, word-bounded patterns, no exceptions.
+- Criterion 9: docs strings now `AuditHooks`, plus the built-in-role sentence; the resource and catalogue snippets are executed in a test.
+- Criterion 10: rule stated by behaviour, changes listed by file and test name, no line numbers; includes the SsoWiringTest rewrite and the SCIM audit test.
+- Design, Out of scope, Risks: Design bullets updated; Out of scope names `adopt-atrium-screen-registry` for Atrium work and points to the open screen-slot question; the hidden scope line in Risks removed; resolved risks deleted.
+
+Not changed: whether to add screen slots/tabs here, since the user request and an open question hinge on it.

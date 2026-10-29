@@ -37,3 +37,39 @@ D-001 to D-003 are recorded in `shape.md`.
 - Rationale: Accepted the recommendation.
 - Date: 2026-10-29
 - Raised by: spec review (testability)
+
+## D-010: May other packages register under the roster. prefix?
+- Choice: No. `roster.*` is reserved for Roster's own domains (including the in-tree `roster.sso` and `roster.scim` until they move to Guardian), and anyone else registering it throws. The impersonation-blocked permission list stays core-only, as documented.
+- Rationale: Accepted the recommendation.
+- Date: 2026-10-29
+- Raised by: spec review recheck (risk)
+
+## D-011: Invalid stored provisioned_status
+- Choice: Fall back to active and call `report()`
+- Rationale: Accepted the recommendation. A silent fallback to active is a security risk.
+- Date: 2026-10-29
+- Raised by: spec review recheck (risk)
+
+## D-012: Who catches a throwing SCIM audit-context closure?
+- Choice: The SCIM domain wraps its own closure (try/catch, `report($e)`, return null). Testable in Roster with no Keystone change.
+- Rationale: Accepted the recommendation.
+- Date: 2026-10-29
+- Raised by: spec review recheck (testability)
+
+## D-013: Where does the missing-policy exception surface?
+- Choice: In `Authorizer::resolvePolicy()`, on first resolution, so `check()`, ScreenAccess and `@rosterCan` all surface it
+- Rationale: Accepted the recommendation.
+- Date: 2026-10-29
+- Raised by: spec review recheck (testability)
+
+## D-014: Screen slots and tab bars in this spec?
+- Choice: Out of scope here. They belong to `adopt-atrium-screen-registry` (Atrium D-013).
+- Rationale: Already settled by Atrium D-013.
+- Date: 2026-10-29
+- Raised by: spec review recheck (scope)
+
+## D-015: Rewrite in place
+- Choice: Rewrite the Goal, criteria, Design and Risks in place; keep the addendum as a changelog
+- Rationale: Same choice the user made for the Atrium spec (Atrium D-020).
+- Date: 2026-10-29
+- Raised by: spec review recheck (scope)
