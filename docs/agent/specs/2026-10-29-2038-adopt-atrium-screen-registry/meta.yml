@@ -1,6 +1,6 @@
 id: 2026-10-29-2038-adopt-atrium-screen-registry
 title: 'Adopt Atrium screen registry'
-status: building
+status: in-review
 created: '2026-10-29 20:38'
 standards:
   refactor-circus/standards:
@@ -24,10 +24,16 @@ blockers:
   - package: Cortex
     spec: 2026-10-29-2038-register-roster-redirect-domains
     what: 'Cortex registers the MCP tab and redirect domains on Roster screens'
-    pr: null
-    status: 'building on its job branch, no PR yet (2026-10-30)'
+    pr: 'https://github.com/Refactor-Circus/Cortex/pull/17'
+    status: 'open (2026-10-30)'
   - package: Keen
     spec: 2026-10-29-2038-history-section-by-capability
     what: 'Keen registers the history section on Roster screens'
     pr: 'https://github.com/Refactor-Circus/Keen/pull/8'
     status: 'open (2026-10-30)'
+runs:
+  - workflow: ring-master-factory
+    run_id: wf_036815ca-959
+    result: approved
+    round: 3
+    date: '2026-10-30'
