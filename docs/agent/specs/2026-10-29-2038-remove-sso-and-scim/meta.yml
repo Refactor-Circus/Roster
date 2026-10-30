@@ -1,6 +1,6 @@
 id: 2026-10-29-2038-remove-sso-and-scim
 title: 'Remove SSO and SCIM'
-status: approved
+status: building
 created: '2026-10-29 20:38'
 standards:
   refactor-circus/standards:
