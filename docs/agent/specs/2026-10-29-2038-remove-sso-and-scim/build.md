@@ -36,3 +36,28 @@ Remove SSO and SCIM code, surfaces, config and migrations (criteria 1 to 13).
 
 - Re-checked the committed work against tasks 1.1 to 1.3; nothing was missing, so no code or test changed. The criterion 12 regex over `src/`, `config/`, `database/`, `lang/`, `resources/` and `workbench/` has no hits. The vendor-namespace scan hits only `RemovedSsoScimTest`'s own needles, which the test skips. The SSO/SCIM names left under `tests/` are negative assertions, the kept-permission fixture in `PermissionSyncTest` and the ArchTest pattern self-checks.
 - `composer.local.json` is git-ignored and was mirrored by hand (Guardian suggested, no Socialite/JWT packages); it was not regenerated and `composer update` was not run. It still predates `adopt-atrium-screen-registry` (Atrium in `require`, no `conflict`), which is outside this spec's change; `ComposerTest` reads `composer.json`, where the `conflict` is exactly `<0.1.0`.
+
+## Group 2
+
+Upgrade docs and gate (criteria 14, 15, 16).
+
+### Files
+
+- `CHANGELOG.md`: new first `[Unreleased]` → `### Breaking` entry "SSO and SCIM moved to refactor-circus/guardian", opening with the bold fail-open warning, listing what was removed, the six numbered upgrade steps (step 2 bold; step 3 tells apps that installed Guardian early to run `php artisan guardian:upgrade-from-roster`), and the behaviour after upgrading. The seams-era entries are left as written; the new entry says it supersedes them.
+- `README.md`: "Single sign-on" (with "Requiring SSO") and "SCIM provisioning" replaced by one "SSO and SCIM (refactor-circus/guardian)" section (bold warning first, short upgrade steps, Guardian link). "Extending Roster" no longer cites Roster's SSO/SCIM; it shows `NoExternalSignIn` and "a registered sign-in requirement". Also dropped: the SSO/SCIM feature bullets, API route rows, MCP tool rows, Atrium dashboard tab bullets, `sso`/`scim` from the built-in tab list (`?tab=sso`/`?tab=scim` listed with the old keys that open the default tab), the `scim_token` context and `scim` surface, and SSO/SCIM wording in policies, CSV import, deletes and approval.
+- `resources/boost/skills/roster-development/SKILL.md` (per `package-generate-skill`): section 8 points at Guardian with the fail-open warning, the short upgrade path and `guardian:upgrade-from-roster`; "Extending Roster" says "a registered sign-in requirement"; one anti-pattern added. It stays free of the criterion 12 tokens, since `resources/` is scanned.
+- `AGENTS.md` (`CLAUDE.md` is a symlink to it): domain list, `scim.php`, `connectionRules()`, the SSO/SCIM resource and audit-context wording, the `scim` surface and the `sso`/`scim` tabs removed; `Support\Rules\NoExternalSignIn` added to the cross-domain list.
+- `docs/agent/product/roadmap.md`: one-line note that SSO/SCIM moved to Guardian.
+- `docs/agent/standards/http/authorization.md`: "SSO/SCIM policies from their domain providers" became "package resources register their own policies", in the description and body. `vendor/bin/ringside sync` rerun (it wrote only git-ignored files).
+- `tests/Feature/DocsTest.php`: tests below.
+
+### Tests
+
+- Criterion 14: "writes the Guardian upgrade entry in the Unreleased Breaking section of the CHANGELOG" (slice by bold title; bold warning as first line; the listed strings, removals and behaviour claims) and "gives the six upgrade steps in order, with step 2 bold" (numbers 1 to 6 in order, each step's key content, step 3's bold early-install clause with `php artisan guardian:upgrade-from-roster`).
+- Criterion 15: "replaces the README single sign-on and SCIM sections with one Guardian section", "points the Boost skill at Guardian for single sign-on and provisioning", "names no removed SSO class outside the Guardian section" (README, Boost skill), "documents no removed SSO or SCIM surface outside the Guardian section of the README", "lists no sso or scim tab" (README dashboard and screen extensions, Boost skill screen extensions), "no longer cites Roster SSO or SCIM as users of the extension seams" (README, Boost skill; criterion 12 regex), "keeps the agent guides free of SSO and SCIM" (`CLAUDE.md`, `AGENTS.md`; criterion 12 regex and `scim.php`), plus a helper self-check. The seams-era "Extending Roster" tests are unchanged.
+- Criterion 16: test counts from the build base `c8d55a3` to this branch, as `it()`/`test()`/`arch()` declarations: 692 before, 81 removed (all SSO/SCIM cases, three of them replaced by generic versions), 611 kept, 56 added, 667 after. The per-file, per-test list of deleted and changed tests is drafted for the PR description. The suite itself (`vendor/bin/pest`, `composer test`, `composer test:browser`) is left to the gate, as instructed; here only `pint --test` and `php -l` ran on `DocsTest.php` (green), and the new assertions were checked by grep against the edited docs.
+
+### Deviations and notes
+
+- `CLAUDE.md` is a symlink to `AGENTS.md`, so only `AGENTS.md` changed on disk; both read the same.
+- The Boost skill cannot carry a heading named "SSO and SCIM (refactor-circus/guardian)", because criterion 12 scans `resources/`. Its Guardian section stays "Single sign-on and provisioning", and the DocsTest checks it under that heading.
