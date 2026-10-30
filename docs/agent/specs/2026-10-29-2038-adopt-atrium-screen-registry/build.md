@@ -152,3 +152,20 @@ Documentation and merge gate (criteria 18 to 21).
 - The docs describe criterion 6's reserved keys (all seven organization keys reserved for every viewer) as the release will have them; the `reserve(...)` call itself is Group 5, built once the blocker lands.
 - RingMaster's own record of the blockers (criterion 21 says "`meta.yml` and RingMaster") needs RingMaster's MCP tools, which this session does not have; `meta.yml` holds them.
 - `docs/agent/standards/roster/atrium-views.md` still has its "Audit history" section (`<x-atrium::audit-trail>`); it is not in this group's files (noted by Group 1 too).
+
+## Group 4 (retry)
+
+This retry checks the committed group 4 work (`aeb9e46`) and redrafts the PR description.
+
+### Files
+
+- No code or doc changes. `README.md`, the Boost skill, `CLAUDE.md` (`AGENTS.md`), `CHANGELOG.md`, `meta.yml` and `tests/Feature/DocsTest.php` already meet criteria 18, 19 and 21, and 4.1 to 4.3 are already ticked.
+- PR description: redrafted outside the spec folder, in the factory's scratchpad, and returned with the result. The earlier draft was in a previous session's scratchpad. It lists the four blockers with their status, and every deleted, changed, rewritten and added test by file and test name.
+
+### Tests
+
+- Ran `tests/Feature/DocsTest.php` and `tests/ArchTest.php`: 34 passed. The full `vendor/bin/pest` and `composer test:browser` were not run here, as instructed; the gate runs them.
+
+### Deviations
+
+- None beyond those listed under "Group 4". `AGENTS.md`'s uncommitted Ringside sync line is still left out of the commit.
