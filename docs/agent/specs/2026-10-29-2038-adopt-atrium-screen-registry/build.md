@@ -187,3 +187,21 @@ This retry checks the committed group 4 work (`aeb9e46`) and redrafts the PR des
 ### Deviations
 
 - None in code. `AGENTS.md`'s uncommitted Ringside sync line is still left out of the commit.
+
+## Group 5 (retry)
+
+This retry checks the committed group 5 work (`a2115b6`). The `reserve(...)` call and both reserved-key tests stay as they were.
+
+### Files
+
+- `tests/Feature/Ui/OrganizationRegisteredTabsTest.php`: updated "lets a throwing resolver propagate". Atrium runs the open tab's resolver while the panel renders (`ResolvedScreen::data()` in the `screen-tab-panel` component), so the resolver's `RuntimeException` arrives wrapped in nested `Illuminate\View\ViewException`s rather than bare. The test now asserts a 500 with exception handling on. With exception handling off, it asserts that a `ViewException` is thrown and that the root of its chain is the `RuntimeException('resolver broke')`. Criterion 10's case ("a throwing resolver on the open tab propagates (500)") still holds.
+- `tests/Feature/Ui/UserRegisteredTabsTest.php` (outside this group's files): the same fix for the user screen's test of the same name. It failed for the same reason, and the gate needs it green.
+
+### Tests
+
+- With `vendor/refactor-circus/impex` and `vendor/refactor-circus/cortex` pointed at their job worktrees (`Impex--2026-10-29-2038-register-showroom-run-link`, `Cortex--2026-10-29-2038-register-roster-redirect-domains`) for the run: `OrganizationRegisteredTabsTest.php` and `UserRegisteredTabsTest.php` pass, 100 tests and 573 assertions. That includes both reserved-key tests. Pint passes on both files. The links were then restored to `../../../Impex/` and `../../../Cortex/`.
+- With the factory's links (`Impex` and `Cortex` on `main`), every Atrium page still answers 500. Both `main` checkouts call `historyNavItem()`, which the linked Atrium branch removed. This is environment state, not Roster code. The full suite was not run here, as instructed.
+
+### Deviations
+
+- `tests/Feature/Ui/UserRegisteredTabsTest.php` was touched outside the group's file list (see above).

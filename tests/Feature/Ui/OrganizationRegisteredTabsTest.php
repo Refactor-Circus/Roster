@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Testing\TestResponse;
+use Illuminate\View\ViewException;
 use RefactorCircus\Atrium\Domains\Screens\Data\ResolvedScreen;
 use RefactorCircus\Atrium\Domains\Screens\Data\TabDefinition;
 use RefactorCircus\Atrium\Facades\Atrium;
@@ -522,10 +523,24 @@ it('lets a throwing resolver propagate', function (): void {
         throw new RuntimeException('resolver broke');
     }));
 
+    $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'acme.orders']))->assertStatus(500);
+
+    app()->forgetScopedInstances();
     $this->withoutExceptionHandling();
 
+    // Atrium runs the open tab's resolver while its panel renders, so Blade
+    // wraps the resolver's exception in a ViewException for each view.
     expect(fn () => $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'acme.orders'])))
-        ->toThrow(RuntimeException::class, 'resolver broke');
+        ->toThrow(function (ViewException $exception): void {
+            $cause = $exception;
+
+            while ($cause->getPrevious() !== null) {
+                $cause = $cause->getPrevious();
+            }
+
+            expect($cause)->toBeInstanceOf(RuntimeException::class)
+                ->and($cause->getMessage())->toBe('resolver broke');
+        });
 });
 
 it('keeps all-digit keys as strings', function (): void {
