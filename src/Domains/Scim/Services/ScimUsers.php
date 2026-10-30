@@ -27,6 +27,7 @@ use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Domains\User\Data\DeactivateUserData;
 use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
+use RefactorCircus\Roster\Roster;
 use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
@@ -111,7 +112,7 @@ final class ScimUsers
 
             if ($user === null) {
                 // The organization decides whether its new accounts need approval.
-                $user = app(CreateUserAction::class)->execute(new CreateUserData(email: $email, name: $this->name($data, $email), status: Statuses::user($organization->provisioned_status)));
+                $user = app(CreateUserAction::class)->execute(new CreateUserData(email: $email, name: $this->name($data, $email), status: app(Roster::class)->provisionedStatus($organization)));
                 $created = true;
             }
 
