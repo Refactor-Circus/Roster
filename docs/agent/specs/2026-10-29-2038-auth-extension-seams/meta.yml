@@ -1,7 +1,8 @@
 id: 2026-10-29-2038-auth-extension-seams
 title: 'Auth extension seams'
-status: approved
+status: in-review
 created: '2026-10-29 20:38'
+pr: { number: 11, url: https://github.com/Refactor-Circus/Roster/pull/11 }
 standards:
   refactor-circus/standards:
     version: dev-main
