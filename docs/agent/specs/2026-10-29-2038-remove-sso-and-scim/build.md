@@ -61,3 +61,8 @@ Upgrade docs and gate (criteria 14, 15, 16).
 
 - `CLAUDE.md` is a symlink to `AGENTS.md`, so only `AGENTS.md` changed on disk; both read the same.
 - The Boost skill cannot carry a heading named "SSO and SCIM (refactor-circus/guardian)", because criterion 12 scans `resources/`. Its Guardian section stays "Single sign-on and provisioning", and the DocsTest checks it under that heading.
+
+### Retry
+
+- Checked the committed work against tasks 2.1 to 2.3. The CHANGELOG entry, README section, Boost skill, `AGENTS.md` / `CLAUDE.md`, roadmap note and authorization standard meet criteria 14 and 15. A grep with the criterion 12 regex (plus `scim.php`) over `CLAUDE.md`, `AGENTS.md` and `SKILL.md` finds nothing. `NotSsoEnforced` / `SsoConnectionModel` / `Domains\Sso` appear in the README only inside the Guardian section. The new DocsTest helpers and constants clash with no other test file. No doc or test changed.
+- The PR description draft was not kept by the first run, so it was rebuilt outside the repo from a declaration-by-declaration diff of `tests/` between `c8d55a3` and HEAD. It lists every deleted, removed, changed and added test by file and name, and the counts match the ones above: 692 before, 81 removed, 25 changed in place, 56 added, 667 after. It goes back with the group result for the PR, not into the spec folder.
