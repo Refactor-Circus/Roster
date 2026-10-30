@@ -377,3 +377,19 @@ The group 5 work in `0ad7a87` was already complete, so this run kept it and chec
 - None new. `tests/Unit` still boots `TestCase` through `tests/Pest.php`, as group 4 noted. The unit cases no longer use the database or a model's persistence.
 - `AGENTS.md` has an uncommitted ringside-sync line ("Keep this checkout on `main`...") that is not this job's. It stays out of the commit, as in group 5.
 - `src/RosterServiceProvider.php` and `src/Support/Policies/Policy.php` changed only in comments.
+
+## Rework round 2
+
+### Fixes
+
+- Blocker (gate: `ringside check` reported stale generated files): ran `composer exec ringside sync` (ringside dev-main). The only tracked file it changed is `AGENTS.md`, which gains the ring-master block's "Keep this checkout on `main`..." line that `CLAUDE.md` already carries. Earlier rounds left that line out of the commit; this round commits it. The other files sync writes are gitignored (`.agents/`, `docs/agent/standards.index.yml`, `docs/agent/standards.summary.md`). `composer exec ringside check` now passes.
+- Nits: none.
+
+### Tests
+
+- `composer test:unit`: 1389 tests, all passing.
+- `composer exec ringside check`: passes.
+
+### Deviations
+
+- None. No source or test files changed.
