@@ -26,7 +26,7 @@ Roster ships no stylesheet and no Blade component namespace: its views are built
 
 ## Audit history
 
-- A record's history is `<x-atrium::audit-trail source="roster" :subject="$model" />`, behind `@rosterCan('roster.audit.view', $scope)`. It renders nothing until refactor-circus/keen is installed.
+- Roster renders no history. Every screen is declared on Atrium's screen registry, and refactor-circus/keen attaches its History section to those screens from its own config. Never add `<x-atrium::audit-trail>` or `historyNavItem()`.
 
 ## Test hooks
 
