@@ -1,6 +1,6 @@
 id: 2026-10-29-2038-auth-extension-seams
 title: 'Auth extension seams'
-status: building
+status: approved
 created: '2026-10-29 20:38'
 standards:
   refactor-circus/standards:
@@ -9,3 +9,5 @@ standards:
 review_passes: 2
 runs:
   - { workflow: ring-master-factory, run_id: wf_8e36343b-b7f, result: "needs-decision at build: group 1 config policies vs unchangeable arch/policies tests; group 1 otherwise committed", round: 0, date: 2026-10-29 }
+  - { workflow: ring-master-factory, run_id: wf_95916eeb-408, result: "needs-decision at build: ScimUsersTest ->source->value (D-022)", round: 0, date: 2026-10-29 }
+  - { workflow: ring-master-factory, run_id: wf_f0c8688c-89e, result: "approved: gate green, no findings, 3 rounds, gate_red_rounds 1; test:browser 14/14 run by hand", round: 3, date: 2026-10-29 }

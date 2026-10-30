@@ -1,11 +1,7 @@
 # Factory decision
 
-Status: needs-decision (stage: build, round 0)
+Status: approved (round 3)
 
-Group 1 is committed except for removing the SSO/SCIM entries from `config/roster.php` `policies`.
+Reasons: gate green; no findings left; nits: none. Impact: no consumers checked (impact disabled for this job).
 
-Questions: Q-001 (config policies vs the ArchTest/PoliciesTest freeze), Q-002 (missing-policy throw scope deviation).
-
-Other deviations the build reported:
-- `PermissionCatalogue` reads `BuiltInRoles` (Role domain) for slugs and core names. The Permission domain already depends on it.
-- An app that removed an SSO/SCIM model from its published `roster.policies` gets the bundled policy back, because the domain provider registers it. An app's own policy class still wins.
+`composer test:browser` was not run by the gate. It was run by hand afterwards: 14/14 passed.
