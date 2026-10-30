@@ -1,6 +1,8 @@
 # Release Notes
 
-## [Unreleased](https://github.com/Refactor-Circus/Roster/commits/main)
+## [Unreleased](https://github.com/Refactor-Circus/Roster/compare/v0.1.0...main)
+
+## [v0.1.0](https://github.com/Refactor-Circus/Roster/commits/v0.1.0) - 2026-10-30
 
 ### Breaking
 
@@ -323,8 +325,3 @@
 - Fixed: concurrent audit writes could fork the hash chain on Postgres; appends now lock a chain-head row.
 - Organizations may have no owner (`owner` is optional when creating); personal organizations still require one.
 - `Roster::audit()` / `RecordAuditEventAction` for the app's own events (`source: app`), plus `roster.audit.view` / `roster.audit.record` permissions and HTTP, MCP and Atrium surfaces.
-
-
-## [v0.1.0](https://github.com/Refactor-Circus/Roster/compare/...v0.1.0) - 202x-xx-xx
-
-Initial pre-release.
