@@ -42,3 +42,26 @@ Authorization resources and permission catalogue (criteria 1, 2, 3). Task 1.1 is
   This is returned as a decision. The SSO/SCIM providers already register the policies themselves, so removing the entries later is a one-file change.
 - A missing policy throws only for a package's prefix, not for Roster's own `roster.*` resources. Those keep today's documented fallback: README and `config/roster.php` say "remove a model's entry to check its resource by Roster's permissions alone". The examples and tests in criterion 1 all use a package's resource.
 - An app that removed an SSO/SCIM model from its published `roster.policies` now gets the bundled policy back from the domain provider. An app that points the model at its own class still wins, because the package provider registers config policies after the domain providers boot.
+
+## Group 1 (run 2)
+
+This run finishes task 1.2 under D-020 and keeps the D-021 behaviour as it is. Tasks 1.2 and 1.3 are ticked.
+
+### Files
+
+- `config/roster.php`: the five SSO/SCIM entries (`SsoConnectionModel`, `SsoIdentityModel`, `ScimTokenModel`, `ScimUserModel`, `ScimGroupModel`) and their imports are gone from `policies`, which now lists only core models. The comment no longer names `sso` / `scim` as resources. It says the SSO and SCIM domains register their own policies, and that an app entry for one of those models still wins.
+- `tests/ArchTest.php` "every model has a policy in roster.policies": the input to `modelsWithoutPolicies()` is now the config file's `policies` plus the Gate's policies after boot. `bootedGatePolicies()` gets those by running a `TestCase` through `setUp()` and `tearDown()`, so error handlers and the app are cleaned up afterwards.
+- `tests/Authorization/PoliciesTest.php` "registers a configurable policy for every model": compares `config('roster.policies')` plus the Gate-registered `RefactorCircus\Roster\` policies with every model. The `getPolicyFor()` instance check is unchanged.
+- D-021 needed no code change: `Authorizer::resolvePolicy()` already throws only for package prefixes, and `roster.*` falls back to `permits()`.
+
+### Tests
+
+- Run in the worktree: `tests/Authorization`, `tests/Feature/Sso`, `tests/Feature/Scim`, `tests/Feature/Permission`, `tests/Unit/Permission`, `tests/Modes/SsoUnavailable`, `tests/Feature/DocsTest.php` and `tests/ArchTest.php`. 644 tests, all passing. The existing SSO/SCIM authorization tests are unchanged.
+- `pint --test` passes on the three changed files. The gate runs the full suite.
+
+### Deviations
+
+- None from the standards. Two existing tests changed, both allowed by D-020: `tests/ArchTest.php` "every model has a policy in roster.policies" and `tests/Authorization/PoliciesTest.php` "registers a configurable policy for every model".
+- Left for group 5, because the README and the Boost skill are not this group's files:
+  - README "Policies" (line 272) still says every model's policy is registered from `roster.policies`.
+  - `resources/boost/skills/roster-development/SKILL.md` line 159 says the same.

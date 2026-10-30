@@ -22,16 +22,6 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Role\Policies\RoleAssignmentPolicy;
 use RefactorCircus\Roster\Domains\Role\Policies\RolePolicy;
-use RefactorCircus\Roster\Domains\Scim\Models\ScimGroupModel;
-use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
-use RefactorCircus\Roster\Domains\Scim\Models\ScimUserModel;
-use RefactorCircus\Roster\Domains\Scim\Policies\ScimGroupPolicy;
-use RefactorCircus\Roster\Domains\Scim\Policies\ScimTokenPolicy;
-use RefactorCircus\Roster\Domains\Scim\Policies\ScimUserPolicy;
-use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
-use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
-use RefactorCircus\Roster\Domains\Sso\Policies\SsoConnectionPolicy;
-use RefactorCircus\Roster\Domains\Sso\Policies\SsoIdentityPolicy;
 use RefactorCircus\Roster\Domains\Team\Enums\TeamStatus;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
@@ -510,9 +500,12 @@ return [
     | asks UserPolicy::manageStatus()), with the model's class, the
     | organization or team the call is about, and the user it is about when
     | everyone may do it to themselves. Resources: users (UserModel),
-    | organizations, members (MembershipModel), teams, invitations, roles,
-    | sso (SsoConnectionModel) and scim (ScimTokenModel). The other policies
-    | answer your own `$user->can('view', $record)` checks.
+    | organizations, members (MembershipModel), teams, invitations and roles.
+    | The other policies answer your own `$user->can('view', $record)` checks.
+    |
+    | The SSO and SCIM models' policies are registered by those domains
+    | themselves; add an entry here to point one of those models at a class
+    | of your own, which wins over the bundled one.
     |
     | Lists that show only what falls within the caller's organizations still
     | work those out from Roster's permissions. Permissions blocked while
@@ -535,11 +528,6 @@ return [
         PermissionModel::class => PermissionPolicy::class,
         RoleAssignmentModel::class => RoleAssignmentPolicy::class,
         ImpersonationModel::class => ImpersonationPolicy::class,
-        SsoConnectionModel::class => SsoConnectionPolicy::class,
-        SsoIdentityModel::class => SsoIdentityPolicy::class,
-        ScimTokenModel::class => ScimTokenPolicy::class,
-        ScimUserModel::class => ScimUserPolicy::class,
-        ScimGroupModel::class => ScimGroupPolicy::class,
         TransferModel::class => TransferPolicy::class,
         TransferRowModel::class => TransferRowPolicy::class,
     ],

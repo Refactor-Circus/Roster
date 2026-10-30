@@ -7,8 +7,8 @@ files: src/Domains/Permission/Services/Resources.php, src/Domains/Permission/Ser
 criteria: 1, 2, 3
 
 - [x] 1.1 Write tests for criteria 1 to 3: `Resources`: the prefix dataset, the `roster.*` reservation, the `@internal` path for Roster's own prefixes, duplicates, three-segment names; a fake `acme.widgets` policy reached through `Authorizer`, `ScreenAccess` and `@rosterCan`; a missing policy throws from `resolvePolicy()`, and the memo stores nothing for it; `parentOf()` with an `organization()` relation: pass, fail, other organization; late registration bumps `generation()`; the `PermissionCatalogue` registration rules; `sync()`, `roster:sync-permissions` (including the warning for an unregistered system row) and the fresh-migration cases; edited `admin` grants stay untouched
-- [ ] 1.2 Implement: `Resources`: the core six registered in `PermissionServiceProvider::register()`; `PermissionCatalogue`; `Authorizer::resolvePolicy()` and memo keying on `Resources::generation()`; `BuiltInRoles::sync()` merging the catalogue; the warning in `SyncPermissionsCommand`; the SSO and SCIM providers registering `roster.sso` / `roster.scim` through the `@internal` methods, with their three permissions (admin grants) and their policies through Gate `policy()`; `config/roster.php` `policies` and `Authorizer::RESOURCES` reduced to core models
-- [ ] 1.3 Run vendor/bin/pest; all green (the existing SSO/SCIM authorization tests unchanged)
+- [x] 1.2 Implement: `Resources`: the core six registered in `PermissionServiceProvider::register()`; `PermissionCatalogue`; `Authorizer::resolvePolicy()` and memo keying on `Resources::generation()`; `BuiltInRoles::sync()` merging the catalogue; the warning in `SyncPermissionsCommand`; the SSO and SCIM providers registering `roster.sso` / `roster.scim` through the `@internal` methods, with their three permissions (admin grants) and their policies through Gate `policy()`; `config/roster.php` `policies` and `Authorizer::RESOURCES` reduced to core models
+- [x] 1.3 Run vendor/bin/pest; all green (the existing SSO/SCIM authorization tests unchanged)
 
 ## Group 2: Membership sources
 package: Roster

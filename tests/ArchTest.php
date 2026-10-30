@@ -2,12 +2,43 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Gate;
 use RefactorCircus\Keystone\Testing\Arch;
 use RefactorCircus\Roster\Support\Tables;
+use RefactorCircus\Roster\Tests\TestCase;
 
 const ROSTER_DOMAINS = __DIR__.'/../src/Domains';
 
 const ROSTER_ACTIONS = [ROSTER_DOMAINS.'/*/Actions/*.php', __DIR__.'/../src/Transfers/Flows/Actions/*.php'];
+
+/**
+ * The policies registered with the Gate once Roster has booted: the SSO and
+ * SCIM domains register their models' policies themselves, outside
+ * `roster.policies`. Boots the test application and tears it down again.
+ *
+ * @return array<class-string, class-string>
+ */
+function bootedGatePolicies(): array
+{
+    $case = new class('bootedGatePolicies') extends TestCase
+    {
+        /**
+         * @return array<class-string, class-string>
+         */
+        public function gatePolicies(): array
+        {
+            $this->setUp();
+
+            try {
+                return Gate::policies();
+            } finally {
+                $this->tearDown();
+            }
+        }
+    };
+
+    return $case->gatePolicies();
+}
 
 arch()->preset()->php();
 
@@ -86,7 +117,7 @@ arch('requests validate once, with the Data rules, and build from what they vali
 arch('every model has a policy in roster.policies')
     ->expect(fn (): array => Arch::modelsWithoutPolicies(
         Arch::domainClasses('RefactorCircus\Roster', ROSTER_DOMAINS, 'Models'),
-        (require __DIR__.'/../config/roster.php')['policies'],
+        (require __DIR__.'/../config/roster.php')['policies'] + bootedGatePolicies(),
     ))
     ->toBeEmpty();
 
