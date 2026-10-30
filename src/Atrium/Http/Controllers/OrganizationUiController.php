@@ -157,11 +157,14 @@ final class OrganizationUiController
 
         // Only the built-in tabs the viewer may open, in order; the first is
         // the default. Registered tabs follow them and are never the default.
+        // Every built-in key is reserved for every viewer, so a registered
+        // tab named like one the viewer may not open is skipped too (D-031).
         $open = array_keys(array_filter(self::TAB_PERMISSIONS, fn (string $permission): bool => ScreenAccess::allows($permission, $model)));
 
         $screen = $this->screen('roster.organization', Screen::DETAIL, $model)
             ->tabs(array_map(fn (string $key): array => ['key' => $key, 'label' => __('roster::roster.'.$key), 'icon' => self::TAB_ICONS[$key]], $open))
-            ->defaultTab($open[0] ?? 'settings');
+            ->defaultTab($open[0] ?? 'settings')
+            ->reserve(...array_keys(self::TAB_PERMISSIONS));
 
         $resolved = Atrium::screens()->resolve($screen, $request);
 

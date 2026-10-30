@@ -46,6 +46,6 @@ depends on: 4
 files: src/Atrium/Http/Controllers/OrganizationUiController.php, tests/Feature/Ui/OrganizationRegisteredTabsTest.php
 criteria: 6
 
-- [ ] 5.1 Write tests for criterion 6's reserved-key case: a viewer who may not open `roles` sees no `tab-roles` for a registered `roles` tab, `?tab=roles` answers 403, and the skip is reported once (`Exceptions::fake()`); this group starts only once Atrium ships `Screen::reserve()`
-- [ ] 5.2 Call `reserve(...)` with all seven built-in keys when building `roster.organization`
-- [ ] 5.3 Run vendor/bin/pest; all green
+- [x] 5.1 Write tests for criterion 6's reserved-key case: a viewer who may not open `roles` sees no `tab-roles` for a registered `roles` tab, `?tab=roles` answers 403, and the skip is reported once (`Exceptions::fake()`); this group starts only once Atrium ships `Screen::reserve()`
+- [x] 5.2 Call `reserve(...)` with all seven built-in keys when building `roster.organization`
+- [x] 5.3 Run vendor/bin/pest; all green

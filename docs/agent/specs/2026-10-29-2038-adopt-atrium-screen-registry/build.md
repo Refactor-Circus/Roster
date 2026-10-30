@@ -169,3 +169,21 @@ This retry checks the committed group 4 work (`aeb9e46`) and redrafts the PR des
 ### Deviations
 
 - None beyond those listed under "Group 4". `AGENTS.md`'s uncommitted Ringside sync line is still left out of the commit.
+
+## Group 5
+
+### Files
+
+- `src/Atrium/Http/Controllers/OrganizationUiController.php`: `show()` now calls `->reserve(...array_keys(self::TAB_PERMISSIONS))` on `roster.organization`, so all seven built-in keys are reserved for every viewer (D-031), whatever tabs that viewer may open. It uses Atrium's `Screen::reserve(string ...$keys): static` from `src/Domains/Screens/Data/Screen.php` (commit 797d3e3, in the linked Atrium PR branch).
+- `tests/Feature/Ui/OrganizationRegisteredTabsTest.php`: two new tests.
+  - "skips and reports a registered tab named like a built-in the viewer may not open, refusing ?tab= for it": a viewer holding `roster.organizations.view` and `roster.members.view` sees no `tab-roles` for a `public()` registered `roles` tab, and the skip is reported once (`Exceptions::fake()`, `assertReportedCount(1)`, message names `[roles]`). `?tab=roles` answers 403, and the resolver never runs.
+  - "reserves every built-in key for a viewer who may open only settings": a dataset over `members`, `teams`, `invitations`, `roles`, `sso` and `scim`. Each one is reserved, absent from the bar and reported once. `settings` is covered by the existing "named like a built-in it is given" test.
+
+### Tests
+
+- Pint and PHPStan pass on both files. As instructed, the full suite was not run here; the gate runs it.
+- A run of `tests/Feature/Ui/OrganizationRegisteredTabsTest.php` alone failed for a reason outside this group: 41 of 44 tests answered 500 when the Atrium layout rendered `Call to undefined method RefactorCircus\Impex\Atrium\ImpexPlugin::historyNavItem()`. `vendor/refactor-circus/impex` links to `../../../Impex/` (main), which still calls `historyNavItem()`. The linked Atrium branch removed it, and the Impex job worktree (`Impex--2026-10-29-2038-register-showroom-run-link`) no longer calls it. The vendor links are factory state, so this group left them unchanged.
+
+### Deviations
+
+- None in code. `AGENTS.md`'s uncommitted Ringside sync line is still left out of the commit.

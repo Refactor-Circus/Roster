@@ -254,6 +254,46 @@ it('skips and reports a registered tab named like a built-in it is given, keepin
     Exceptions::assertReported(fn (InvalidArgumentException $exception): bool => str_contains($exception->getMessage(), '[members]'));
 });
 
+it('skips and reports a registered tab named like a built-in the viewer may not open, refusing ?tab= for it', function (): void {
+    Exceptions::fake();
+
+    Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls, 'roles')->public());
+
+    $viewer = organizationViewer($this->organization, ['roster.organizations.view', 'roster.members.view']);
+
+    assertOrganizationTabOpen($this->actingAs($viewer)->get(route('atrium.roster.organizations.show', $this->organization))->assertOk(), 'members')
+        ->assertSee('data-testid="tab-members"', false)
+        ->assertDontSee('data-testid="tab-roles"', false)
+        ->assertDontSee('data-testid="host-view"', false);
+
+    Exceptions::assertReportedCount(1);
+    Exceptions::assertReported(fn (InvalidArgumentException $exception): bool => str_contains($exception->getMessage(), '[roles]'));
+
+    app()->forgetScopedInstances();
+
+    $this->actingAs($viewer)
+        ->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'roles']))
+        ->assertForbidden();
+
+    expect($this->calls->resolve)->toBe(0);
+});
+
+it('reserves every built-in key for a viewer who may open only settings', function (string $key): void {
+    Exceptions::fake();
+
+    Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls, $key)->public());
+
+    $viewer = organizationViewer($this->organization, ['roster.organizations.view']);
+
+    assertOrganizationTabOpen($this->actingAs($viewer)->get(route('atrium.roster.organizations.show', $this->organization))->assertOk(), 'settings')
+        ->assertDontSee('data-testid="tab-'.$key.'"', false)
+        ->assertDontSee('data-testid="host-view"', false);
+
+    expect($this->calls->resolve)->toBe(0);
+    Exceptions::assertReportedCount(1);
+    Exceptions::assertReported(fn (InvalidArgumentException $exception): bool => str_contains($exception->getMessage(), '['.$key.']'));
+})->with(['members', 'teams', 'invitations', 'roles', 'sso', 'scim']);
+
 it('loads only the open built-in tab\'s data, and none while a registered tab is open', function (): void {
     Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls)->public());
 
