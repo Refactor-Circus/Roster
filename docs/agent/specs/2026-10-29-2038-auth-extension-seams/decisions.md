@@ -108,3 +108,9 @@ D-001 to D-003 are recorded in `shape.md`.
 - Rationale: Accepted the recommendation. No behaviour change for Roster's own domains.
 - Date: 2026-10-29
 - Raised by: build (group 1 deviation)
+
+## D-022: Existing tests broken by the memberships.source string cast
+- Choice: Criterion 10 is widened. Any existing test may change where the change is only the mechanical rewrite D-005 forces (`->source->value` becomes `->source` or `sourceEnum()`, on the same assertion). This includes `tests/Feature/Scim/ScimUsersTest.php` "provisions a new member from Okta" (line 43). Every changed test is still listed in the PR by file and test name.
+- Rationale: Accepted the recommendation, so the build stops halting on each case.
+- Date: 2026-10-29
+- Raised by: build (group 2)

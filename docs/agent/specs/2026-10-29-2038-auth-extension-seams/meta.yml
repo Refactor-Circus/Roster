@@ -1,6 +1,6 @@
 id: 2026-10-29-2038-auth-extension-seams
 title: 'Auth extension seams'
-status: building
+status: approved
 created: '2026-10-29 20:38'
 standards:
   refactor-circus/standards:
