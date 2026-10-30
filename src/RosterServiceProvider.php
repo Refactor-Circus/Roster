@@ -9,7 +9,6 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -20,10 +19,7 @@ use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
 use RefactorCircus\Keystone\Packages\Package;
 use RefactorCircus\Keystone\Support\PackageServiceProvider;
 use RefactorCircus\Keystone\Support\Surface;
-use RefactorCircus\Roster\Atrium\RosterPlugin;
-use RefactorCircus\Roster\Atrium\ScreenAccess;
-use RefactorCircus\Roster\Atrium\Tabs;
-use RefactorCircus\Roster\Atrium\TabVisibility;
+use RefactorCircus\Roster\Atrium\AtriumServiceProvider;
 use RefactorCircus\Roster\Console\Commands\PurgeDeletedCommand;
 use RefactorCircus\Roster\Domains\DomainServiceProvider;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
@@ -34,16 +30,26 @@ use RefactorCircus\Roster\Support\Users;
 
 /**
  * Roster's package-wide wiring: config, policies, views, translations,
- * publish tags, the MCP server, Cortex, the rate limiter and the Atrium
- * extras. Each domain under `Domains/` registers its own bindings, routes,
- * listeners, commands and morph aliases through its provider, listed in
- * DomainServiceProvider.
+ * publish tags, the MCP server, Cortex and the rate limiter. Each domain
+ * under `Domains/` registers its own bindings, routes, listeners, commands
+ * and morph aliases through its provider, listed in DomainServiceProvider.
  *
  * Roster describes itself to refactor-circus/keystone in `definition()`, so the shared
  * base classes find its config, routes and MCP server by namespace.
+ *
+ * Atrium is optional: Roster's Atrium seam (Atrium\AtriumServiceProvider)
+ * is registered only while Atrium is installed.
  */
 class RosterServiceProvider extends PackageServiceProvider
 {
+    /**
+     * Skip the Atrium seam as if Atrium were not installed. For Roster's own
+     * tests of the Atrium-free install, which still have Atrium autoloadable.
+     *
+     * @internal
+     */
+    public static bool $withoutAtrium = false;
+
     /**
      * Roster checks every call by default: `roster.authorization` is on
      * unless an application turns it off. The shared history route and tool
@@ -74,12 +80,13 @@ class RosterServiceProvider extends PackageServiceProvider
         // boot(); Roster, which takes them, is rebuilt per request.
         $this->app->singleton(SignInRequirements::class);
 
-        // Registered tabs are code state, filled from host providers' boot();
-        // who may see them is per viewer, so that memo is rebuilt per request.
-        $this->app->singleton(Tabs::class);
-        $this->app->scoped(TabVisibility::class);
-
         $this->app->register(DomainServiceProvider::class);
+
+        // After the domains, so the seam's bindings replace their plain defaults.
+        // A string, so nothing here loads Atrium when it is not installed.
+        if (! self::$withoutAtrium && class_exists('RefactorCircus\Atrium\Atrium')) {
+            $this->app->register(AtriumServiceProvider::class);
+        }
 
         $this->registerSurfaces();
     }
@@ -100,17 +107,13 @@ class RosterServiceProvider extends PackageServiceProvider
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'roster');
 
-        // The Atrium user-status widget's cached counts go stale with any
-        // change Roster makes to a user.
+        // The cached user counts per status go stale with any change Roster
+        // makes to a user.
         Event::listen(ActionFinishedEvent::class, function (ActionFinishedEvent $event): void {
             if (str_starts_with($event::class, 'RefactorCircus\\Roster\\Domains\\User\\Events\\') && ! str_ends_with($event::class, 'ListedActionEvent') && ! str_ends_with($event::class, 'ShownActionEvent')) {
-                Cache::forget(RosterPlugin::STATUS_COUNTS_CACHE);
+                Cache::forget(Users::STATUS_COUNTS_CACHE);
             }
         });
-
-        // @rosterCan('roster.users.update', $scope, $self) ... @endrosterCan:
-        // the screens' own check, so a control shows only when its action is allowed.
-        Blade::if('rosterCan', ScreenAccess::allows(...));
 
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'roster');
 

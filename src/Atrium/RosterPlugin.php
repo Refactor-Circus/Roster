@@ -21,7 +21,6 @@ use RefactorCircus\Roster\Atrium\Http\Controllers\ImpersonationUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\InvitationUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\OrganizationUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\PermissionUiController;
-use RefactorCircus\Roster\Atrium\Http\Controllers\RedirectDomainUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\RoleUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\ScimUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\SsoUiController;
@@ -49,7 +48,7 @@ class RosterPlugin extends Plugin
      * Where the user-status widget's counts are cached for a minute; Roster
      * forgets them whenever one of its User actions finishes.
      */
-    public const string STATUS_COUNTS_CACHE = 'roster:atrium:user-status-counts';
+    public const string STATUS_COUNTS_CACHE = Users::STATUS_COUNTS_CACHE;
 
     public function key(): string
     {
@@ -129,9 +128,6 @@ class RosterPlugin extends Plugin
                 ->group(__('roster::roster.label'))
                 ->sort(48)
                 ->authorize(fn (Request $request): bool => collect(TransferType::cases())->contains(fn (TransferType $type): bool => $this->mayAnywhere($request, $type->permission()))),
-
-            // Roster's own audit log, while Roster audits (Keen installed, roster.audit.enabled on).
-            $this->historyNavItem('roster')->group(__('roster::roster.label'))->sort(90),
         ];
     }
 
@@ -146,8 +142,6 @@ class RosterPlugin extends Plugin
             Route::delete('roster/users/{user}', [UserUiController::class, 'destroy'])->name('users.destroy');
             Route::post('roster/users/{user}/restore', [UserUiController::class, 'restore'])->name('users.restore');
             Route::delete('roster/users/{user}/purge', [UserUiController::class, 'purge'])->name('users.purge');
-            Route::post('roster/users/{user}/redirect-domains', [RedirectDomainUiController::class, 'storeForUser'])->name('users.redirect-domains.store');
-            Route::delete('roster/users/{user}/redirect-domains/{domain}', [RedirectDomainUiController::class, 'destroyForUser'])->name('users.redirect-domains.destroy');
             Route::patch('roster/users/{user}/profile', [UserUiController::class, 'profile'])->name('users.profile');
             Route::post('roster/users/{user}/suspend', [UserUiController::class, 'suspend'])->name('users.suspend');
             Route::post('roster/users/{user}/deactivate', [UserUiController::class, 'deactivate'])->name('users.deactivate');
@@ -171,8 +165,6 @@ class RosterPlugin extends Plugin
             Route::post('roster/organizations/{organization}/links', [OrganizationUiController::class, 'link'])->name('organizations.links.store');
             Route::delete('roster/organizations/{organization}/links/{source}', [OrganizationUiController::class, 'unlink'])->name('organizations.links.destroy');
             Route::delete('roster/organizations/{organization}/members/{user}', [OrganizationUiController::class, 'removeMember'])->name('organizations.members.destroy');
-            Route::post('roster/organizations/{organization}/redirect-domains', [RedirectDomainUiController::class, 'storeForOrganization'])->name('organizations.redirect-domains.store');
-            Route::delete('roster/organizations/{organization}/redirect-domains/{domain}', [RedirectDomainUiController::class, 'destroyForOrganization'])->name('organizations.redirect-domains.destroy');
 
             Route::post('roster/organizations/{organization}/teams', [TeamUiController::class, 'store'])->name('teams.store');
             Route::get('roster/organizations/{organization}/teams/{team}', [TeamUiController::class, 'show'])->name('teams.show');

@@ -7,6 +7,8 @@ namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use RefactorCircus\Atrium\Domains\Screens\Data\Screen;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Domains\Permission\Actions\CreatePermissionAction;
 use RefactorCircus\Roster\Domains\Permission\Actions\DeletePermissionAction;
@@ -25,11 +27,18 @@ final class PermissionUiController
     {
         $this->authorizeScreen('roster.roles.view');
 
+        $resolved = Atrium::screens()->resolve($this->screen('roster.permissions', Screen::LIST)->tabs($this->overviewTab()), $request);
+
         /** @var view-string $view */
         $view = 'roster::ui.permissions.index';
 
         return view($view, [
-            'permissions' => app(ListPermissionsAction::class)->execute(ListPermissionsData::from($request->query()))->withQueryString(),
+            'resolved' => $resolved,
+            // The list only while it is the open tab.
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => ['permissions' => app(ListPermissionsAction::class)->execute(ListPermissionsData::from($request->query()))->withQueryString()],
+                default => [],
+            },
         ]);
     }
 

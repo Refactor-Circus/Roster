@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Laravel\Mcp\Server\Tool;
+use RefactorCircus\Atrium\Testing\ResetsScreenExtensions;
 use RefactorCircus\Keystone\Testing\McpTools;
 use RefactorCircus\Keystone\Testing\Parity;
-use RefactorCircus\Roster\Atrium\Tabs;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
@@ -17,6 +17,7 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\RosterServer;
 use RefactorCircus\Roster\Tests\AtriumFeaturesTestCase;
+use RefactorCircus\Roster\Tests\AtriumUnavailableTestCase;
 use RefactorCircus\Roster\Tests\AuthorizationTestCase;
 use RefactorCircus\Roster\Tests\BrowserTestCase;
 use RefactorCircus\Roster\Tests\CortexTestCase;
@@ -43,16 +44,13 @@ foreach (['Traces', 'Screenshots', 'Screenshots/Sliders', 'Screenshots/ImageDiff
 }
 
 uses(TestCase::class)->in('Feature');
-// Tabs and TabDefinition read the container (the singleton binding, the
-// scoped visibility memo and ScreenAccess), so their unit tests boot Roster.
-uses(TestCase::class)->in('Unit');
-// Registered tabs live on an app-lifetime singleton: start and end every
-// screen test with none.
-uses()
-    ->beforeEach(fn () => app(Tabs::class)->flush())
-    ->afterEach(fn () => app(Tabs::class)->flush())
-    ->in('Feature/Ui');
 uses(AuthorizationTestCase::class)->in('Authorization');
+
+// Screen extensions live on Atrium's app-lifetime registry: whatever a test
+// registers is gone after it. Atrium is optional, so only while it is installed.
+if (trait_exists(ResetsScreenExtensions::class)) {
+    uses(ResetsScreenExtensions::class)->in('Feature', 'Authorization');
+}
 uses(CortexTestCase::class)->in('Cortex');
 uses(BrowserTestCase::class)->in('Browser');
 uses(DefaultsTestCase::class)->in('Defaults');
@@ -64,6 +62,7 @@ uses(KeenTestCase::class)->in('Modes/Keen');
 uses(PennantPlusTestCase::class)->in('Modes/PennantPlus');
 uses(SsoUnavailableTestCase::class)->in('Modes/SsoUnavailable');
 uses(TransfersUnavailableTestCase::class)->in('Modes/TransfersUnavailable');
+uses(AtriumUnavailableTestCase::class)->in('Modes/AtriumUnavailable');
 uses(RenamedTablesTestCase::class)->in('Modes/RenamedTables');
 
 /**

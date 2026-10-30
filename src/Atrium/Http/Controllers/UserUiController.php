@@ -10,12 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use RefactorCircus\Cortex\Domains\RedirectDomain\Actions\ListRedirectDomainsAction;
+use RefactorCircus\Atrium\Domains\Screens\Data\Screen;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
-use RefactorCircus\Roster\Atrium\RedirectDomains;
-use RefactorCircus\Roster\Atrium\TabDefinition;
-use RefactorCircus\Roster\Atrium\Tabs;
-use RefactorCircus\Roster\Atrium\TabVisibility;
 use RefactorCircus\Roster\Domains\Organization\Actions\JoinOrganizationsByDomainAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
 use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
@@ -65,28 +62,37 @@ final class UserUiController
     {
         $this->authorizeScreen('roster.users.view');
 
+        $resolved = Atrium::screens()->resolve($this->screen('roster.users', Screen::LIST)->tabs($this->overviewTab()), $request);
         $filters = ListUsersData::from($request->query());
 
         /** @var view-string $view */
         $view = 'roster::ui.users.index';
 
         return view($view, [
-            'users' => app(ListUsersAction::class)->execute($filters)->withQueryString(),
+            'resolved' => $resolved,
             'filters' => $filters,
             'softDeletes' => $this->users->softDeletes(),
             'statuses' => Statuses::users()::cases(),
             'directory' => $this->users,
+            // The list only while it is the open tab.
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => ['users' => app(ListUsersAction::class)->execute($filters)->withQueryString()],
+                default => [],
+            },
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         $this->authorizeScreen('roster.users.create');
 
         /** @var view-string $view */
         $view = 'roster::ui.users.create';
 
-        return view($view, ['hasName' => $this->users->column('name') !== null]);
+        return view($view, [
+            'resolved' => Atrium::screens()->resolve($this->screen('roster.user-create', Screen::DETAIL)->tabs($this->overviewTab()), $request),
+            'hasName' => $this->users->column('name') !== null,
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -116,39 +122,24 @@ final class UserUiController
 
         $model = app(ShowUserAction::class)->execute($target);
 
-        // A string only: ?tab[]=x and the like count as no tab.
-        $requested = $request->query('tab');
-        $requested = is_string($requested) ? $requested : null;
-
-        // The registered tabs this viewer may see, asked once and used for
-        // both the tab bar and ?tab=; a hidden one is refused. Anything else
-        // (overview, an unknown key) opens the overview.
-        $all = app(Tabs::class)->users();
-        $visibility = app(TabVisibility::class);
-        $registered = array_filter($all, fn (TabDefinition $definition): bool => $visibility->allows('user', $definition, $request, $model, null, $model));
-        $registeredTab = null;
-
-        if ($requested !== null && isset($all[$requested])) {
-            $registeredTab = $registered[$requested] ?? abort(403);
-        }
+        // Only after the screen's own check: hosts' closures never run for a
+        // viewer it refuses. A hidden registered ?tab= answers 403 here.
+        $resolved = Atrium::screens()->resolve($this->screen('roster.user', Screen::DETAIL, $model)->tabs($this->overviewTab('user-circle')), $request);
 
         /** @var view-string $view */
         $view = 'roster::ui.users.show';
 
         return view($view, [
+            'resolved' => $resolved,
             'user' => $model,
             'profile' => $model->getRelation('rosterProfile'),
             'status' => $this->users->status($model),
             'directory' => $this->users,
-            'tab' => $registeredTab === null ? Tabs::USER_DEFAULT : $registeredTab->key,
-            // No tab bar at all until a registered tab is visible.
-            'tabs' => $registered === [] ? [] : [Tabs::USER_DEFAULT, ...array_map(fn (TabDefinition $definition): string => $definition->key, array_values($registered))],
-            'registeredTabs' => $registered,
-            'registeredTab' => $registeredTab,
-            // The host's data for the open registered tab only, after its access check.
-            'registeredData' => $registeredTab?->resolveData($model) ?? [],
             // The overview's own data only while it is the open tab.
-            ...($registeredTab === null ? $this->overview($model) : []),
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => $this->overview($model),
+                default => [],
+            },
         ]);
     }
 
@@ -324,8 +315,6 @@ final class UserUiController
                 ->orderBy('name')
                 ->get(),
             'ssoIdentities' => app(ListSsoIdentitiesAction::class)->execute(new ListSsoIdentitiesData(user: $model, perPage: 50)),
-            // The user's MCP redirect domains, while Cortex keeps them.
-            'redirectDomains' => RedirectDomains::available() ? app(ListRedirectDomainsAction::class)->execute($model) : null,
         ];
     }
 

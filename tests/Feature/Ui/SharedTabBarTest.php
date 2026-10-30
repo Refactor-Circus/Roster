@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\View;
 use Illuminate\Testing\TestResponse;
-use RefactorCircus\Roster\Atrium\TabDefinition;
-use RefactorCircus\Roster\Atrium\Tabs;
+use RefactorCircus\Atrium\Domains\Screens\Data\TabDefinition;
+use RefactorCircus\Atrium\Facades\Atrium;
 
 beforeEach(function (): void {
     $this->actingAs(user());
@@ -22,9 +22,9 @@ beforeEach(function (): void {
     file_put_contents($directory.'/body.blade.php', '<p data-testid="shared-body">{{ $tab }}</p>');
     View::addNamespace('sharedtabs', $directory);
 
-    // One fixture, registered on both screens.
+    // One fixture, registered on both screens through Atrium's registry.
     foreach (sharedTabBarFixture() as $tab) {
-        app(Tabs::class)->organization($tab)->user($tab);
+        Atrium::screens()->tab('roster.organization', $tab)->tab('roster.user', $tab);
     }
 });
 
@@ -77,8 +77,10 @@ it('renders the same registered tabs on both screens', function (): void {
 
     $registered = ['acme.orders', 'acme.invoices'];
 
-    expect(array_map(strval(...), array_keys(array_diff_key($organization, array_flip(Tabs::ORGANIZATION_TABS)))))->toBe($registered)
-        ->and(array_map(strval(...), array_keys(array_diff_key($user, [Tabs::USER_DEFAULT => true]))))->toBe($registered);
+    $builtIn = ['members', 'teams', 'invitations', 'roles', 'sso', 'scim', 'settings'];
+
+    expect(array_map(strval(...), array_keys(array_diff_key($organization, array_flip($builtIn)))))->toBe($registered)
+        ->and(array_map(strval(...), array_keys(array_diff_key($user, ['overview' => true]))))->toBe($registered);
 
     // The same markup on both screens, apart from where each link goes.
     foreach ($registered as $key) {

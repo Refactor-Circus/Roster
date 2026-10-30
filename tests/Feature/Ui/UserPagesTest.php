@@ -3,9 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Testing\TestResponse;
+use RefactorCircus\Atrium\Domains\Screens\Data\ResolvedScreen;
+use RefactorCircus\Atrium\Domains\Screens\Data\TabDefinition;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Roster\Atrium\RosterPlugin;
-use RefactorCircus\Roster\Atrium\TabDefinition;
-use RefactorCircus\Roster\Atrium\Tabs;
 use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use Workbench\App\Models\User;
 
@@ -20,7 +21,7 @@ function userTabStates(): array
     return [
         'no tab registered' => [fn (): bool => false],
         'one visible tab registered' => [function (): bool {
-            app(Tabs::class)->user(TabDefinition::make('acme.orders')->label('Orders')->view('acme::orders')->public());
+            Atrium::screens()->tab('roster.user', TabDefinition::make('acme.orders')->label('Orders')->view('acme::orders')->public());
 
             return true;
         }],
@@ -39,7 +40,7 @@ function userTabBar(TestResponse $response, bool $tabbed): TestResponse
 
     return $response
         ->assertSeeInOrder(['data-testid="tab-overview"', 'data-testid="tab-acme.orders"'], false)
-        ->assertViewHas('tab', 'overview');
+        ->assertViewHas('resolved', fn (ResolvedScreen $resolved): bool => $resolved->openTab === 'overview');
 }
 
 beforeEach(function (): void {
@@ -78,11 +79,14 @@ it('edits a user and their profile', function (bool $tabbed): void {
 
     userTabBar($this->get(route('atrium.roster.users.show', $user->getRouteKey()))->assertOk()->assertSee('Ada'), $tabbed);
 
-    $this->patch(route('atrium.roster.users.update', $user->getRouteKey()), [
+    $updated = $this->patch(route('atrium.roster.users.update', $user->getRouteKey()), [
         'name' => 'Ada King',
         'email' => $user->getAttribute('email'),
         'password' => '',
     ])->assertRedirect(route('atrium.roster.users.show', $user->getRouteKey()));
+
+    // The overview is where an update lands, whatever tabs are registered.
+    expect($updated->headers->get('Location'))->not->toContain('tab=');
 
     $this->patch(route('atrium.roster.users.profile', $user->getRouteKey()), ['bio' => 'Analyst'])->assertRedirect();
 

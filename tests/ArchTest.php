@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\View\FileViewFinder;
 use RefactorCircus\Keystone\Testing\Arch;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Support\Tables;
@@ -186,6 +188,161 @@ arch('tables are named through Tables, never as literals')
             fn (string $path): bool => str_ends_with($path, '.php') && ! str_ends_with($path, 'Support/Tables.php'),
         )), ...(array) glob(__DIR__.'/../database/migrations/*.php'), ...(array) glob(__DIR__.'/../database/migrations/*/*.php')],
         array_values(array_diff(Tables::DEFAULTS, ['users'])),
+    ))
+    ->toBeEmpty();
+
+/**
+ * Every file under these package folders (or the file itself, when one names
+ * a file) whose content contains one of the strings, as "path: string".
+ *
+ * @param  array<int, string>  $folders
+ * @param  array<int, string>  $needles
+ * @param  array<int, string>  $except  Paths, relative to the package, left out.
+ * @return array<int, string>
+ */
+function rosterFilesContaining(array $folders, array $needles, array $except = []): array
+{
+    $found = [];
+
+    foreach ($folders as $folder) {
+        $files = is_file(__DIR__.'/../'.$folder)
+            ? [new SplFileInfo(__DIR__.'/../'.$folder)]
+            : new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__.'/../'.$folder, FilesystemIterator::SKIP_DOTS));
+
+        foreach ($files as $file) {
+            /** @var SplFileInfo $file */
+            $path = str_replace(__DIR__.'/../', '', $file->getPathname());
+
+            foreach ($except as $excluded) {
+                if ($path === $excluded || str_starts_with($path, rtrim($excluded, '/').'/')) {
+                    continue 2;
+                }
+            }
+
+            $content = (string) file_get_contents($file->getPathname());
+
+            foreach ($needles as $needle) {
+                if (str_contains($content, $needle)) {
+                    $found[] = $path.': '.$needle;
+                }
+            }
+        }
+    }
+
+    return $found;
+}
+
+arch('Roster uses nothing from Cortex: Cortex registers its own screens')
+    ->expect('RefactorCircus\Cortex')
+    ->not->toBeUsedIn('RefactorCircus\Roster');
+
+arch('Roster ships no redirect-domains UI')
+    ->expect(fn (): array => rosterFilesContaining(['src', 'resources'], ['redirect-domains', 'RedirectDomain']))
+    ->toBeEmpty();
+
+arch('Roster ships no audit trail or history navigation')
+    ->expect(fn (): array => rosterFilesContaining(['src', 'resources'], ['historyNavItem', 'audit-trail']))
+    ->toBeEmpty();
+
+arch('no Roster view renders an Atrium audit component')
+    ->expect(fn (): array => rosterFilesContaining(['resources/views'], ['x-atrium::audit']))
+    ->toBeEmpty();
+
+/**
+ * Whether a `roster::` view exists in the package's own views, as
+ * `view()->exists()` answers for it without an application.
+ */
+function rosterViewExists(string $name): bool
+{
+    $finder = new FileViewFinder(new Filesystem, []);
+    $finder->addNamespace('roster', __DIR__.'/../resources/views');
+
+    try {
+        $finder->find($name);
+
+        return true;
+    } catch (InvalidArgumentException) {
+        return false;
+    }
+}
+
+arch('Roster\'s own tab registry is gone: screens declare themselves on Atrium\'s')
+    ->expect(fn (): array => array_values(array_filter([
+        ...array_map(
+            fn (string $class): ?string => class_exists($class) ? $class : null,
+            ['RefactorCircus\\Roster\\Atrium\\Tabs', 'RefactorCircus\\Roster\\Atrium\\TabDefinition', 'RefactorCircus\\Roster\\Atrium\\TabVisibility'],
+        ),
+        ...array_map(
+            fn (string $view): ?string => rosterViewExists($view) ? $view : null,
+            ['roster::ui.partials.tabs', 'roster::ui.partials.registered-tab'],
+        ),
+    ])))
+    ->toBeEmpty();
+
+// Local installs symlink the sibling packages, so Pest reads them as this
+// project's code; their own Atrium use is not Roster's concern.
+arch('only Roster\'s Atrium folder uses Atrium')
+    ->expect('RefactorCircus\Atrium')
+    ->toOnlyBeUsedIn('RefactorCircus\Roster\Atrium')
+    ->ignoring(['RefactorCircus\Cortex', 'RefactorCircus\Impex', 'RefactorCircus\Keen', 'RefactorCircus\PennantPlus']);
+
+/**
+ * Every class under src/Atrium, the Atrium folder's own namespace.
+ *
+ * @return array<int, class-string>
+ */
+function rosterAtriumClasses(): array
+{
+    $classes = [];
+    $root = __DIR__.'/../src/Atrium/';
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)) as $file) {
+        /** @var SplFileInfo $file */
+        if ($file->getExtension() === 'php') {
+            /** @var class-string $class */
+            $class = 'RefactorCircus\\Roster\\Atrium\\'.str_replace(['/', '.php'], ['\\', ''], substr($file->getPathname(), strlen($root)));
+            $classes[] = $class;
+        }
+    }
+
+    sort($classes);
+
+    return $classes;
+}
+
+// The workbench is the demo application, which registers the plugin the
+// way a host application does.
+arch('outside the Atrium folder, nothing in Roster uses it but the provider seam')
+    ->expect(array_values(array_diff(rosterAtriumClasses(), ['RefactorCircus\Roster\Atrium\AtriumServiceProvider'])))
+    ->toOnlyBeUsedIn(['RefactorCircus\Roster\Atrium', 'Workbench']);
+
+arch('the Atrium seam is registered only by RosterServiceProvider')
+    ->expect('RefactorCircus\Roster\Atrium\AtriumServiceProvider')
+    ->toOnlyBeUsedIn('RefactorCircus\Roster\RosterServiceProvider');
+
+arch('ScreenAccess stands on Roster alone')
+    ->expect('RefactorCircus\Roster\Atrium\ScreenAccess')
+    ->not->toUse('RefactorCircus\Atrium');
+
+// Atrium stays autoloadable in the suite (it is a dev dependency), so the
+// rules above would not notice a name that is only a string. Outside
+// src/Atrium the one mention is RosterServiceProvider's installed check.
+arch('nothing outside the Atrium folder names an Atrium class')
+    ->expect(fn (): array => array_values(array_filter(
+        rosterFilesContaining(['src'], ['RefactorCircus\\Atrium', 'RefactorCircus\\\\Atrium'], ['src/Atrium']),
+        fn (string $found): bool => $found !== 'src/RosterServiceProvider.php: RefactorCircus\\Atrium'
+            || substr_count((string) file_get_contents(__DIR__.'/../src/RosterServiceProvider.php'), 'RefactorCircus\\Atrium') !== 1
+            || ! str_contains((string) file_get_contents(__DIR__.'/../src/RosterServiceProvider.php'), "class_exists('RefactorCircus\\Atrium\\Atrium')"),
+    )))
+    ->toBeEmpty();
+
+// This file names them to check they are gone. The CHANGELOG, which tells
+// upgraders what was removed, is not searched.
+arch('nothing names Roster\'s old tab registry')
+    ->expect(fn (): array => rosterFilesContaining(
+        ['src', 'resources', 'tests', 'README.md'],
+        ['Atrium\\Tabs', 'Roster\\Atrium\\TabDefinition', 'TabVisibility', 'partials.tabs', 'registered-tab'],
+        ['tests/ArchTest.php', 'tests/Browser/Screenshots', 'tests/Browser/Traces'],
     ))
     ->toBeEmpty();
 

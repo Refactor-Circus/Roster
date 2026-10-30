@@ -1,0 +1,61 @@
+# Adopt Atrium screen registry — Shaping Notes
+
+## Scope
+
+Move Roster's screens onto Atrium's screen extensions registry (Atrium spec `2026-10-29-2037-screen-extensions-registry`), and remove every place where a Roster screen renders another package's UI because that package is installed. This is section A of the cross-package audit, for Roster.
+
+In scope:
+
+- **Delete Roster's tab registry.** Remove `Atrium\Tabs`, `TabDefinition`, `TabVisibility` and the `roster::ui.partials.tabs` / `registered-tab` partials. Registrations move to Atrium's registry under the screen keys `roster.organization` and `roster.user`. This is breaking, accepted per Atrium D-001.
+- **Use Atrium's components on every Roster tab bar:**
+  - organization: `members`, `teams`, `invitations`, `roles`, `settings`, plus `sso` / `scim` until the remove-sso-scim spec drops them
+  - user: `overview` plus registered tabs
+  - team: its existing tabs
+  - SSO connection: its tabs, until the screen moves to Guardian
+- **Make team and SSO connection screens registrable** under `roster.team` and `roster.sso-connection`.
+- **Remove optional-package UI from Roster screens:**
+  - The organization `activity` tab and `OrganizationUiController::offers()` match (Keen). History reaches the screen through Keen's capability section instead (Keen spec).
+  - The organization `mcp` tab, the user overview redirect-domains card, `Atrium\RedirectDomains`, `RedirectDomainUiController`, its four routes (`*.redirect-domains.store|destroy`) and `ui/partials/redirect-domains.blade.php`, plus `tests/Cortex/RedirectDomainsTest.php`. All of these move to Cortex (Cortex spec).
+  - The inline `<x-atrium::audit-trail>` on the role, team, user overview and organization screens. Each screen instead declares its audited subject (package `roster`; subject is the role, team or user; for organizations, `scope` is the organization).
+- **Declare section slots** where removed UI used to sit, so registrants can place sections there. At minimum:
+  - `roster.user` slot `overview.aside`, where the redirect-domains and SSO identities cards go
+  - `roster.organization` tabs for MCP and activity
+
+  Spec writing settles exact slot names.
+
+## Decisions
+
+- D-001: Roster depends on Atrium's registry only, and no longer references Cortex or Keen for screen UI. `composer.json` keeps `refactor-circus/cortex` and `refactor-circus/keen` in `suggest`, with updated wording.
+- D-002: the built-in organization tab keys stay reserved as Atrium built-ins for `roster.organization`. `activity` and `mcp` stop being built-in, so Keen and Cortex can register them.
+- D-003: the behaviour pinned by Roster PR #5 (criteria 1 to 18) is preserved through Atrium's registry. Its tests move to, or are re-expressed against, the Atrium API.
+- D-004: SSO and SCIM stay in Roster for this spec, and only their screens switch to Atrium's components. The extraction is in `remove-sso-and-scim` and the Guardian spec.
+- D-005: the replacement tabs are vendor-prefixed: `keen.activity` and `cortex.mcp` (Atrium D-008). Old `?tab=activity` and `?tab=mcp` URLs fall back to the default tab (200), and the CHANGELOG notes it.
+
+## Context
+
+- **Depends on:** Atrium `2026-10-29-2037-screen-extensions-registry`.
+- **Must land together with:** the Cortex spec `register-roster-redirect-domains` and the Keen spec `history-section-by-capability`. Otherwise the MCP and activity features disappear from Roster screens until those merge. RingMaster links these as dependencies, and Cortex and Keen should merge before or with this spec.
+- **Product:** Roster's mission is headless user management for the suite. Other packages should extend its screens, not be hard-wired into them.
+- **References:** see `references.md`.
+
+## Standards
+
+- architecture/dependencies: removes Roster's `class_exists(CortexServiceProvider)` check and its Keen-gated UI.
+- architecture/public-api: deleting `Tabs` / `TabDefinition` is a breaking public API change and needs a CHANGELOG upgrade note.
+- architecture/domain-modules: where the remaining Atrium screen declarations sit in Roster.
+- atrium/components: tab bars through Atrium components only (`StylesTest` stays green).
+- http/authorization: `ScreenAccess::allows()` is the access check Roster passes to Atrium for registered tabs and sections.
+- testing/test-layers: the feature suites for the organization, user, team and SSO screens keep passing, along with the browser suite.
+
+## Addendum (2026-10-29): every screen declares slots and tab bar
+
+User decision (Atrium D-013): every Atrium screen in this package declares itself with `Screen::make("{package}.{screen}")`, renders the Atrium tab bar (only visible once at least 2 tabs are visible), and declares the standard slots: `header.actions`, `before` and `after` on all screens; `aside` and `history` (when audited) on detail screens; the `row.actions` row slot on list screens. Screens without built-in tabs get a default `overview` tab. With nothing registered, every existing feature and browser test passes unchanged. A feature test per screen registers a tab and a section in each standard slot and asserts that they render.
+Roster screens (about 15): users index, create and show; organizations index, create and show; team; roles index and show; permissions; impersonations; transfers index, show and templates; invitation accept. The SSO connection screen moves to Guardian.
+
+## Addendum (2026-10-29): no package knows another (Atrium D-015 to D-019)
+
+User principle (Atrium D-017): no package has knowledge of another. Companion packages are suggested, never required. Integrations are done through simple config. Consequences for this spec:
+- Remove `refactor-circus/atrium` from `require`, and add it to `suggest` (D-018: Keystone is the only allowed requirement). The Atrium plugin, its routes, views and `Atrium\*` classes load only when Atrium is installed (`registerAtriumPlugin()` already checks for this). Code outside `src/Atrium` must not reference Atrium classes. An arch test enforces this, and the suite runs once without Atrium (a CI lane or a test mode that removes it) to prove the package boots and its HTTP API and MCP work.
+- Screens declare no audit subject (that concept is removed from Atrium). Keen attaches History by wildcard from its own config, and the screen record is the subject.
+- Stop calling `historyNavItem()` (removed from Atrium, D-016); Keen adds History nav items.
+- The organization activity view and redirect domains come from Keen's and Cortex's config defaults (D-019). Roster names neither package.

@@ -8,6 +8,8 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use RefactorCircus\Atrium\Domains\Screens\Data\Screen;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Atrium\ScreenAccess;
 use RefactorCircus\Roster\Domains\Organization\Actions\ListMembersAction;
@@ -50,6 +52,8 @@ final class TeamUiController
 
         $model = app(ShowTeamAction::class)->execute($model);
 
+        $resolved = Atrium::screens()->resolve($this->screen('roster.team', Screen::DETAIL, $model)->tabs($this->overviewTab()), $request);
+
         /** @var OrganizationModel $owner */
         $owner = $model->organization;
 
@@ -57,15 +61,22 @@ final class TeamUiController
         $view = 'roster::ui.teams.show';
 
         return view($view, [
+            'resolved' => $resolved,
             'team' => $model,
             'organization' => $owner,
-            // Every member, a page at a time; the shown team carries only the first ones.
-            'members' => app(ListMembersAction::class)
-                ->execute($owner, new ListMembersData(perPage: 25, page: $request->integer('page', 1), team: $model->slug))
-                ->withQueryString(),
-            // The add-member picker, only for those who may add.
-            'candidates' => ScreenAccess::allows('roster.teams.manage', $model) ? $this->candidates($owner) : [],
             'directory' => $this->users,
+            // The page's own data only while it is the open tab.
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => [
+                    // Every member, a page at a time; the shown team carries only the first ones.
+                    'members' => app(ListMembersAction::class)
+                        ->execute($owner, new ListMembersData(perPage: 25, page: $request->integer('page', 1), team: $model->slug))
+                        ->withQueryString(),
+                    // The add-member picker, only for those who may add.
+                    'candidates' => ScreenAccess::allows('roster.teams.manage', $model) ? $this->candidates($owner) : [],
+                ],
+                default => [],
+            },
         ]);
     }
 

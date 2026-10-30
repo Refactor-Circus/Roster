@@ -5,12 +5,7 @@
     The user screen's own content: the page as it is with no registered tab,
     and the `overview` tab when one is visible.
 --}}
-<div class="mt-5 grid gap-4 lg:grid-cols-2">
-    <div class="flex flex-col gap-4 lg:col-span-2">
-        @include('roster::impersonation-banner', ['bannerClass' => 'rounded-radius'])
-        <x-atrium::flash />
-    </div>
-
+<div class="grid gap-4 lg:grid-cols-2">
     @rosterCan('roster.users.update')
     <x-atrium::card :title="__('roster::roster.account')">
         <form method="POST" action="{{ route('atrium.roster.users.update', $user->getRouteKey()) }}" class="flex flex-col gap-4">
@@ -211,10 +206,6 @@
     </x-atrium::card>
     @endrosterCan
 
-    @rosterCan('roster.audit.view', null, $user)
-    <x-atrium::audit-trail source="roster" :subject="$user" class="lg:col-span-2" />
-    @endrosterCan
-
     @rosterCan('roster.users.impersonate')
         <x-atrium::card :title="__('roster::roster.impersonate')" class="lg:col-span-2" data-testid="impersonate-card">
             <form method="POST" action="{{ route('atrium.roster.users.impersonate', $user->getRouteKey()) }}" class="flex flex-wrap items-start gap-2">
@@ -243,19 +234,6 @@
                     </li>
                 @endforeach
             </ul>
-        </x-atrium::card>
-    @endif
-
-    @if ($redirectDomains !== null)
-        <x-atrium::card :title="__('roster::roster.redirect_domains')" class="lg:col-span-2" data-testid="redirect-domains-card">
-            <div class="flex flex-col gap-3">
-                @include('roster::ui.partials.redirect-domains', [
-                    'domains' => $redirectDomains,
-                    'manage' => \RefactorCircus\Roster\Atrium\ScreenAccess::allows('roster.users.update'),
-                    'storeRoute' => route('atrium.roster.users.redirect-domains.store', $user->getRouteKey()),
-                    'destroyRoute' => fn ($domain) => route('atrium.roster.users.redirect-domains.destroy', [$user->getRouteKey(), $domain->id]),
-                ])
-            </div>
         </x-atrium::card>
     @endif
 

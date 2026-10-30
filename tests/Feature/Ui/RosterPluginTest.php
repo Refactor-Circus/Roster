@@ -20,7 +20,7 @@ it('registers itself with atrium', function (): void {
 it('contributes users and organizations navigation', function (): void {
     $labels = array_map(fn (NavItem $item): string => $item->label, app(RosterPlugin::class)->navigation());
 
-    expect($labels)->toBe(['Users', 'Organizations', 'Roles', 'Permissions', 'Impersonations', 'Imports & exports', 'Audit log']);
+    expect($labels)->toBe(['Users', 'Organizations', 'Roles', 'Permissions', 'Impersonations', 'Imports & exports']);
 });
 
 it('registers its routes inside the atrium group', function (): void {

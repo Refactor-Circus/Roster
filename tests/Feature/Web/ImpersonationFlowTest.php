@@ -27,9 +27,12 @@ it('becomes the user, shows the banner, and returns', function (): void {
 
     expect(Auth::id())->toBe($this->ada->getKey());
 
+    // Atrium is installed here, so the banner is Atrium's standalone one
+    // (roster::ui.impersonation-banner); tests/Modes/AtriumUnavailable covers the plain one.
     $this->get('roster-test/banner')
         ->assertOk()
         ->assertSee('data-testid="impersonation-banner"', false)
+        ->assertSee('var(--color-warning', false)
         ->assertSee('You are acting as Ada (signed in as Admin).')
         ->assertSee('Return to my account');
 

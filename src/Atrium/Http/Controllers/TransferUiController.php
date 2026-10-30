@@ -7,6 +7,8 @@ namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use RefactorCircus\Atrium\Domains\Screens\Data\Screen;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
@@ -46,16 +48,27 @@ final class TransferUiController
         // roster.members.view there, everyone's roster.users.view.
         $this->authorizeScreen('roster.members.view', $organization, $organization === null ? $actor : null);
 
+        $resolved = Atrium::screens()->resolve($this->screen('roster.transfers', Screen::LIST)->tabs($this->overviewTab()), $request);
+
         /** @var view-string $view */
         $view = 'roster::ui.transfers.index';
 
         return view($view, [
-            'available' => $this->transfers->available(),
-            'transfers' => app(ListTransfersAction::class)->execute($filters, ...$this->transfers->visibleTo($actor, $organization))->withQueryString(),
+            'resolved' => $resolved,
             'filters' => $filters,
             'organization' => $organization,
-            'imports' => array_filter(TransferType::cases(), fn (TransferType $type): bool => $type->isImport()),
-            'exports' => array_filter(TransferType::cases(), fn (TransferType $type): bool => ! $type->isImport()),
+            // The page's own data only while it is the open tab. Each
+            // transfer's organization and requester are loaded with it, so
+            // its row slot asks no query per row.
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => [
+                    'available' => $this->transfers->available(),
+                    'transfers' => app(ListTransfersAction::class)->execute($filters, ...$this->transfers->visibleTo($actor, $organization))->withQueryString(),
+                    'imports' => array_filter(TransferType::cases(), fn (TransferType $type): bool => $type->isImport()),
+                    'exports' => array_filter(TransferType::cases(), fn (TransferType $type): bool => ! $type->isImport()),
+                ],
+                default => [],
+            },
         ]);
     }
 
@@ -83,15 +96,24 @@ final class TransferUiController
     {
         $model = $this->authorizeTransfer($request, $transfer);
 
+        $model = app(ShowTransferAction::class)->execute($model);
+        $resolved = Atrium::screens()->resolve($this->screen('roster.transfer', Screen::DETAIL, $model)->tabs($this->overviewTab()), $request);
+
         /** @var view-string $view */
         $view = 'roster::ui.transfers.show';
 
         return view($view, [
-            'transfer' => app(ShowTransferAction::class)->execute($model),
-            'rows' => $model->lines()->paginate(50, ['*'], 'rows_page')->withQueryString(),
-            'progress' => $this->transfers->progress($model),
+            'resolved' => $resolved,
+            'transfer' => $model,
             'downloadable' => $this->transfers->downloadable($model),
-            'canConfirm' => app(Authorizer::class)->check($this->actor($request), $model->type->permission(), $model->organization),
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => [
+                    'rows' => $model->lines()->paginate(50, ['*'], 'rows_page')->withQueryString(),
+                    'progress' => $this->transfers->progress($model),
+                    'canConfirm' => app(Authorizer::class)->check($this->actor($request), $model->type->permission(), $model->organization),
+                ],
+                default => [],
+            },
         ]);
     }
 

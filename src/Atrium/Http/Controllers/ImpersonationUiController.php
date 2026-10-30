@@ -8,6 +8,8 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use RefactorCircus\Atrium\Domains\Screens\Data\Screen;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\ListImpersonationsAction;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
@@ -34,10 +36,20 @@ final class ImpersonationUiController
         $filters = ListImpersonationsData::from($request->query());
         $within = $this->authorizeList('roster.users.impersonate', Scopes::fromInput($filters->organization));
 
+        $resolved = Atrium::screens()->resolve($this->screen('roster.impersonations', Screen::LIST)->tabs($this->overviewTab()), $request);
+
         /** @var view-string $view */
         $view = 'roster::ui.impersonations.index';
 
-        return view($view, ['impersonations' => app(ListImpersonationsAction::class)->execute($filters, $within)->withQueryString()]);
+        return view($view, [
+            'resolved' => $resolved,
+            // The list only while it is the open tab. Each impersonation's
+            // organization is loaded with it, so its row slot asks no query per row.
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => ['impersonations' => app(ListImpersonationsAction::class)->execute($filters, $within)->withQueryString()],
+                default => [],
+            },
+        ]);
     }
 
     public function start(Request $request, string $user): RedirectResponse
