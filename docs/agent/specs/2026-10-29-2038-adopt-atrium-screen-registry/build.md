@@ -106,3 +106,21 @@ No index lock and no merge or rebase in progress. The interrupted agent had left
 
 - 3.3: run the full `vendor/bin/pest`.
 - The `without-atrium` CI job can only be proven green on the PR (criterion 15).
+
+## Group 3
+
+This retry finishes task 3.3 on top of the salvaged commit (`bb8e60a`).
+
+### Files
+
+- `docs/agent/specs/2026-10-29-2038-adopt-atrium-screen-registry/tasks.md`: 3.3 ticked.
+- No code changes. The salvaged commit already holds every file from 3.1 and 3.2: `composer.json`, the workflow job, `AtriumServiceProvider`, both `InvitationPage`s and the contract, the split views, `Users::STATUS_COUNTS_CACHE`, the standards-feedback row and all of the group's tests.
+
+### Tests
+
+- 3.3 (`vendor/bin/pest`): not run here, as instructed. The gate runs the suite after the build.
+
+### Deviations
+
+- None beyond those listed in "Group 3 (salvaged)".
+- `AGENTS.md` still has an uncommitted change from a Ringside sync. It was left out of this commit.

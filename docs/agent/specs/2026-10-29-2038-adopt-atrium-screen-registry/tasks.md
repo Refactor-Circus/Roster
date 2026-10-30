@@ -28,7 +28,7 @@ criteria: 12, 13, 14, 15, 16, 17
 
 - [x] 3.1 Write tests for criteria 12 to 17: `ComposerTest` (only Keystone in `require`, Atrium in `require-dev`, the three suggest strings, `conflict` `<0.1.0`); the three arch rules and the `RefactorCircus\Atrium` string scan outside `src/Atrium`; `AtriumUnavailableTest` (boot, no `atrium.roster.users.index`, API 201/200, `ListUsersTool`, plain invitation page and plain banner); `AtriumSeamTest` (Atrium invitation markup, `roster.invitation` declared with a `public()` aside section, Atrium banner, `@rosterCan` registered, `PlainInvitationPage` bound when `$withoutAtrium`); move `InvitationPageTest` and `ImpersonationFlowTest` markup assertions as the views move
 - [x] 3.2 Move Atrium to `require-dev`/`suggest` with the conflict and regenerate `composer.local.json`; add `Users::STATUS_COUNTS_CACHE`; add `AtriumServiceProvider` (string `class_exists` check plus `$withoutAtrium`), the `InvitationPage` contract, `PlainInvitationPage` and the Atrium `InvitationPage`; move `@rosterCan` out of `RosterServiceProvider`; split the invitation and banner views into plain and `ui/` versions with the dispatcher banner; exclude the two plain views in `StylesTest` and add the standards-feedback row; add `AtriumUnavailableTestCase` and its `Pest.php` mapping; add the `without-atrium` CI job (checking Keen's requirements)
-- [ ] 3.3 Run vendor/bin/pest; all green
+- [x] 3.3 Run vendor/bin/pest; all green
 
 ## Group 4: Documentation and merge gate
 package: Roster
