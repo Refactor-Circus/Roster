@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Exceptions;
 use RefactorCircus\Keen\Domains\Audit\Models\AuditEntryModel;
+use RefactorCircus\Keen\KeenServiceProvider;
 use RefactorCircus\Keystone\Audit\AuditHooks;
 use RefactorCircus\Keystone\Packages\Package;
 use RefactorCircus\Keystone\Packages\PackageRegistry;
@@ -19,7 +20,28 @@ use RefactorCircus\Roster\Domains\User\Models\UserModel;
 use RefactorCircus\Roster\Tests\Fixtures\Billing\InvoicePaidActionEvent;
 use RefactorCircus\Roster\Tests\Fixtures\Billing\InvoicePayingActionEvent;
 
-require_once dirname(__DIR__, 2).'/Feature/Scim/helpers.php';
+require_once __DIR__.'/helpers.php';
+
+/**
+ * Keen installed, as `KeenTestCase` boots it. `tests/Pest.php` already gives
+ * every file under `tests/Feature` the base `TestCase`, and Pest refuses a
+ * second test case, so this file adds Keen's provider with a trait instead.
+ */
+trait InstallsKeenForScimAudit
+{
+    /**
+     * @return array<int, class-string>
+     */
+    protected function getPackageProviders($app): array
+    {
+        return [
+            ...parent::getPackageProviders($app),
+            KeenServiceProvider::class,
+        ];
+    }
+}
+
+uses(InstallsKeenForScimAudit::class);
 
 /**
  * The SCIM domain adds its token to Roster's audit entries itself, through
