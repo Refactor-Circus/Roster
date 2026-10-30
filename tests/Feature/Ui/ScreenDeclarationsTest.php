@@ -152,7 +152,7 @@ it('renders no extension markup while nothing is registered', function (string $
         preg_match_all('/data-testid="tab-([^"]+)"/', (string) $response->getContent(), $tabs);
 
         $response->assertSee('data-testid="screen-tabs"', false);
-        expect($tabs[1])->toBe(['members', 'teams', 'invitations', 'roles', 'sso', 'scim', 'settings']);
+        expect($tabs[1])->toBe(['members', 'teams', 'invitations', 'roles', 'settings']);
     } else {
         $response->assertDontSee('data-testid="screen-tabs"', false)
             ->assertDontSee('data-testid="tab-', false);

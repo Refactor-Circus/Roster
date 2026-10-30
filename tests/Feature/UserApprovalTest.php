@@ -21,6 +21,7 @@ use RefactorCircus\Roster\Domains\User\Mcp\Tools\RejectUserTool;
 use RefactorCircus\Roster\Domains\User\Notifications\UserApprovedNotification;
 use RefactorCircus\Roster\Domains\User\Notifications\UserAwaitingApprovalNotification;
 use RefactorCircus\Roster\Domains\User\Notifications\UserRejectedNotification;
+use RefactorCircus\Roster\Roster;
 use RefactorCircus\Roster\Support\Users;
 use Workbench\App\Models\User;
 
@@ -109,17 +110,14 @@ it('blocks pending users with the approval message', function (): void {
     $this->actingAs(pendingUser())->get('/approval-check')->assertForbidden()->assertSee('awaiting approval');
 });
 
-it('lets organizations choose whether their SCIM accounts need approval', function (): void {
-    require_once __DIR__.'/Scim/helpers.php';
-    [$acme, $token] = scimOrg();
-    test()->scimToken = $token;
+it('lets organizations choose whether their externally provisioned accounts need approval', function (): void {
+    $acme = organization(attributes: ['name' => 'Acme', 'domains' => ['acme.test']]);
 
-    scim('POST', '/Users', oktaUser('one@acme.test', 'e1'))->assertCreated();
+    expect(app(Roster::class)->provisionedStatus($acme))->toBe(UserStatus::Active);
+
     app(UpdateOrganizationAction::class)->execute($acme, new UpdateOrganizationData(provisionedStatus: UserStatus::Pending));
-    scim('POST', '/Users', oktaUser('two@acme.test', 'e2'))->assertCreated();
 
-    expect(app(Users::class)->status(User::query()->where('email', 'one@acme.test')->sole()))->toBe(UserStatus::Active)
-        ->and(app(Users::class)->status(User::query()->where('email', 'two@acme.test')->sole()))->toBe(UserStatus::Pending);
+    expect(app(Roster::class)->provisionedStatus($acme->refresh()))->toBe(UserStatus::Pending);
 });
 
 it('approves and rejects over http and mcp', function (): void {

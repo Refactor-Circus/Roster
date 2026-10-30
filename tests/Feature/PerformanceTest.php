@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-require_once __DIR__.'/Scim/helpers.php';
-
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Atrium\RosterPlugin;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
@@ -19,8 +17,6 @@ use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
 use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
-use RefactorCircus\Roster\Domains\Scim\Actions\CreateScimTokenAction;
-use RefactorCircus\Roster\Domains\Scim\Data\CreateScimTokenData;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
@@ -106,7 +102,7 @@ it('answers every permission in every organization from one load per user', func
     $count = queries(function () use ($admin, $scopes): void {
         $authorizer = app(Authorizer::class);
 
-        foreach (['roster.members.view', 'roster.teams.manage', 'roster.roles.view', 'roster.sso.manage', 'roster.invitations.manage'] as $permission) {
+        foreach (['roster.members.view', 'roster.teams.manage', 'roster.roles.view', 'roster.invitations.manage'] as $permission) {
             $authorizer->organizationsWith($admin, $permission);
 
             foreach ($scopes as $scope) {
@@ -131,7 +127,7 @@ it('renders each organization tab in a fixed number of queries', function (strin
     $this->actingAs($owner);
 
     expect(queries(fn () => $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => $tab]))->assertOk()))->toBeLessThanOrEqual(16);
-})->with(['members', 'teams', 'invitations', 'roles', 'sso', 'scim', 'activity', 'settings']);
+})->with(['members', 'teams', 'invitations', 'roles', 'activity', 'settings']);
 
 it('lists transfers in a fixed number of queries', function (int $size): void {
     $owner = user();
@@ -181,64 +177,6 @@ it('re-syncs unchanged organizations cheaply', function (): void {
     // The links are looked up together and stamped in one update.
     expect(queries(fn () => app(SyncOrganizationsAction::class)->execute(new SyncOrganizationsData(records: $records))))->toBeLessThanOrEqual(4);
 });
-
-it('serves a SCIM users page in a fixed number of queries', function (int $size): void {
-    [, $acme] = crowd(0);
-    $token = app(CreateScimTokenAction::class)->execute($acme, new CreateScimTokenData(name: 'Okta'))->plain;
-
-    foreach (range(1, $size) as $i) {
-        $this->postJson('/scim/v2/acme/Users', oktaUser("s{$i}@acme.test", "ext{$i}"), ['Authorization' => 'Bearer '.$token])->assertCreated();
-    }
-
-    expect(queries(fn () => $this->getJson('/scim/v2/acme/Users?count=100', ['Authorization' => 'Bearer '.$token])->assertOk()->assertJsonPath('totalResults', $size)))
-        ->toBeLessThanOrEqual(10);
-})->with([3, 30]);
-
-it('serves a SCIM groups page in a fixed number of queries', function (int $size): void {
-    [, $acme] = crowd(0);
-    $token = app(CreateScimTokenAction::class)->execute($acme, new CreateScimTokenData(name: 'Okta'))->plain;
-    $headers = ['Authorization' => 'Bearer '.$token];
-    $ids = [];
-
-    foreach (range(1, 4) as $i) {
-        $ids[] = ['value' => $this->postJson('/scim/v2/acme/Users', oktaUser("s{$i}@acme.test", "ext{$i}"), $headers)->assertCreated()->json('id')];
-    }
-
-    foreach (range(1, $size) as $i) {
-        $this->postJson('/scim/v2/acme/Groups', [
-            'schemas' => ['urn:ietf:params:scim:schemas:core:2.0:Group'],
-            'displayName' => "Group {$i}",
-            'members' => $ids,
-        ], $headers)->assertCreated();
-    }
-
-    expect(queries(fn () => $this->getJson('/scim/v2/acme/Groups?count=100', $headers)->assertOk()->assertJsonPath('totalResults', $size)->assertJsonCount(4, 'Resources.0.members')))
-        ->toBeLessThanOrEqual(10);
-})->with([2, 15]);
-
-it('adds a member to a SCIM group without a query per existing member', function (int $size): void {
-    [, $acme] = crowd(0);
-    $token = app(CreateScimTokenAction::class)->execute($acme, new CreateScimTokenData(name: 'Okta'))->plain;
-    $headers = ['Authorization' => 'Bearer '.$token];
-    $ids = [];
-
-    foreach (range(1, $size + 1) as $i) {
-        $ids[] = ['value' => $this->postJson('/scim/v2/acme/Users', oktaUser("s{$i}@acme.test", "ext{$i}"), $headers)->assertCreated()->json('id')];
-    }
-
-    $group = $this->postJson('/scim/v2/acme/Groups', [
-        'schemas' => ['urn:ietf:params:scim:schemas:core:2.0:Group'],
-        'displayName' => 'Engineering',
-        'members' => array_slice($ids, 0, $size),
-    ], $headers)->assertCreated()->json('id');
-
-    // How Okta and Entra send one membership change.
-    $patch = fn () => $this->patchJson('/scim/v2/acme/Groups/'.$group, patchOps([['op' => 'add', 'path' => 'members', 'value' => [end($ids)]]]), $headers)
-        ->assertOk()
-        ->assertJsonCount($size + 1, 'members');
-
-    expect(queries($patch))->toBeLessThanOrEqual(30);
-})->with([2, 20]);
 
 it('finds a user by email with one indexed lookup, and by other casing after it', function (): void {
     $ada = user(['email' => 'ada@example.com']);

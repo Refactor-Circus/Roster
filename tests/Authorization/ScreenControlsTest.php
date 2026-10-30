@@ -50,7 +50,6 @@ it('shows a user page without the controls the viewer may not use', function ():
         ->assertDontSee(testId('domain-join'), false)
         ->assertDontSee(testId('roles-card'), false)
         ->assertDontSee(testId('impersonate-card'), false)
-        ->assertDontSee(testId('unlink-sso-identity'), false)
         ->assertDontSee(testId('danger-zone'), false);
 });
 
@@ -129,12 +128,11 @@ it('lists only the organization tabs the viewer may open', function (): void {
         ->assertOk()
         ->assertSee(testId('tab-members'), false)
         ->assertSee(testId('tab-settings'), false)
-        ->assertDontSee(testId('tab-scim'), false)
         ->assertDontSee(testId('tab-roles'), false)
         ->assertDontSee(testId('add-member'), false)
         ->assertDontSee(testId('remove-member'), false);
 
-    $this->actingAs($viewer)->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'scim']))->assertForbidden();
+    $this->actingAs($viewer)->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'roles']))->assertForbidden();
     // Activity is no longer a built-in tab: the old link opens the default tab.
     $this->actingAs($viewer)->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'activity']))->assertOk();
 });

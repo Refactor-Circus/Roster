@@ -16,7 +16,8 @@ const ROSTER_ACTIONS = [ROSTER_DOMAINS.'/*/Actions/*.php', __DIR__.'/../src/Tran
 
 /**
  * Roster's core: the classes that must name neither the SSO nor the SCIM
- * domain, which reach them only through the registration seams.
+ * domain. Both now live in refactor-circus/guardian, which reaches Roster
+ * only through the registration seams.
  */
 const ROSTER_CORE = [
     'RefactorCircus\Roster\Domains\Permission\Services\Authorizer' => 'src/Domains/Permission/Services/Authorizer.php',
@@ -72,8 +73,8 @@ function policiesSource(): string
 }
 
 /**
- * The policies registered with the Gate once Roster has booted: the SSO and
- * SCIM domains register their models' policies themselves, outside
+ * The policies registered with the Gate once Roster has booted, including
+ * any a domain or package resource registers itself, outside
  * `roster.policies`. Boots the test application and tears it down again.
  *
  * @return array<class-string, class-string>

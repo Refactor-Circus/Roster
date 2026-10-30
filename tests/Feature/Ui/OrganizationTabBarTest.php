@@ -13,7 +13,7 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
  */
 function organizationBuiltInTabs(): array
 {
-    return ['members', 'teams', 'invitations', 'roles', 'sso', 'scim', 'settings'];
+    return ['members', 'teams', 'invitations', 'roles', 'settings'];
 }
 
 /**
@@ -90,11 +90,11 @@ it('shows exactly the built-in tabs offered here', function (): void {
 });
 
 it('shows exactly the built-in tabs the viewer may see', function (): void {
-    organizationTabBarViewer(['roster.organizations.view', 'roster.members.view', 'roster.sso.view']);
+    organizationTabBarViewer(['roster.organizations.view', 'roster.members.view', 'roster.roles.view']);
 
     $links = organizationTabBarLinks($this->get(route('atrium.roster.organizations.show', $this->organization))->assertOk());
 
-    expect(array_map(strval(...), array_keys($links)))->toBe(['members', 'sso', 'settings']);
+    expect(array_map(strval(...), array_keys($links)))->toBe(['members', 'roles', 'settings']);
 });
 
 it('shows no tab bar while the viewer may open only one built-in tab', function (): void {

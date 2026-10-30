@@ -4,7 +4,7 @@ description: >
   Configure and apply the Roster package in Laravel applications: user CRUD,
   profiles, suspend/deactivate/reactivate, organizations, teams, invitations,
   domain auto-join, current org/team context, roles and permissions through
-  Laravel's Gate, audit history (through refactor-circus/keen), impersonation, SSO, SCIM, CSV import/export,
+  Laravel's Gate, audit history (through refactor-circus/keen), impersonation, CSV import/export,
   the roster.active and roster.organization middleware, Roster's HTTP
   API, MCP server and Atrium screens, and extending Roster from another
   package (resources, permissions, membership sources, sign-in requirements).
@@ -73,7 +73,7 @@ php artisan migrate
 
 ### 6. Auditing
 
-- Roster has no audit log or audit code of its own. Install refactor-circus/keen (`composer require refactor-circus/keen`, `php artisan migrate`) and Keen records every Roster change, labelled, diffed (profile fields, role permissions, organization domains), scoped to its organization, and with the impersonator, import or SCIM token in its context. Without Keen there is no history anywhere in Roster.
+- Roster has no audit log or audit code of its own. Install refactor-circus/keen (`composer require refactor-circus/keen`, `php artisan migrate`) and Keen records every Roster change, labelled, diffed (profile fields, role permissions, organization domains), scoped to its organization, and with the impersonator or import in its context. Without Keen there is no history anywhere in Roster.
 - Turn it off with `roster.audit.enabled => false` (Keen then records nothing of Roster's). `Roster::auditing()` says whether Roster audits now.
 - While it does, read history in Keen (which adds it to Roster's Atrium screens through Atrium's screen extensions; Roster renders none itself), or through `GET /roster/history` and `list-roster-history-tool` (global `roster.audit.view`). Roster defines the `viewAuditLog` Gate ability as global `roster.audit.view` unless the app defines it.
 - Record the app's own events with Keen: `Keen::record('invoice.paid')->on($model)->in($organization)->with([...])->save();`. Add app secrets to `keen.redact`.
@@ -85,27 +85,19 @@ php artisan migrate
 - Find organizations with `ListOrganizationsAction(new ListOrganizationsData(source: 'erp', accountNumber: 'A-42'))`. Each organization's `links` holds `source`, `external_id`, `account_number` and `synced_at`.
 - Synced organizations may have no owner; assign one with `TransferOwnershipAction`. Give the integration user `roster.organizations.sync`.
 
-### 8. Single sign-on
+### 8. Single sign-on and provisioning
 
-- Install the protocol packages you need: `laravel/socialite` plus `firebase/php-jwt` (OIDC), `socialiteproviders/microsoft-azure` (Entra ID) or `socialiteproviders/saml2` (SAML).
-- Create connections per organization with `CreateSsoConnectionAction($organization, new CreateSsoConnectionData(name: ..., protocol: 'oidc'|'azure'|'saml', clientId: ..., /* other settings */))`, and register the returned `callback_url` at the provider.
-- Link people to `route('roster.sso.discover', ['email' => $email])` or `route('roster.sso.start', $connection->slug)`.
-- When an organization enforces SSO, add `new \RefactorCircus\Roster\Domains\Sso\Support\NotSsoEnforced` to the app's password login validation.
+- Roster ships neither: install refactor-circus/guardian, which adds them to Roster's organizations through Roster's seams.
+- Without it, register your own sign-in requirement with `Roster::requireSignIn()`, and add `new \RefactorCircus\Roster\Support\Rules\NoExternalSignIn` to the app's password login validation.
 
-### 9. SCIM provisioning
-
-- Issue a token with `CreateScimTokenAction($organization, new CreateScimTokenData(name: 'Okta', ssoConnection: $slug))`; `$issued->plain` is the only copy. The provider's base URL is `url('scim/v2/'.$organization->slug)`.
-- The organization must own its email domains (`domains`), or SCIM refuses its users.
-- SCIM changes run through Roster's Actions: listen to the normal Action events, and find them in Keen's audit log under surface `scim`.
-
-### 10. Impersonation
+### 9. Impersonation
 
 - Grant `roster.users.impersonate` explicitly. Start with `StartImpersonationAction($user, new StartImpersonationData(reason: ...), actor: $admin)` and redirect the impersonator's browser to `$started->url`.
 - Schedule `roster:end-expired-impersonations` (every five minutes) so sessions the impersonator abandons, and unused links, are ended as `expired` on the record.
 - Add `@include('roster::impersonation-banner')` to the app layout (Atrium's standalone banner when Atrium is installed, a plain one otherwise; both styled inline). List app abilities that must never run while impersonating in `roster.impersonation.blocked` (wildcards allowed).
 - Use `app(RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext::class)->active()` to detect an impersonated request.
 
-### 11. CSV import and export
+### 10. CSV import and export
 
 - Requires `refactor-circus/impex`: `composer require refactor-circus/impex`, `php artisan vendor:publish --tag="impex-migrations"`, migrate, and run a queue worker and the scheduler. Schedule `roster:prune-transfers`.
 - Start with `StartImportAction(new StartImportData(type: TransferType::ImportMembers /* ImportUsers, ImportTeams, ImportOrganizations */, organization: slug, file: $upload /* or content: $csv */), $user)`. It only previews: read `$transfer->rows()` (`action` is create/link/invite/update/skip/error).
@@ -115,12 +107,12 @@ php artisan migrate
 - Columns: members `email,name,display_name,teams,role`; users `email,name,display_name`; teams `name,slug,members`; organizations `source,external_id,name,account_number,slug,domains,owner`.
 - Without Impex, these Actions throw `RefactorCircus\Roster\Domains\Transfer\Exceptions\TransfersUnavailableException`.
 
-### 12. Guard routes and surfaces
+### 11. Guard routes and surfaces
 
 - Add `roster.active` middleware to routes only active users may use, and `roster.organization` to routes that need a tenant.
 - The HTTP API (`roster.routes.enabled`) and MCP (`roster.mcp.web.enabled`, `roster.mcp.local.enabled`) are off by default and do **no authorization** themselves. Only enable them with auth plus admin-only middleware in the `middleware` config.
 
-### 13. Screen extensions
+### 12. Screen extensions
 
 - Atrium is optional (`composer require refactor-circus/atrium` for the screens). Every Roster dashboard screen declares itself with `Screen::standard()` on Atrium's screen extensions registry; add tabs and sections to it with `Atrium::screens()` from a service provider's `boot()` (never `register()`, middleware or controllers: the registry lives for the whole process), behind `class_exists(Atrium::class)`. Atrium's README ("Screen extensions") has the full rules.
 
@@ -141,14 +133,14 @@ Atrium::screens()
   - list: `roster.users`, `roster.organizations`, `roster.roles`, `roster.permissions`, `roster.impersonations`, `roster.transfers` (no record; each row is the row slot's `$record`)
   - detail without a record: `roster.user-create`, `roster.organization-create`
   - detail with a record: `roster.user` (the user), `roster.organization` (the organization), `roster.team` (the team), `roster.role` (the role), `roster.transfer` (the transfer), `roster.invitation` (the invitation page)
-- Built-in tabs: `overview` on every screen but the organization (the tab bar shows only once a registered tab is visible); on `roster.organization`, `members`, `teams`, `invitations`, `roles`, `sso`, `scim`, `settings`, each shown only with its permission in the organization, the first shown being the default. All seven are reserved for every viewer: a registered tab with one of those keys is skipped and reported. Use `vendor.key` (`acme.orders`) keys.
+- Built-in tabs: `overview` on every screen but the organization (the tab bar shows only once a registered tab is visible); on `roster.organization`, `members`, `teams`, `invitations`, `roles`, `settings`, each shown only with its permission in the organization, the first shown being the default. All five are reserved for every viewer: a registered tab with one of those keys is skipped and reported. Use `vendor.key` (`acme.orders`) keys.
 - `permission()` extensions are checked by `ScreenAccess::allowsOn($permission, $record)`: `OrganizationModel` / `TeamModel` in that scope; the configured `roster.users.model` about that user; `RoleModel`, `ImpersonationModel` and `InvitationModel` in `$record->organization` (globally without one); `TransferModel` in `$record->organization` about `$record->requester`; no record (list and create screens) without a scope; any other model is refused.
 - Visibility is default-deny: `permission()`, an `authorize(fn (Request, ?Model, Screen): bool)` closure (both must pass when both are set), or `public()`. A hidden tab's `?tab=` answers 403; an unknown key, including the old `activity` and `mcp`, opens the default tab. Roster authorizes the screen first, so your closures never run for a refused viewer or on deleted pages.
 - A view gets the resolver's data with Atrium's `screen`, `record` and `tab` over it; a component gets one `data` prop. In tests use `RefactorCircus\Atrium\Testing\ResetsScreenExtensions`. Apps that published `roster-views` must re-publish them.
 
-### 14. Extending Roster
+### 13. Extending Roster
 
-- Packages and apps add to Roster through registration points, always from a service provider's `boot()` (each registry is a process-wide singleton, and registering the same thing twice throws). Roster's own SSO and SCIM domains use the same seams.
+- Packages and apps add to Roster through registration points, always from a service provider's `boot()` (each registry is a process-wide singleton, and registering the same thing twice throws).
 - `roster.*` is reserved for Roster's own domains: `resource()` and `permission()` throw `InvalidArgumentException` for any `roster.*` prefix or name. Use your package's prefix (`acme.widgets`).
 - Resources and permissions:
 
@@ -196,10 +188,10 @@ final class PartnerSignIn implements SignInRequirement
 
 Roster::requireSignIn(PartnerSignIn::class);          // in boot()
 Roster::externalSignInFor($email)?->url;              // first answer, in registration order; null for super-admins
-Roster::provisionedStatus($organization);             // the AccountStatus SSO/SCIM-style accounts start with
+Roster::provisionedStatus($organization);             // the AccountStatus externally provisioned accounts start with
 ```
 
-- Requirements must not overlap. A throwing requirement fails closed: the login or registration (`NotSsoEnforced`) fails and Laravel reports it. Ask whether an email must use SSO with `externalSignInFor()` (its `record` is the `SsoConnectionModel` for Roster's SSO).
+- Requirements must not overlap. A throwing requirement fails closed: the login or registration (`NoExternalSignIn`) fails and Laravel reports it. Ask whether an email must sign in elsewhere with `externalSignInFor()` (its `record` is whatever the registered sign-in requirement keeps for it).
 - Audit context is not a Roster API: register on Keystone's `AuditHooks`, filter to Roster's entries and never throw (`AuditHooks` runs every closure for every package and spreads each result, so return `[]`, never null):
 
 ```php
@@ -229,7 +221,7 @@ $this->app->booted(function (): void {
 
 ## Rules, References, and Templates
 
-- Config: `config/roster.php` (users, authorization, super_admins, roles, impersonation, sso, scim, transfers, organizations, statuses, invitations, routes, mcp).
+- Config: `config/roster.php` (users, authorization, super_admins, roles, impersonation, transfers, organizations, statuses, invitations, routes, mcp).
 - Statuses: `roster.statuses` names a string-backed enum per record. Users default to `RefactorCircus\Roster\Domains\User\Enums\UserStatus` (`Active`, `Pending`, `Suspended`, `Deactivated`), implementing `Contracts\AccountStatus` (`active()`, `pending()`, `suspended()`, `deactivated()`, `allowsAccess()`); a user with no profile row has the `active()` status. Organizations and teams default to `OrganizationStatus` / `TeamStatus` (`Active`, `Inactive`), implementing `Contracts\Status`; set them with `status` / `status_reason` on the create, update and sync Data, filter lists by `status`. They are data only: Roster refuses nothing by them. Read the configured enum with `RefactorCircus\Roster\Support\Statuses` (`Statuses::users()::pending()`).
 - Deletes are soft:
   - Add `SoftDeletes` (and a `deleted_at` column) to the user model so deleted users can be restored; without it, users are deleted permanently.
@@ -238,11 +230,11 @@ $this->app->booted(function (): void {
 - Manual acceptance:
   - Set `roster.users.registration_status` to `pending` for self-registration.
   - Pass `status: UserStatus::Pending` in `CreateUserData`.
-  - Set an organization's `provisioned_status` for its SSO and SCIM accounts.
+  - Set an organization's `provisioned_status` for its externally provisioned accounts.
   - Accept with `ApproveUserAction`, or turn down with `RejectUserAction` (which deactivates).
 - Events: every Action fires `RefactorCircus\Roster\Domains\{Domain}\Events\*ActionEvent` before (`...ingActionEvent`) and after (`...edActionEvent`); listen to `RefactorCircus\Keystone\Contracts\ActionStartingEvent` / `ActionFinishedEvent` (shared by every Refactor Circus package; Roster's events are under `RefactorCircus\Roster\`) to see every action. Each Action makes its writes in one transaction; finished events fire after it commits, so a write that rolls back (or an outer transaction that does) fires none. CSV steps fire `ImportValidating`/`Validated`, `ImportRowApplying`/`Applied`, `ExportBuilding`/`Built` and `TransferFinishing`/`Finished` action events too.
 - Model events: every model fires `{Entity}{Hook}Event` per Eloquent hook (`TeamCreatingEvent`, `OrganizationTrashedEvent`), implementing `RefactorCircus\Keystone\Contracts\ModelLifecycleEvent`; return `false` from a `creating`/`updating`/`saving`/`deleting` listener to stop the write.
-- Policies: every core model's policy is set in `roster.policies` (the SSO and SCIM domains register theirs with the Gate themselves; a `roster.policies` entry for one of their models still wins); swap one by pointing the model at your class (extend the bundled `Domains\{Domain}\Policies\*Policy`). Roster's API, MCP and Atrium checks ask the policy of the permission's resource (`roster.organizations.update` → `OrganizationModel` policy `update(?Model $user, ?Model $subject, ?Model $self)`, `roster.users.manage-status` → `UserModel` policy `manageStatus()`), so app `Gate::before` callbacks apply. Impersonation-blocked permissions are refused first.
+- Policies: every core model's policy is set in `roster.policies` (package resources register theirs with the Gate themselves; a `roster.policies` entry for one of their models still wins); swap one by pointing the model at your class (extend the bundled `Domains\{Domain}\Policies\*Policy`). Roster's API, MCP and Atrium checks ask the policy of the permission's resource (`roster.organizations.update` → `OrganizationModel` policy `update(?Model $user, ?Model $subject, ?Model $self)`, `roster.users.manage-status` → `UserModel` policy `manageStatus()`), so app `Gate::before` callbacks apply. Impersonation-blocked permissions are refused first.
 - HTTP routes are named `roster.users.*`, `roster.organizations.*`, `roster.invitations.*`; `{user}` is the user model's route key, organizations and teams use slugs.
 - Atrium (optional; without it the `atrium.roster.*` routes don't exist): Users at `atrium.roster.users.index`, Organizations at `atrium.roster.organizations.index`. Access uses Atrium's `viewAtrium` gate. Lists of organizations, roles, impersonations and transfers, asked without an `organization`, open to users holding the permission in any organization and hold only what falls within those (`Authorizer::organizationsWith()`); Atrium's navigation follows. Pages show only the controls the viewer may use and organization tabs need their own permission; published views use `@rosterCan($permission, $scope, $self)`, the same check the screens make. Hide it with `atrium.disabled => ['roster']`, or by feature flag through `roster.atrium.features` (navigation, widgets and search hide and pages 404 while a feature is off; Atrium's feature resolver, e.g. refactor-circus/pennantplus, decides). The default is `RefactorCircus\Roster\Atrium\Features\RosterSupportFeature`, a PennantPlus `OnLayeredFeature` checked globally only; subclass it to change its default, and it is skipped when refactor-circus/pennantplus is not installed.
 
@@ -299,9 +291,6 @@ In app tests, assert with `expect($user->rosterStatus())->toBe(UserStatus::Suspe
 - Publishing Roster's views to add a tab or section to a Roster screen; register it with `Atrium::screens()` instead.
 - Logging users in as someone else with `Auth::login()` for support. Use impersonation, which is time-limited, blocked from sensitive abilities, and audited.
 - Emailing or posting impersonation links. They only work in the impersonator's own browser.
-- Using multi-tenant Entra authorities (`common`, `organizations`) or the Entra `mail` attribute for identity. Roster refuses both.
-- Writing your own OIDC/SAML verification. Use Roster's connections, which verify tokens and assertions with proven libraries.
-- Storing or logging SCIM tokens. They are shown once; issue a new one and revoke the old if lost.
 - Checking roles by slug in app code (`hasRole('admin')`-style). Check permissions with `$user->can()` instead.
 - Writing `roster_role_assignments` rows directly, which skips the scope and escalation guards.
 - Changing `roster.users.key_type` after `roster_profiles` has been migrated.

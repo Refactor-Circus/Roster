@@ -97,7 +97,7 @@ it('documents screen extensions in the README and the Boost skill', function (st
         'roster.organization', 'roster.team', 'roster.roles', 'roster.role', 'roster.permissions',
         'roster.impersonations', 'roster.transfers', 'roster.transfer', 'roster.invitation',
     ];
-    $builtInTabs = ['members', 'teams', 'invitations', 'roles', 'sso', 'scim', 'settings', 'overview'];
+    $builtInTabs = ['members', 'teams', 'invitations', 'roles', 'settings', 'overview'];
     $slots = ['header.actions', 'before', 'after', 'aside', 'row.actions'];
     $records = ['OrganizationModel', 'TeamModel', 'roster.users.model', 'RoleModel', 'ImpersonationModel', 'TransferModel', 'InvitationModel'];
 

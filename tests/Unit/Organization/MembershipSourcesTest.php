@@ -65,7 +65,7 @@ it('rejects a value the source column cannot hold, naming it', function (string 
     'longer than 32 characters' => str_repeat('a', 33),
 ]);
 
-it('has the SCIM domain register scim with its label', function (): void {
-    expect(app(MembershipSources::class)->has('scim'))->toBeTrue()
-        ->and(app(MembershipSources::class)->label('scim'))->toBe('SCIM');
+it('no longer registers scim, and shows a stored scim as-is', function (): void {
+    expect(app(MembershipSources::class)->has('scim'))->toBeFalse()
+        ->and(app(MembershipSources::class)->label('scim'))->toBe('scim');
 });

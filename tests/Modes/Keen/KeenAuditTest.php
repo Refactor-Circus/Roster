@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use RefactorCircus\Keen\Domains\Audit\Models\AuditEntryModel;
 use RefactorCircus\Keystone\Audit\History;
@@ -14,10 +15,6 @@ use RefactorCircus\Roster\Domains\Role\Actions\UpdateRoleAction;
 use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
 use RefactorCircus\Roster\Domains\Role\Data\UpdateRoleData;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
-use RefactorCircus\Roster\Domains\Sso\Actions\CreateSsoConnectionAction;
-use RefactorCircus\Roster\Domains\Sso\Actions\UpdateSsoConnectionAction;
-use RefactorCircus\Roster\Domains\Sso\Data\CreateSsoConnectionData;
-use RefactorCircus\Roster\Domains\Sso\Data\UpdateSsoConnectionData;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\TransferContext;
@@ -31,8 +28,6 @@ use RefactorCircus\Roster\Facades\Roster;
 use RefactorCircus\Roster\Mcp\Tools\ListRosterHistoryTool;
 use RefactorCircus\Roster\Tests\Fixtures\Billing\InvoicePaidActionEvent;
 use RefactorCircus\Roster\Tests\Fixtures\Billing\InvoicePayingActionEvent;
-
-require_once dirname(__DIR__, 2).'/Feature/Scim/helpers.php';
 
 function keenEntry(string $action): AuditEntryModel
 {
@@ -94,38 +89,57 @@ it('diffs a role\'s permissions and a user\'s profile', function (): void {
     expect(keenEntry('profile.updated')->changes['profile.display_name'])->toBe([null, 'Countess']);
 });
 
-it('redacts passwords and connection secrets', function (): void {
+it('redacts passwords', function (): void {
     $ada = user(['name' => 'Ada']);
     app(UpdateUserAction::class)->execute($ada, new UpdateUserData(password: 'correct-horse-battery'));
 
     expect(keenEntry('user.updated')->changes['password'] ?? null)->toBe(['[redacted]', '[redacted]']);
 
-    $connection = app(CreateSsoConnectionAction::class)->execute(organization(), new CreateSsoConnectionData(
-        name: 'Okta',
-        protocol: 'oidc',
-        issuer: 'https://idp.test',
-        clientId: 'app',
-        clientSecret: 'top-secret',
-    ));
-    app(UpdateSsoConnectionAction::class)->execute($connection, new UpdateSsoConnectionData(clientSecret: 'rotated'));
-
     $log = json_encode(AuditEntryModel::query()->get()->toArray());
 
-    expect($log)->not->toContain('top-secret')
-        ->and($log)->not->toContain('rotated')
-        ->and($log)->not->toContain('correct-horse-battery')
-        ->and(keenEntry('sso_connection.updated')->changes['config'][1]['client_secret'])->toBe('[redacted]');
+    expect($log)->not->toContain('correct-horse-battery');
 });
 
-it('records SCIM changes with the token that made them, through the scim surface', function (): void {
-    [, $this->scimToken] = scimOrg();
+it('adds no scim_token context to Roster\'s entries, but still its other context', function (): void {
+    $admin = user(['name' => 'Admin']);
+    grant($admin, 'super-admin');
+    $ada = user(['name' => 'Ada']);
+    grant($ada, 'super-admin');
+    $grace = user(['name' => 'Grace']);
 
-    scim('POST', '/Users', oktaUser())->assertCreated();
+    $this->actingAs($admin);
+    $started = app(StartImpersonationAction::class)->execute($ada, new StartImpersonationData(reason: 'Ticket 42'), $admin);
+    $this->get($started->url);
 
-    $entry = keenEntry('user.created');
+    app(SuspendUserAction::class)->execute($grace, new SuspendUserData(reason: 'Spam'));
 
-    expect($entry->surface)->toBe('scim')
-        ->and($entry->context['scim_token']['name'])->toBe('Okta');
+    $context = keenEntry('user.suspended')->context;
+
+    // The positive control: the impersonator context lands on the same entry.
+    expect($context)->toHaveKey('impersonator')
+        ->and($context['impersonator'])->toBe(['id' => (string) $admin->getKey(), 'label' => 'Admin'])
+        ->and($context)->not->toHaveKey('scim_token');
+});
+
+it('leaves an old entry\'s scim_token context as written, and still serves it', function (): void {
+    app(SuspendUserAction::class)->execute(user(['name' => 'Grace']));
+    $entry = keenEntry('user.suspended');
+
+    // Written by an older Roster, whose SCIM domain added the token.
+    DB::table($entry->getTable())->where('id', $entry->getKey())->update([
+        'context' => json_encode([...(array) $entry->context, 'scim_token' => ['id' => 7, 'name' => 'Okta']]),
+    ]);
+
+    expect(keenEntry('user.suspended')->context['scim_token'] ?? null)->toBe(['id' => 7, 'name' => 'Okta']);
+
+    $this->getJson(route('roster.history.index'))
+        ->assertOk()
+        ->assertJsonPath('data.0.action', 'user.suspended');
+
+    grant($auditor = user(), 'super-admin');
+    $this->actingAs($auditor);
+
+    mcpTool(ListRosterHistoryTool::class)->assertOk()->assertSee('user.suspended');
 });
 
 it('records the import a change came from', function (): void {

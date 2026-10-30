@@ -2,9 +2,6 @@
 
 declare(strict_types=1);
 
-require_once __DIR__.'/Scim/helpers.php';
-require_once __DIR__.'/Sso/helpers.php';
-
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -18,7 +15,6 @@ use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\User\Actions\DeleteUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\PurgeUserAction;
 use RefactorCircus\Roster\Roster;
@@ -38,21 +34,18 @@ it('stops a deleted user signing in, and keeps them out of member lists', functi
 });
 
 it('turns a deleted organization off everywhere until it is restored', function (): void {
-    [$acme, $token] = scimOrg();
+    $acme = organization(attributes: ['name' => 'Acme', 'domains' => ['acme.test']]);
     $acme->update(['auto_join' => true]);
     $member = user(['email' => 'member@example.com']);
     app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $member->getRouteKey()));
     app(SwitchContextAction::class)->execute($member, new SwitchContextData(organization: 'acme'));
-    SsoConnectionModel::factory()->create(['organization_id' => $acme->id, 'slug' => 'acme-okta']);
 
     app(DeleteOrganizationAction::class)->execute($acme);
     app()->forgetScopedInstances();
 
     $this->actingAs(user())->getJson(route('roster.organizations.show', 'acme'))->assertNotFound();
-    $this->getJson('/scim/v2/acme/Users', ['Authorization' => 'Bearer '.$token])->assertUnauthorized();
 
-    expect(SsoConnectionModel::query()->where('slug', 'acme-okta')->exists())->toBeFalse()
-        ->and(app(Roster::class)->organization($member->fresh()))->toBeNull()
+    expect(app(Roster::class)->organization($member->fresh()))->toBeNull()
         ->and(app(JoinOrganizationsByDomainAction::class)->execute(user(['email' => 'new@acme.test', 'email_verified_at' => now()])))->toHaveCount(0);
 
     // Its slug and domains stay reserved.
@@ -63,7 +56,6 @@ it('turns a deleted organization off everywhere until it is restored', function 
     app()->forgetScopedInstances();
 
     expect(app(Roster::class)->organization($member->fresh())?->slug)->toBe('acme');
-    $this->getJson('/scim/v2/acme/Users', ['Authorization' => 'Bearer '.$token])->assertOk();
 });
 
 it('only purges deleted records', function (): void {
