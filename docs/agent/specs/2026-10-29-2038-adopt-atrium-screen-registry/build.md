@@ -57,3 +57,21 @@ Declare every screen on Atrium's registry (criteria 1 to 6, 9, 10). The first bu
 ### Left
 
 - 2.3: run `vendor/bin/pest` and `composer test:browser` (not run here; the gate runs the suite).
+
+## Group 2
+
+Retry that finishes task 2.3 on top of the salvaged commit (`e10f7f0`).
+
+### Files
+
+- `docs/agent/specs/2026-10-29-2038-adopt-atrium-screen-registry/tasks.md`: 2.3 ticked.
+- No code changes. The salvaged work above stays as is. A check of `src`, `resources/views` and `tests` found the deleted `Tabs`, `TabDefinition`, `TabVisibility`, `partials.tabs` and `registered-tab` named only in `tests/ArchTest.php`'s absence and scan tests.
+
+### Tests
+
+- 2.3 (`vendor/bin/pest`, `composer test:browser`): not run here, as instructed; the gate runs the suite after the build.
+
+### Deviations
+
+- None beyond those listed in "Group 2 (salvaged)". `composer.json` and `composer.local.json` were not touched: the Atrium move and its `<0.1.0` conflict belong to Group 3, and `composer.local.json` must be edited by hand, never regenerated.
+- `AGENTS.md` has an uncommitted change from a Ringside sync (the "Keep this checkout on `main`" line). It was left out of this commit.

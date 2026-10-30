@@ -18,7 +18,7 @@ criteria: 1, 2, 3, 4, 5, 6, 9, 10
 
 - [x] 2.1 Write tests for criteria 1 to 6, 9 and 10 (criterion 6's reserved-key case for keys the viewer may not open is Group 5): `ScreenDeclarationsTest` dataset over the 13 screens and their slots; `ScreenAccessOnTest` with one allowed/denied case per record row, null organization and null requester, eager-loading query counts and the `aside` and `row.actions` permission sections; the refused-viewer dataset and deleted-record counting closures; the order-independent reset tests in `Feature` and `Authorization`; class/view absence and the file-content scan in `ArchTest`; rewrite `OrganizationTabBarTest`, `OrganizationRegisteredTabsTest`, `UserRegisteredTabsTest`, `SharedTabBarTest` and `UserPagesTest` to register through `Atrium::screens()->tab()` keeping every PR #5 case listed in criterion 10
 - [x] 2.2 Delete `Tabs`, `TabDefinition`, `TabVisibility`, both partials, their bindings and the three unit tests; add `ScreenAccess::allowsOn()` and the `screen()` helper on `AuthorizesScreens`; make each controller in the criterion 3 table build `Screen::standard()`, resolve after its own authorization, choose data by `$resolved->openTab` and pass `resolved`; render `x-atrium::screen-tabs`, `screen-tab-panel` and every declared slot in each view as Design describes; eager-load the list relations; apply `ResetsScreenExtensions` in `tests/Pest.php` behind `trait_exists()`
-- [ ] 2.3 Run vendor/bin/pest and composer test:browser; all green
+- [x] 2.3 Run vendor/bin/pest and composer test:browser; all green
 
 ## Group 3: Atrium optional, with Roster's Atrium seam
 package: Roster
