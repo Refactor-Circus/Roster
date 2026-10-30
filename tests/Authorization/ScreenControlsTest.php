@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 require_once __DIR__.'/fixtures.php';
 
-use RefactorCircus\Keystone\Audit\Contracts\AuditTrail;
-use RefactorCircus\Keystone\Audit\Data\AuditFilter;
-use RefactorCircus\Keystone\Audit\Data\AuditPage;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use Workbench\App\Models\User;
@@ -133,13 +130,13 @@ it('lists only the organization tabs the viewer may open', function (): void {
         ->assertSee(testId('tab-members'), false)
         ->assertSee(testId('tab-settings'), false)
         ->assertDontSee(testId('tab-scim'), false)
-        ->assertDontSee(testId('tab-activity'), false)
         ->assertDontSee(testId('tab-roles'), false)
         ->assertDontSee(testId('add-member'), false)
         ->assertDontSee(testId('remove-member'), false);
 
     $this->actingAs($viewer)->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'scim']))->assertForbidden();
-    $this->actingAs($viewer)->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'activity']))->assertForbidden();
+    // Activity is no longer a built-in tab: the old link opens the default tab.
+    $this->actingAs($viewer)->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'activity']))->assertOk();
 });
 
 it('opens on the first tab the viewer may see', function (): void {
@@ -216,24 +213,4 @@ it('shows roles and permissions read only to those who may not manage them', fun
         ->assertOk()
         ->assertDontSee(testId('new-permission-card'), false)
         ->assertDontSee('name="description"', false);
-});
-
-it('shows a record\'s history only to those who may read the audit log', function (): void {
-    app()->instance(AuditTrail::class, new class implements AuditTrail
-    {
-        public function available(): bool
-        {
-            return true;
-        }
-
-        public function entries(AuditFilter $filter): AuditPage
-        {
-            return new AuditPage;
-        }
-    });
-    $world = authorizationWorld();
-    $page = route('atrium.roster.users.show', $world['target']->getRouteKey());
-
-    $this->actingAs(viewer(['roster.users.view']))->get($page)->assertOk()->assertDontSee(testId('audit-trail'), false);
-    $this->actingAs(viewer(['roster.users.view', 'roster.audit.view']))->get($page)->assertOk()->assertSee(testId('audit-trail'), false);
 });

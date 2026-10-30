@@ -416,13 +416,9 @@ return [
     'delete_organization_soft_warning' => 'Deleting this organization switches it off - its members lose access, and its SSO, SCIM and auto-join stop - but keeps everything (and its slug and domains) so it can be restored from Organizations → Deleted. Deleting permanently there (or the scheduled purge) removes it all for good.',
     'delete_organization_soft_confirm' => 'I understand this organization will be deleted',
 
-    'mcp' => 'MCP domains',
-    'redirect_domains' => 'MCP redirect domains',
-    'redirect_domains_hint' => 'Origins MCP clients may send people back to after they sign in, such as https://claude.ai. Any MCP client may register on them; each person still approves the client.',
     'redirect_domain_input_hint' => 'A host, origin or full redirect URL; only the origin is kept.',
     'domain' => 'Domain',
     'add_domain' => 'Add domain',
-    'no_redirect_domains' => 'No MCP redirect domains.',
     'redirect_domain_added' => 'MCP redirect domain added.',
     'redirect_domain_removed' => 'MCP redirect domain removed.',
 ];

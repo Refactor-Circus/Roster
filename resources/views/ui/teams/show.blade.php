@@ -71,9 +71,5 @@
             @endrosterCan
         </x-atrium::card>
         @endrosterCan
-
-        @rosterCan('roster.audit.view', $team)
-        <x-atrium::audit-trail source="roster" :subject="$team" class="lg:col-span-2" />
-        @endrosterCan
     </div>
 </x-atrium::layout>

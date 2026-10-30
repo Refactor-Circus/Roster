@@ -211,10 +211,6 @@
     </x-atrium::card>
     @endrosterCan
 
-    @rosterCan('roster.audit.view', null, $user)
-    <x-atrium::audit-trail source="roster" :subject="$user" class="lg:col-span-2" />
-    @endrosterCan
-
     @rosterCan('roster.users.impersonate')
         <x-atrium::card :title="__('roster::roster.impersonate')" class="lg:col-span-2" data-testid="impersonate-card">
             <form method="POST" action="{{ route('atrium.roster.users.impersonate', $user->getRouteKey()) }}" class="flex flex-wrap items-start gap-2">
@@ -243,19 +239,6 @@
                     </li>
                 @endforeach
             </ul>
-        </x-atrium::card>
-    @endif
-
-    @if ($redirectDomains !== null)
-        <x-atrium::card :title="__('roster::roster.redirect_domains')" class="lg:col-span-2" data-testid="redirect-domains-card">
-            <div class="flex flex-col gap-3">
-                @include('roster::ui.partials.redirect-domains', [
-                    'domains' => $redirectDomains,
-                    'manage' => \RefactorCircus\Roster\Atrium\ScreenAccess::allows('roster.users.update'),
-                    'storeRoute' => route('atrium.roster.users.redirect-domains.store', $user->getRouteKey()),
-                    'destroyRoute' => fn ($domain) => route('atrium.roster.users.redirect-domains.destroy', [$user->getRouteKey(), $domain->id]),
-                ])
-            </div>
         </x-atrium::card>
     @endif
 

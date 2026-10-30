@@ -45,7 +45,6 @@
             'effective' => $effective,
             'assignableRoles' => $assignableRoles,
             'ssoIdentities' => $ssoIdentities,
-            'redirectDomains' => $redirectDomains,
         ])
     @endif
 </x-atrium::layout>

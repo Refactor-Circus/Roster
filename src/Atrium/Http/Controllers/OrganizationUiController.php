@@ -7,9 +7,7 @@ namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use RefactorCircus\Cortex\Domains\RedirectDomain\Actions\ListRedirectDomainsAction;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
-use RefactorCircus\Roster\Atrium\RedirectDomains;
 use RefactorCircus\Roster\Atrium\ScreenAccess;
 use RefactorCircus\Roster\Atrium\TabDefinition;
 use RefactorCircus\Roster\Atrium\Tabs;
@@ -48,7 +46,6 @@ use RefactorCircus\Roster\Domains\Sso\Actions\ListSsoConnectionsAction;
 use RefactorCircus\Roster\Domains\Sso\Data\ListSsoConnectionsData;
 use RefactorCircus\Roster\Domains\Team\Actions\ListTeamsAction;
 use RefactorCircus\Roster\Domains\Team\Data\ListTeamsData;
-use RefactorCircus\Roster\Roster;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -61,11 +58,9 @@ final class OrganizationUiController
     use AuthorizesScreens;
 
     /**
-     * Each built-in tab (`Tabs::ORGANIZATION_TABS`, in that order) and the
-     * permission, in the organization, that opens it. The activity tab shows
-     * the organization's history from the audit log, so it is offered only
-     * while one (refactor-circus/keen) is installed; the MCP tab holds redirect
-     * domains Cortex keeps, so only while refactor-circus/cortex is.
+     * Each built-in tab, in order, and the permission, in the organization,
+     * that opens it. Other packages' tabs (Keen's history, Cortex's MCP
+     * domains) are theirs to register.
      */
     private const array TAB_PERMISSIONS = [
         'members' => 'roster.members.view',
@@ -74,8 +69,6 @@ final class OrganizationUiController
         'roles' => 'roster.roles.view',
         'sso' => 'roster.sso.view',
         'scim' => 'roster.scim.manage',
-        'mcp' => 'roster.organizations.update',
-        'activity' => 'roster.audit.view',
         'settings' => 'roster.organizations.view',
     ];
 
@@ -134,8 +127,7 @@ final class OrganizationUiController
         $model = app(ShowOrganizationAction::class)->execute($model);
 
         // Only the tabs the viewer may open here; asking for another is refused.
-        $tabs = array_values(array_filter(Tabs::ORGANIZATION_TABS, fn (string $tab): bool => $this->offers($tab)
-            && ScreenAccess::allows(self::TAB_PERMISSIONS[$tab], $model)));
+        $tabs = array_keys(array_filter(self::TAB_PERMISSIONS, fn (string $permission): bool => ScreenAccess::allows($permission, $model)));
         // A string only: ?tab[]=x and the like count as no tab.
         $requested = $request->query('tab');
         $requested = is_string($requested) ? $requested : null;
@@ -193,7 +185,6 @@ final class OrganizationUiController
                     'scimTokens' => app(ListScimTokensAction::class)->execute($model, new ListScimTokensData(perPage: 25, page: $page))->withQueryString(),
                     'ssoConnections' => app(ListSsoConnectionsAction::class)->execute(new ListSsoConnectionsData(organization: $model, perPage: 100)),
                 ],
-                'mcp' => ['redirectDomains' => app(ListRedirectDomainsAction::class)->execute($model)],
                 default => [],
             },
         ]);
@@ -297,19 +288,6 @@ final class OrganizationUiController
         return redirect()
             ->route('atrium.roster.organizations.index', ['trashed' => 'only'])
             ->with('status', __('roster::roster.organization_purge_queued'));
-    }
-
-    /**
-     * Whether a tab's package is installed: the audit log for activity,
-     * Cortex for MCP redirect domains.
-     */
-    private function offers(string $tab): bool
-    {
-        return match ($tab) {
-            'activity' => app(Roster::class)->auditing(),
-            'mcp' => RedirectDomains::available(),
-            default => true,
-        };
     }
 
     private function backTo(OrganizationModel $organization, string $tab, string $message): RedirectResponse

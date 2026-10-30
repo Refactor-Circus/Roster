@@ -99,3 +99,49 @@ arch('tables are named through Tables, never as literals')
         array_values(array_diff(Tables::DEFAULTS, ['users'])),
     ))
     ->toBeEmpty();
+
+/**
+ * Every file under these package folders whose content contains one of the
+ * strings, as "path: string".
+ *
+ * @param  array<int, string>  $folders
+ * @param  array<int, string>  $needles
+ * @return array<int, string>
+ */
+function rosterFilesContaining(array $folders, array $needles): array
+{
+    $found = [];
+
+    foreach ($folders as $folder) {
+        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__.'/../'.$folder, FilesystemIterator::SKIP_DOTS));
+
+        foreach ($files as $file) {
+            /** @var SplFileInfo $file */
+            $content = (string) file_get_contents($file->getPathname());
+
+            foreach ($needles as $needle) {
+                if (str_contains($content, $needle)) {
+                    $found[] = str_replace(__DIR__.'/../', '', $file->getPathname()).': '.$needle;
+                }
+            }
+        }
+    }
+
+    return $found;
+}
+
+arch('Roster uses nothing from Cortex: Cortex registers its own screens')
+    ->expect('RefactorCircus\Cortex')
+    ->not->toBeUsedIn('RefactorCircus\Roster');
+
+arch('Roster ships no redirect-domains UI')
+    ->expect(fn (): array => rosterFilesContaining(['src', 'resources'], ['redirect-domains', 'RedirectDomain']))
+    ->toBeEmpty();
+
+arch('Roster ships no audit trail or history navigation')
+    ->expect(fn (): array => rosterFilesContaining(['src', 'resources'], ['historyNavItem', 'audit-trail']))
+    ->toBeEmpty();
+
+arch('no Roster view renders an Atrium audit component')
+    ->expect(fn (): array => rosterFilesContaining(['resources/views'], ['x-atrium::audit']))
+    ->toBeEmpty();

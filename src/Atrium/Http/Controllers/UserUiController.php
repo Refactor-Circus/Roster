@@ -10,9 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use RefactorCircus\Cortex\Domains\RedirectDomain\Actions\ListRedirectDomainsAction;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
-use RefactorCircus\Roster\Atrium\RedirectDomains;
 use RefactorCircus\Roster\Atrium\TabDefinition;
 use RefactorCircus\Roster\Atrium\Tabs;
 use RefactorCircus\Roster\Atrium\TabVisibility;
@@ -324,8 +322,6 @@ final class UserUiController
                 ->orderBy('name')
                 ->get(),
             'ssoIdentities' => app(ListSsoIdentitiesAction::class)->execute(new ListSsoIdentitiesData(user: $model, perPage: 50)),
-            // The user's MCP redirect domains, while Cortex keeps them.
-            'redirectDomains' => RedirectDomains::available() ? app(ListRedirectDomainsAction::class)->execute($model) : null,
         ];
     }
 
