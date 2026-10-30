@@ -7,3 +7,27 @@ standards:
     version: dev-main
     reference: a5b675396232
 review_passes: 1
+# Criterion 21: hard merge blockers. This PR removes the activity and MCP tabs,
+# the redirect-domains UI and the audit trails in one step, so it must not merge
+# ahead of these; each must be merged first or ship in the same release train.
+blockers:
+  - package: Atrium
+    spec: 2026-10-29-2037-screen-extensions-registry
+    what: 'Screen extensions registry (Atrium PR #16)'
+    pr: 'https://github.com/Refactor-Circus/Atrium/pull/16'
+    status: 'open (2026-10-30)'
+  - package: Atrium
+    spec: 2026-10-29-2037-screen-extensions-registry
+    what: 'Screen::reserve() for built-in keys the viewer may not open (criterion 6, D-031)'
+    pr: 'https://github.com/Refactor-Circus/Atrium/pull/16'
+    status: 'on the PR #16 branch (commit 797d3e3), open (2026-10-30)'
+  - package: Cortex
+    spec: 2026-10-29-2038-register-roster-redirect-domains
+    what: 'Cortex registers the MCP tab and redirect domains on Roster screens'
+    pr: null
+    status: 'building on its job branch, no PR yet (2026-10-30)'
+  - package: Keen
+    spec: 2026-10-29-2038-history-section-by-capability
+    what: 'Keen registers the history section on Roster screens'
+    pr: 'https://github.com/Refactor-Circus/Keen/pull/8'
+    status: 'open (2026-10-30)'

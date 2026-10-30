@@ -35,6 +35,7 @@ php artisan vendor:publish --tag="roster-migrations"
 php artisan migrate
 ```
 
+- The Atrium dashboard is optional: `composer require refactor-circus/atrium` (v0.1.0 or later) for Roster's admin screens. The Actions, HTTP API, MCP server, invitation page and impersonation banner work without it.
 - Set `roster.users.key_type` (`int` | `ulid` | `uuid`) **before** migrating; it decides the type of the `roster_profiles.user_id` column.
 - If the users table uses other column names, set `roster.users.columns` (`name`, `email`, `password`; set `name` to `null` if there is none).
 - Rename any table under `roster.tables` (`organizations`, `memberships`, `team_members`, `permission_role`, ...) **before** migrating; migrations, models, rules and queries read the same keys. Never hard-code `roster_*` names: use the models, or `RefactorCircus\Roster\Support\Tables::name('memberships')`.
@@ -73,7 +74,7 @@ php artisan migrate
 
 - Roster has no audit log or audit code of its own. Install refactor-circus/keen (`composer require refactor-circus/keen`, `php artisan migrate`) and Keen records every Roster change, labelled, diffed (profile fields, role permissions, organization domains), scoped to its organization, and with the impersonator, import or SCIM token in its context. Without Keen there is no history anywhere in Roster.
 - Turn it off with `roster.audit.enabled => false` (Keen then records nothing of Roster's). `Roster::auditing()` says whether Roster audits now.
-- While it does, read history in Keen, on each Roster user, team and role page and the organization Activity tab (`roster.audit.view` in scope), or through `GET /roster/history` and `list-roster-history-tool` (global `roster.audit.view`). Roster defines the `viewAuditLog` Gate ability as global `roster.audit.view` unless the app defines it.
+- While it does, read history in Keen (which adds it to Roster's Atrium screens through Atrium's screen extensions; Roster renders none itself), or through `GET /roster/history` and `list-roster-history-tool` (global `roster.audit.view`). Roster defines the `viewAuditLog` Gate ability as global `roster.audit.view` unless the app defines it.
 - Record the app's own events with Keen: `Keen::record('invoice.paid')->on($model)->in($organization)->with([...])->save();`. Add app secrets to `keen.redact`.
 
 ### 7. Organizations from external systems
@@ -100,7 +101,7 @@ php artisan migrate
 
 - Grant `roster.users.impersonate` explicitly. Start with `StartImpersonationAction($user, new StartImpersonationData(reason: ...), actor: $admin)` and redirect the impersonator's browser to `$started->url`.
 - Schedule `roster:end-expired-impersonations` (every five minutes) so sessions the impersonator abandons, and unused links, are ended as `expired` on the record.
-- Add `@include('roster::impersonation-banner')` to the app layout (Atrium's standalone banner, styled inline). List app abilities that must never run while impersonating in `roster.impersonation.blocked` (wildcards allowed).
+- Add `@include('roster::impersonation-banner')` to the app layout (Atrium's standalone banner when Atrium is installed, a plain one otherwise; both styled inline). List app abilities that must never run while impersonating in `roster.impersonation.blocked` (wildcards allowed).
 - Use `app(RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext::class)->active()` to detect an impersonated request.
 
 ### 11. CSV import and export
@@ -118,28 +119,31 @@ php artisan migrate
 - Add `roster.active` middleware to routes only active users may use, and `roster.organization` to routes that need a tenant.
 - The HTTP API (`roster.routes.enabled`) and MCP (`roster.mcp.web.enabled`, `roster.mcp.local.enabled`) are off by default and do **no authorization** themselves. Only enable them with auth plus admin-only middleware in the `middleware` config.
 
-### 13. Registered tabs
+### 13. Screen extensions
 
-- Add the app's own tabs to Roster's Atrium organization and user screens from a service provider's `boot()` (never `register()`, middleware or controllers: the registry lives for the whole process):
+- Atrium is optional (`composer require refactor-circus/atrium` for the screens). Every Roster dashboard screen declares itself with `Screen::standard()` on Atrium's screen extensions registry; add tabs and sections to it with `Atrium::screens()` from a service provider's `boot()` (never `register()`, middleware or controllers: the registry lives for the whole process), behind `class_exists(Atrium::class)`. Atrium's README ("Screen extensions") has the full rules.
 
 ```php
-use RefactorCircus\Roster\Atrium\{TabDefinition, Tabs};
+use RefactorCircus\Atrium\Domains\Screens\Data\{Screen, SectionDefinition, TabDefinition};
+use RefactorCircus\Atrium\Facades\Atrium;
 
-app(Tabs::class)
-    ->organization(TabDefinition::make('acme.orders')->label('Orders')->icon('shopping-cart')
+Atrium::screens()
+    ->tab('roster.organization', TabDefinition::make('acme.orders')->label('Orders')->icon('shopping-cart')
         ->view('acme::roster.orders')
-        ->resolve(fn (OrganizationModel $organization): array => ['orders' => Order::where('organization_id', $organization->getKey())->get()])
-        ->permission('orders.view'))
-    ->user(TabDefinition::make('acme.devices')->label('Devices')->component('acme::user-devices')
-        ->authorize(fn (Request $request, Model $user): bool => $request->user()?->is($user) === true));
+        ->permission('orders.view')
+        ->resolve(fn (?Model $organization, Screen $screen): array => ['orders' => Order::where('organization_id', $organization?->getKey())->get()]))
+    ->section('roster.user', 'aside', SectionDefinition::make('acme.devices')->component('acme::user-devices')
+        ->authorize(fn (Request $request, ?Model $user, Screen $screen): bool => $request->user()?->is($user) === true));
 ```
 
-- Keys: lowercase letters, digits, `.`, `-`, `_`. Use `vendor.key` (`acme.orders`): new built-in keys may arrive in minor releases, and built-in keys (`Tabs::ORGANIZATION_TABS`, `overview` on users) or a duplicate key throw `InvalidArgumentException`. Each tab needs a `view()` or a `component()`.
-- Visibility is default-deny: give a `permission()` (checked in the organization, or for the user, like the built-in tabs), an `authorize(fn (Request, Model $record): bool)` closure (both must pass when both are set), or `public()` (anyone who may open the screen; only for data no more sensitive than the screen). A hidden tab's `?tab=` answers 403.
-- `authorize` closures run on every render, for any request method: keep them cheap and non-throwing (a throwing one hides the tab and is reported). The resolver runs only for the open tab, after access checks; its errors, and view errors, surface as page errors. A missing view or component fails only when the tab is opened.
-- A view gets the resolver's data under Roster's variables (`organization` / `user`, `tab`, `tabs`, `registeredTab`, `errors`, which always win; don't return those or `__env`, `app`, `loop`); a component gets the record prop and one `data` prop.
-- On the user screen the tab bar, with an `overview` tab holding the existing page, appears only while a registered tab is visible. Apps that published `roster-views` must re-publish or merge them to get registered tabs.
-- In tests, `app(Tabs::class)->flush()` forgets every registered tab; there is no unregistering at runtime.
+- Screen keys (list screens have the slots `header.actions`, `before`, `after` and the row slot `row.actions`; detail screens `header.actions`, `before`, `after` and `aside`):
+  - list: `roster.users`, `roster.organizations`, `roster.roles`, `roster.permissions`, `roster.impersonations`, `roster.transfers` (no record; each row is the row slot's `$record`)
+  - detail without a record: `roster.user-create`, `roster.organization-create`
+  - detail with a record: `roster.user` (the user), `roster.organization` (the organization), `roster.team` (the team), `roster.role` (the role), `roster.transfer` (the transfer), `roster.invitation` (the invitation page)
+- Built-in tabs: `overview` on every screen but the organization (the tab bar shows only once a registered tab is visible); on `roster.organization`, `members`, `teams`, `invitations`, `roles`, `sso`, `scim`, `settings`, each shown only with its permission in the organization, the first shown being the default. All seven are reserved for every viewer: a registered tab with one of those keys is skipped and reported. Use `vendor.key` (`acme.orders`) keys.
+- `permission()` extensions are checked by `ScreenAccess::allowsOn($permission, $record)`: `OrganizationModel` / `TeamModel` in that scope; the configured `roster.users.model` about that user; `RoleModel`, `ImpersonationModel` and `InvitationModel` in `$record->organization` (globally without one); `TransferModel` in `$record->organization` about `$record->requester`; no record (list and create screens) without a scope; any other model is refused.
+- Visibility is default-deny: `permission()`, an `authorize(fn (Request, ?Model, Screen): bool)` closure (both must pass when both are set), or `public()`. A hidden tab's `?tab=` answers 403; an unknown key, including the old `activity` and `mcp`, opens the default tab. Roster authorizes the screen first, so your closures never run for a refused viewer or on deleted pages.
+- A view gets the resolver's data with Atrium's `screen`, `record` and `tab` over it; a component gets one `data` prop. In tests use `RefactorCircus\Atrium\Testing\ResetsScreenExtensions`. Apps that published `roster-views` must re-publish them.
 
 ## Rules, References, and Templates
 
@@ -158,7 +162,7 @@ app(Tabs::class)
 - Model events: every model fires `{Entity}{Hook}Event` per Eloquent hook (`TeamCreatingEvent`, `OrganizationTrashedEvent`), implementing `RefactorCircus\Keystone\Contracts\ModelLifecycleEvent`; return `false` from a `creating`/`updating`/`saving`/`deleting` listener to stop the write.
 - Policies: every model's policy is set in `roster.policies`; swap one by pointing the model at your class (extend the bundled `Domains\{Domain}\Policies\*Policy`). Roster's API, MCP and Atrium checks ask the policy of the permission's resource (`roster.organizations.update` → `OrganizationModel` policy `update(?Model $user, ?Model $subject, ?Model $self)`, `roster.users.manage-status` → `UserModel` policy `manageStatus()`), so app `Gate::before` callbacks apply. Impersonation-blocked permissions are refused first.
 - HTTP routes are named `roster.users.*`, `roster.organizations.*`, `roster.invitations.*`; `{user}` is the user model's route key, organizations and teams use slugs.
-- Atrium: Users at `atrium.roster.users.index`, Organizations at `atrium.roster.organizations.index`. Access uses Atrium's `viewAtrium` gate. Lists of organizations, roles, impersonations and transfers, asked without an `organization`, open to users holding the permission in any organization and hold only what falls within those (`Authorizer::organizationsWith()`); Atrium's navigation follows. Pages show only the controls the viewer may use and organization tabs need their own permission; published views use `@rosterCan($permission, $scope, $self)`, the same check the screens make. Hide it with `atrium.disabled => ['roster']`, or by feature flag through `roster.atrium.features` (navigation, widgets and search hide and pages 404 while a feature is off; Atrium's feature resolver, e.g. refactor-circus/pennantplus, decides). The default is `RefactorCircus\Roster\Atrium\Features\RosterSupportFeature`, a PennantPlus `OnLayeredFeature` checked globally only; subclass it to change its default, and it is skipped when refactor-circus/pennantplus is not installed.
+- Atrium (optional; without it the `atrium.roster.*` routes don't exist): Users at `atrium.roster.users.index`, Organizations at `atrium.roster.organizations.index`. Access uses Atrium's `viewAtrium` gate. Lists of organizations, roles, impersonations and transfers, asked without an `organization`, open to users holding the permission in any organization and hold only what falls within those (`Authorizer::organizationsWith()`); Atrium's navigation follows. Pages show only the controls the viewer may use and organization tabs need their own permission; published views use `@rosterCan($permission, $scope, $self)`, the same check the screens make. Hide it with `atrium.disabled => ['roster']`, or by feature flag through `roster.atrium.features` (navigation, widgets and search hide and pages 404 while a feature is off; Atrium's feature resolver, e.g. refactor-circus/pennantplus, decides). The default is `RefactorCircus\Roster\Atrium\Features\RosterSupportFeature`, a PennantPlus `OnLayeredFeature` checked globally only; subclass it to change its default, and it is skipped when refactor-circus/pennantplus is not installed.
 
 ## Examples
 
@@ -210,7 +214,7 @@ In app tests, assert with `expect($user->rosterStatus())->toBe(UserStatus::Suspe
 - Expecting an audit trail without refactor-circus/keen installed; Roster records nothing on its own.
 - Putting secrets in `Keen::record()->with()` without listing their keys in `keen.redact`.
 - Styling Roster's views with `<style>`, `style=` or classes outside Atrium's safelist; publish and use Atrium components instead.
-- Publishing Roster's views to add a tab to the organization or user screen; register it on `Tabs` instead.
+- Publishing Roster's views to add a tab or section to a Roster screen; register it with `Atrium::screens()` instead.
 - Logging users in as someone else with `Auth::login()` for support. Use impersonation, which is time-limited, blocked from sensitive abilities, and audited.
 - Emailing or posting impersonation links. They only work in the impersonator's own browser.
 - Using multi-tenant Entra authorities (`common`, `organizations`) or the Entra `mail` attribute for identity. Roster refuses both.

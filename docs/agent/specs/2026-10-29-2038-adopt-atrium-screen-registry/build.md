@@ -124,3 +124,31 @@ This retry finishes task 3.3 on top of the salvaged commit (`bb8e60a`).
 
 - None beyond those listed in "Group 3 (salvaged)".
 - `AGENTS.md` still has an uncommitted change from a Ringside sync. It was left out of this commit.
+
+## Group 4
+
+Documentation and merge gate (criteria 18 to 21).
+
+### Files
+
+- `README.md`: "Registered tabs" replaced by "Screen extensions" (under "Atrium dashboard"): a registration example with `Atrium::screens()->tab('roster.organization', …)`, `->section('roster.user', 'aside', …)` and a `row.actions` section; the table of the 13 screen keys of criterion 3 plus `roster.invitation`, with page, kind, record and slots; the built-in tabs (`overview`; the organization's seven, all reserved for every viewer); the `ScreenAccess::allowsOn()` mapping of criterion 4; rendering, testing (`ResetsScreenExtensions`) and re-publish notes; a pointer to Atrium's README. "MCP redirect domains" removed (one line under "Cortex" says Cortex adds its own screens). Installation says Atrium is optional (`composer require refactor-circus/atrium`, v0.1.0 or later, `atrium.roster.*` routes absent without it). The intro, invitation, banner, "Reading it" and "Atrium dashboard" text no longer promise history, activity tabs or Atrium-only views. "Testing" gives the without-Atrium lane's commands in a scratch worktree (criterion 15's proof).
+- `resources/boost/skills/roster-development/SKILL.md`: "13. Registered tabs" replaced by "13. Screen extensions" with the same facts; Atrium optional in "Install and configure"; auditing, banner, Atrium rule and the `Tabs` anti-pattern updated.
+- `CLAUDE.md` (a symlink; the edit is in `AGENTS.md`, its target): the `audit-trail` and `RedirectDomains` lines are gone; new lines say Atrium is optional (the seam, `$withoutAtrium`, the conflict, the AtriumUnavailable mode) and that screens declare themselves with `Screen::standard()` through `AuthorizesScreens::screen()` and `ScreenAccess::allowsOn()`; the plain-view exception is named.
+- `CHANGELOG.md`: the Unreleased "Breaking" section opens with the upgrade note of criterion 19: "Roster no longer requires `refactor-circus/atrium`; require it to keep the dashboard", the `atrium.roster.*` routes, the removed `Tabs`/`TabDefinition`/`TabVisibility` and partials with how to re-register on `roster.organization`/`roster.user`, changed view variables and closure signatures, reserved keys (D-031) and duplicates, the removed `activity`/`mcp` tabs (`?tab=activity`, `?tab=mcp` open the default tab; Keen and Cortex take over), the removed redirect-domain routes, class, controller, card and translation keys, the removed audit trails and History nav item, the `roster-views` re-publish note, the `conflict` `<0.1.0`, and `@rosterCan` now Atrium-only. In "Added", the "Registered tabs" entry is replaced by a "Screen extensions" one, and the "MCP redirect domains" and "Audit log link" entries, which never ship, are removed; the older audit-trail entry under the second "Breaking" notes it was removed again.
+- `docs/agent/specs/2026-10-29-2038-adopt-atrium-screen-registry/meta.yml`: `blockers:` names the four blockers of criterion 21 with their PR and status on 2026-10-30: Atrium PR #16 (open); Atrium `Screen::reserve()` (on the PR #16 branch, commit `797d3e3`, open); Cortex `register-roster-redirect-domains` (building on its job branch, no PR yet); Keen `history-section-by-capability` (Keen PR #8, open).
+- `tests/Feature/DocsTest.php`, `tests/ArchTest.php` (see Tests).
+- PR description: drafted outside the spec folder (the factory's scratchpad, returned with the result). It lists the four blockers with their status and every changed test by file and test name (deleted, changed, replaced and added).
+
+### Tests
+
+- `tests/Feature/DocsTest.php`: "documents registered tabs in the README and the Boost skill" replaced by "documents screen extensions in the README and the Boost skill" (both files: a "Screen extensions" heading and no "Registered tabs" one; every screen key, the built-in tab keys, the five slots, `ScreenAccess::allowsOn` and each record class of the mapping with `->organization`/`->requester`, `Atrium::screens()`, `->tab('roster.organization'`, `->section('roster.user', 'aside'`, `Screen::standard()`). Added "says in the README that Atrium is optional and drops the MCP redirect domains" (Installation, no "MCP redirect domains" heading, the without-Atrium commands in "Testing") and "writes the upgrade note in the Unreleased Breaking section of the CHANGELOG" (the opening sentence, `atrium.roster.`, `Tabs`, `?tab=activity`, `?tab=mcp`, `refactor-circus/atrium`, `conflict`, `<0.1.0`, `roster-views`). The section helper's own test now uses a "Screen extensions" fixture.
+- `tests/ArchTest.php`: "nothing names Roster's old tab registry" now also scans `README.md` and no longer leaves out `resources/boost` (Group 2 left both to this group); `rosterFilesContaining()` accepts a file as well as a folder.
+- Ran `tests/Feature/DocsTest.php` (7 passed) and `tests/ArchTest.php` (27 passed), and Pint on both files. 4.3 (the full `vendor/bin/pest` and `composer test:browser`) was not run here, as instructed; the gate runs them.
+
+### Deviations
+
+- `tests/ArchTest.php` is outside this group's files: criterion 1's scan must cover the README and the Boost skill, which only this group's rewrite makes possible.
+- `CLAUDE.md` is a symlink to `AGENTS.md`, so `AGENTS.md` carries the change. Its uncommitted Ringside sync line ("Keep this checkout on `main`") was again left out of the commit.
+- The docs describe criterion 6's reserved keys (all seven organization keys reserved for every viewer) as the release will have them; the `reserve(...)` call itself is Group 5, built once the blocker lands.
+- RingMaster's own record of the blockers (criterion 21 says "`meta.yml` and RingMaster") needs RingMaster's MCP tools, which this session does not have; `meta.yml` holds them.
+- `docs/agent/standards/roster/atrium-views.md` still has its "Audit history" section (`<x-atrium::audit-trail>`); it is not in this group's files (noted by Group 1 too).

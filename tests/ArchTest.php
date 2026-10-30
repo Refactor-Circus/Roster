@@ -103,8 +103,8 @@ arch('tables are named through Tables, never as literals')
     ->toBeEmpty();
 
 /**
- * Every file under these package folders whose content contains one of the
- * strings, as "path: string".
+ * Every file under these package folders (or the file itself, when one names
+ * a file) whose content contains one of the strings, as "path: string".
  *
  * @param  array<int, string>  $folders
  * @param  array<int, string>  $needles
@@ -116,7 +116,9 @@ function rosterFilesContaining(array $folders, array $needles, array $except = [
     $found = [];
 
     foreach ($folders as $folder) {
-        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__.'/../'.$folder, FilesystemIterator::SKIP_DOTS));
+        $files = is_file(__DIR__.'/../'.$folder)
+            ? [new SplFileInfo(__DIR__.'/../'.$folder)]
+            : new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__.'/../'.$folder, FilesystemIterator::SKIP_DOTS));
 
         foreach ($files as $file) {
             /** @var SplFileInfo $file */
@@ -245,12 +247,12 @@ arch('nothing outside the Atrium folder names an Atrium class')
     )))
     ->toBeEmpty();
 
-// This file names them to check they are gone. The README and the Boost
-// skill (resources/boost) are rewritten with the docs, which check them.
+// This file names them to check they are gone. The CHANGELOG, which tells
+// upgraders what was removed, is not searched.
 arch('nothing names Roster\'s old tab registry')
     ->expect(fn (): array => rosterFilesContaining(
-        ['src', 'resources', 'tests'],
+        ['src', 'resources', 'tests', 'README.md'],
         ['Atrium\\Tabs', 'Roster\\Atrium\\TabDefinition', 'TabVisibility', 'partials.tabs', 'registered-tab'],
-        ['tests/ArchTest.php', 'resources/boost', 'tests/Browser/Screenshots', 'tests/Browser/Traces'],
+        ['tests/ArchTest.php', 'tests/Browser/Screenshots', 'tests/Browser/Traces'],
     ))
     ->toBeEmpty();

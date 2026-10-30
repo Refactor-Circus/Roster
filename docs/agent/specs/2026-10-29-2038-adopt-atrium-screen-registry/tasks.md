@@ -36,9 +36,9 @@ depends on: 3
 files: README.md, resources/boost/skills/roster-development/SKILL.md, CLAUDE.md, CHANGELOG.md, tests/Feature/DocsTest.php, docs/agent/specs/2026-10-29-2038-adopt-atrium-screen-registry/meta.yml
 criteria: 18, 19, 20, 21
 
-- [ ] 4.1 Write tests for criteria 18 and 19: `DocsTest` checks "Screen extensions" in README and the Boost skill for every screen key, the built-in tab keys, `allowsOn` and the access mapping, `Atrium::screens()` and `aside`, drops the `Registered tabs` case, and checks the Unreleased CHANGELOG mentions `Tabs`, `?tab=activity`, `?tab=mcp`, `refactor-circus/atrium` and `conflict`
-- [ ] 4.2 Replace "Registered tabs" with "Screen extensions" in README and the Boost skill, remove "MCP redirect domains", make Installation say Atrium is optional, update the package `CLAUDE.md`, write the CHANGELOG upgrade note, record the four blockers of criterion 21 in `meta.yml`, and draft the PR description listing them and every changed test by file and test name
-- [ ] 4.3 Run vendor/bin/pest and composer test:browser; all green
+- [x] 4.1 Write tests for criteria 18 and 19: `DocsTest` checks "Screen extensions" in README and the Boost skill for every screen key, the built-in tab keys, `allowsOn` and the access mapping, `Atrium::screens()` and `aside`, drops the `Registered tabs` case, and checks the Unreleased CHANGELOG mentions `Tabs`, `?tab=activity`, `?tab=mcp`, `refactor-circus/atrium` and `conflict`
+- [x] 4.2 Replace "Registered tabs" with "Screen extensions" in README and the Boost skill, remove "MCP redirect domains", make Installation say Atrium is optional, update the package `CLAUDE.md`, write the CHANGELOG upgrade note, record the four blockers of criterion 21 in `meta.yml`, and draft the PR description listing them and every changed test by file and test name
+- [x] 4.3 Run vendor/bin/pest and composer test:browser; all green
 
 ## Group 5: Reserve every organization built-in key (blocked on Atrium `Screen::reserve()`)
 package: Roster
