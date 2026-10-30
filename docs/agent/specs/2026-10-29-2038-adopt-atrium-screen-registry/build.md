@@ -205,3 +205,22 @@ This retry checks the committed group 5 work (`a2115b6`). The `reserve(...)` cal
 ### Deviations
 
 - `tests/Feature/Ui/UserRegisteredTabsTest.php` was touched outside the group's file list (see above).
+
+## Rework round 1
+
+All four findings were test faults. No `src` or view change was needed: `ScreenAccess::allowsOn()` and `RosterPlugin::navigation()` were already correct.
+
+### Fixes
+
+- `tests/Feature/Ui/ScreenAccessOnTest.php` (criterion 4, 12 failures): `ScreenAccess` asks `request()->user()`. Outside an HTTP call, `actingAs()` does not give the container's request a user resolver, so every direct `allowsOn()` call saw a guest and answered false. `screenAccessViewer()` now sets `request()->setUserResolver()` to the viewer, as `AtriumAuthorizationTest` and `OrganizationScopedListsTest` already do. All 27 cases pass, including every grant row, the transfer requester and the unknown model.
+- `tests/Modes/Keen/OrganizationActivityRemovedTest.php` (criterion 7): with Keen installed, Keen registers its own `keen.history` section on the screen, and that section renders `data-testid="audit-trail"`. That is the intended design (Keen adds the history, not Roster), so a blanket `assertDontSee('audit-trail')` was wrong. The test now asserts that every `audit-trail` on the page opens a registered `section-*` wrapper, so Roster renders none of its own. The default tab (`add-member`) and no `tab-activity` assertions stay.
+- `tests/Authorization/ScreenControlsTest.php`, "opens on the first tab the viewer may see" (criteria 6, 7; a forced change from "Tab bar" under "Changed from PR #5"): the viewer may open only `settings`, and Atrium's `screen-tabs` draws nothing with fewer than two visible tabs, so `tab-settings` is not in the markup. The test now asserts no `screen-tabs` and no `tab-members`, and that the settings content (the external links card) is open. The control assertions (`save-organization`, `link-organization`, `danger-zone` hidden) are unchanged.
+- `tests/Feature/Ui/RosterPluginTest.php`, "contributes users and organizations navigation" (criterion 11, a forced change): the expected labels drop `Audit log`, which came from the removed `historyNavItem()`.
+
+### Tests
+
+- `composer test:unit`: 1271 passed, 4758 assertions. Pint passes on the four changed files.
+
+### Deviations
+
+- None. The PR's list of changed tests should add the `ScreenControlsTest` and `RosterPluginTest` cases above as forced changes.

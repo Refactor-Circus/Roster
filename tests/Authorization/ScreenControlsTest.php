@@ -143,11 +143,14 @@ it('opens on the first tab the viewer may see', function (): void {
     $world = authorizationWorld();
     $viewer = viewer([], $world['acme'], ['roster.organizations.view']);
 
+    // Settings is the only tab this viewer may open, so it is the default;
+    // Atrium draws no tab bar for a single tab.
     $this->actingAs($viewer)
         ->get(route('atrium.roster.organizations.show', 'acme'))
         ->assertOk()
         ->assertDontSee(testId('tab-members'), false)
-        ->assertSee(testId('tab-settings'), false)
+        ->assertDontSee(testId('screen-tabs'), false)
+        ->assertSee(__('roster::roster.external_links'))
         ->assertDontSee(testId('save-organization'), false)
         ->assertDontSee(testId('link-organization'), false)
         ->assertDontSee(testId('danger-zone'), false);

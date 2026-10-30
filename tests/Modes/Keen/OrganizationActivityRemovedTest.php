@@ -30,11 +30,16 @@ it('opens the default tab for ?tab=activity', function (): void {
     grant($admin, 'super-admin');
     $acme = organization($admin, ['name' => 'Acme']);
 
-    $this->actingAs($admin)
+    $content = (string) $this->actingAs($admin)
         ->get(route('atrium.roster.organizations.show', [$acme, 'tab' => 'activity']))
         ->assertOk()
         // The members tab is the default for a viewer who may open every tab.
         ->assertSee('data-testid="add-member"', false)
         ->assertDontSee('data-testid="tab-activity"', false)
-        ->assertDontSee('data-testid="audit-trail"', false);
+        ->getContent();
+
+    // Keen may add the history through its own registered section; Roster
+    // renders no audit trail of its own, so every one opens a section.
+    expect(substr_count($content, 'data-testid="audit-trail"'))
+        ->toBe(preg_match_all('/data-testid="section-[^"]+">\s*<[^>]*data-testid="audit-trail"/', $content));
 });

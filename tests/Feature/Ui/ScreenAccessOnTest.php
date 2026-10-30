@@ -54,6 +54,10 @@ function screenAccessViewer(array $permissions, ?OrganizationModel $in = null): 
     app(Permissions::class)->flush();
     test()->actingAs($viewer);
 
+    // ScreenAccess asks request()->user(); outside an HTTP call the
+    // container's request has no resolver for the signed-in user.
+    request()->setUserResolver(fn (): User => $viewer);
+
     return $viewer;
 }
 
