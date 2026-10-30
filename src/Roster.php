@@ -6,7 +6,6 @@ namespace RefactorCircus\Roster;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use InvalidArgumentException;
 use RefactorCircus\Keystone\Packages\PackageRegistry;
 use RefactorCircus\Roster\Contracts\AccountStatus;
 use RefactorCircus\Roster\Contracts\SignInRequirement;
@@ -16,6 +15,7 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\ProvisionedStatus;
 use RefactorCircus\Roster\Support\SignInRequirements;
 use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
@@ -149,33 +149,12 @@ class Roster
      * resolved through the app's user statuses. No stored value starts them
      * active; a value that is not one of those statuses starts them active
      * too, and is reported, so provisioning never fails and a bad value is
-     * never silent.
+     * never silent. Resolved by `Support\ProvisionedStatus` against
+     * `roster.statuses.users`.
      */
     public function provisionedStatus(OrganizationModel $organization): AccountStatus
     {
-        $statuses = Statuses::users();
-        $stored = $organization->getAttribute('provisioned_status');
-
-        if ($stored === null) {
-            return $statuses::active();
-        }
-
-        $status = $stored instanceof AccountStatus ? $stored : $statuses::tryFrom(is_scalar($stored) ? (string) $stored : '');
-
-        if ($status instanceof AccountStatus) {
-            return $status;
-        }
-
-        $fallback = $statuses::active();
-
-        report(new InvalidArgumentException(sprintf(
-            'Organization [%s] has an invalid provisioned_status [%s]; its provisioned users start as [%s].',
-            $organization->slug,
-            is_scalar($stored) ? (string) $stored : get_debug_type($stored),
-            $fallback->value,
-        )));
-
-        return $fallback;
+        return (new ProvisionedStatus(Statuses::users()))->for($organization);
     }
 
     /**

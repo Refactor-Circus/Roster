@@ -92,7 +92,8 @@ class RosterServiceProvider extends PackageServiceProvider
         // Cortex is optional: agents get the Roster tools only when it is loaded.
         $this->registerCortex();
 
-        // Each model's policy, from `roster.policies`: Roster's own checks ask them.
+        // Core models' policies, from `roster.policies`: Roster's own checks ask
+        // them. The SSO and SCIM domains register theirs in their providers.
         $this->registerPolicies();
         $this->registerRateLimiter();
         $this->registerNotFoundResponses();

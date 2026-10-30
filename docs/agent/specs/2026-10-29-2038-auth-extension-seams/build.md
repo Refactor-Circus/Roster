@@ -339,3 +339,41 @@ The group 5 work in `0ad7a87` was already complete, so this run kept it and chec
 - Files: `README.md` "Provisioning status" now opens with "`Roster::provisionedStatus()` is the provisioning API", the wording criterion 7 asks for. No other change.
 - Tests: `tests/ArchTest.php`, `tests/Feature/DocsTest.php` and `tests/Feature/ExtendingRosterExamplesTest.php` ran in the worktree: 56 tests, all passing, before and after the README edit. The gate runs the full suite, `composer test` and `composer test:browser`.
 - Deviations: none. The changed existing tests listed above are unchanged by this run.
+
+## Rework round 1
+
+### Fixes
+
+- architecture/public-api (minor): `Roster::provisionedStatus()` held the per-value resolution.
+  - The resolution moved to the new `src/Support/ProvisionedStatus.php`, a `final readonly` instance. It takes the user-status enum class in its constructor and resolves with `for(OrganizationModel)`. The behaviour is unchanged: a null value gives active with no report, a valid value gives its case, and anything else gives active and is reported (D-011).
+  - `Roster::provisionedStatus()` now only builds it from `Statuses::users()` and calls it.
+  - The facade's `@method` signature is unchanged. Its note now says "externally provisioned accounts" and mentions the reported fallback.
+- http/authorization docs (minor): the local standard and `AGENTS.md` (which `CLAUDE.md` links to) were stale. They now describe:
+  - `Resources`: `Authorizer::RESOURCES` holds the core six, registered as `roster.*`. An unregistered prefix is denied. A package resource with no policy throws, and `roster.*` keeps the `permits()` fallback (D-021).
+  - The SSO and SCIM providers registering their resources, permissions and Gate policies themselves. `roster.policies` lists only core models.
+  - The memo resetting on `Resources::generation()`.
+  - The SCIM `AuditHooks` closure, which checks the `roster` package itself, catches and reports, and returns `[]`. `Support\Audit` keeps only impersonator/transfer.
+  - The arch test's policy check.
+  - `AGENTS.md` also lists `Support\SignInRequirements` and `Support\ProvisionedStatus` among the cross-domain `Support/` classes.
+  - Cheap stale-comment fixes in the same vein: `RosterServiceProvider::boot()` (the `registerPolicies()` comment) and the `Support\Policies\Policy` docblock.
+- testing/test-layers (minor): `tests/Unit/ProvisionedStatusTest.php` keeps only the accessor cases. They now call `new ProvisionedStatus(...)` directly, with no database:
+  - pending/active
+  - null
+  - resolving against a given enum
+  - an invalid value, reported
+  - two cases through `Roster::provisionedStatus()` that prove it reads `roster.statuses.users` (the remap and the remapped fallback)
+
+  The database-backed cases moved unchanged to `tests/Feature/ProvisionedStatusTest.php`: a saved organization, SSO just-in-time with a bad value, and SCIM `POST /Users` with a bad value.
+- Nit (the `Roster::__construct` signature): no change needed.
+
+### Tests
+
+- `composer test:unit`: 1389 tests, all passing.
+- `composer analyse`: no errors.
+- `pint --test` passes on every changed PHP file.
+
+### Deviations
+
+- None new. `tests/Unit` still boots `TestCase` through `tests/Pest.php`, as group 4 noted. The unit cases no longer use the database or a model's persistence.
+- `AGENTS.md` has an uncommitted ringside-sync line ("Keep this checkout on `main`...") that is not this job's. It stays out of the commit, as in group 5.
+- `src/RosterServiceProvider.php` and `src/Support/Policies/Policy.php` changed only in comments.
