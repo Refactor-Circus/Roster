@@ -96,3 +96,15 @@ D-001 to D-003 are recorded in `shape.md`.
 - Choice: Approved for tasks and the factory
 - Date: 2026-10-29
 - Raised by: spec review (approval)
+
+## D-020: config/roster.php policies vs unchangeable ArchTest and PoliciesTest
+- Choice: Remove the five SSO/SCIM entries from `config/roster.php` `policies`. Change the ArchTest `modelsWithoutPolicies()` input and the PoliciesTest comparison to the config policies plus the Gate-registered policies after boot. Both test changes join criterion 10's allowed list.
+- Rationale: Accepted the recommendation.
+- Date: 2026-10-29
+- Raised by: build (group 1)
+
+## D-021: Scope of the missing-policy exception
+- Choice: Throw only for package (public) resources. Roster's own `roster.*` resources keep the documented fallback to `Authorizer::permits()` when the app removes their policy.
+- Rationale: Accepted the recommendation. No behaviour change for Roster's own domains.
+- Date: 2026-10-29
+- Raised by: build (group 1 deviation)

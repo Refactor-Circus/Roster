@@ -143,3 +143,5 @@ Spec review decisions, 2026-10-29, folded into the sections above.
 - D-013: the missing-policy exception is thrown from `Authorizer::resolvePolicy()` (criterion 1).
 - D-014: screen slots and tab bars moved to Out of scope (`adopt-atrium-screen-registry`).
 - D-015: spec rewritten in place; the addendum became this changelog.
+- D-020: `config/roster.php` `policies` drops the SSO/SCIM entries. `tests/ArchTest.php` (`modelsWithoutPolicies()` input) and `tests/Authorization/PoliciesTest.php` ("registers a configurable policy for every model") change to config plus Gate-registered policies. Both join criterion 10's allowed list.
+- D-021: the criterion 1 missing-policy exception applies to package resources only. `roster.*` resources keep the documented `permits()` fallback.
