@@ -15,6 +15,8 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 use RefactorCircus\Roster\Domains\Sso\Policies\SsoConnectionPolicy;
 use RefactorCircus\Roster\Domains\Sso\Policies\SsoIdentityPolicy;
 use RefactorCircus\Roster\Domains\Sso\Services\Sso;
+use RefactorCircus\Roster\Domains\Sso\Services\SsoSignInRequirement;
+use RefactorCircus\Roster\Roster;
 
 /**
  * Single sign-on connections (OIDC, SAML, Entra ID) and linked identities.
@@ -24,6 +26,10 @@ class SsoServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerAuthorization();
+
+        // Enforced connections hold their domains to single sign-on, whether
+        // or not the sign-in routes are available here.
+        $this->app->make(Roster::class)->requireSignIn(SsoSignInRequirement::class);
 
         $this->loadApiRoutesFrom(__DIR__.'/routes.php');
 
