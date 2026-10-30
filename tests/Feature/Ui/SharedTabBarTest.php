@@ -77,7 +77,7 @@ it('renders the same registered tabs on both screens', function (): void {
 
     $registered = ['acme.orders', 'acme.invoices'];
 
-    $builtIn = ['members', 'teams', 'invitations', 'roles', 'sso', 'scim', 'settings'];
+    $builtIn = ['members', 'teams', 'invitations', 'roles', 'settings'];
 
     expect(array_map(strval(...), array_keys(array_diff_key($organization, array_flip($builtIn)))))->toBe($registered)
         ->and(array_map(strval(...), array_keys(array_diff_key($user, ['overview' => true]))))->toBe($registered);
