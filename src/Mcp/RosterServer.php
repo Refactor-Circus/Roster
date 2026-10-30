@@ -48,16 +48,6 @@ use RefactorCircus\Roster\Domains\Role\Mcp\Tools\ListRolesTool;
 use RefactorCircus\Roster\Domains\Role\Mcp\Tools\RevokeRoleTool;
 use RefactorCircus\Roster\Domains\Role\Mcp\Tools\ShowRoleTool;
 use RefactorCircus\Roster\Domains\Role\Mcp\Tools\UpdateRoleTool;
-use RefactorCircus\Roster\Domains\Scim\Mcp\Tools\CreateScimTokenTool;
-use RefactorCircus\Roster\Domains\Scim\Mcp\Tools\ListScimTokensTool;
-use RefactorCircus\Roster\Domains\Scim\Mcp\Tools\RevokeScimTokenTool;
-use RefactorCircus\Roster\Domains\Sso\Mcp\Tools\CreateSsoConnectionTool;
-use RefactorCircus\Roster\Domains\Sso\Mcp\Tools\DeleteSsoConnectionTool;
-use RefactorCircus\Roster\Domains\Sso\Mcp\Tools\ListSsoConnectionsTool;
-use RefactorCircus\Roster\Domains\Sso\Mcp\Tools\ListSsoIdentitiesTool;
-use RefactorCircus\Roster\Domains\Sso\Mcp\Tools\ShowSsoConnectionTool;
-use RefactorCircus\Roster\Domains\Sso\Mcp\Tools\UnlinkSsoIdentityTool;
-use RefactorCircus\Roster\Domains\Sso\Mcp\Tools\UpdateSsoConnectionTool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Tools\AddTeamMemberTool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Tools\CreateTeamTool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Tools\DeleteTeamTool;
@@ -189,20 +179,6 @@ final class RosterServer extends Server
         AssignRoleTool::class,
         RevokeRoleTool::class,
         ListUserPermissionsTool::class,
-
-        // Single sign-on
-        ListSsoConnectionsTool::class,
-        ShowSsoConnectionTool::class,
-        CreateSsoConnectionTool::class,
-        UpdateSsoConnectionTool::class,
-        DeleteSsoConnectionTool::class,
-        ListSsoIdentitiesTool::class,
-        UnlinkSsoIdentityTool::class,
-
-        // SCIM provisioning
-        ListScimTokensTool::class,
-        CreateScimTokenTool::class,
-        RevokeScimTokenTool::class,
 
         // Impersonation
         StartImpersonationTool::class,

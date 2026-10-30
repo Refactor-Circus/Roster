@@ -39,10 +39,6 @@ use RefactorCircus\Roster\Domains\Role\Actions\ListRoleAssignmentsAction;
 use RefactorCircus\Roster\Domains\Role\Actions\ListRolesAction;
 use RefactorCircus\Roster\Domains\Role\Data\ListRoleAssignmentsData;
 use RefactorCircus\Roster\Domains\Role\Data\ListRolesData;
-use RefactorCircus\Roster\Domains\Scim\Actions\ListScimTokensAction;
-use RefactorCircus\Roster\Domains\Scim\Data\ListScimTokensData;
-use RefactorCircus\Roster\Domains\Sso\Actions\ListSsoConnectionsAction;
-use RefactorCircus\Roster\Domains\Sso\Data\ListSsoConnectionsData;
 use RefactorCircus\Roster\Domains\Team\Actions\ListTeamsAction;
 use RefactorCircus\Roster\Domains\Team\Data\ListTeamsData;
 use RefactorCircus\Roster\Support\Users;
@@ -66,8 +62,6 @@ final class OrganizationUiController
         'teams' => 'roster.teams.view',
         'invitations' => 'roster.invitations.view',
         'roles' => 'roster.roles.view',
-        'sso' => 'roster.sso.view',
-        'scim' => 'roster.scim.manage',
         'settings' => 'roster.organizations.view',
     ];
 
@@ -79,8 +73,6 @@ final class OrganizationUiController
         'teams' => 'user-group',
         'invitations' => 'envelope',
         'roles' => 'shield-check',
-        'sso' => 'arrow-right-end-on-rectangle',
-        'scim' => 'server-stack',
         'settings' => 'cog',
     ];
 
@@ -191,11 +183,6 @@ final class OrganizationUiController
                 'roles' => [
                     'roles' => app(ListRolesAction::class)->execute(new ListRolesData(organization: $model, perPage: 100)),
                     'assignments' => app(ListRoleAssignmentsAction::class)->execute(new ListRoleAssignmentsData(organization: $model, perPage: 25, page: $page))->withQueryString(),
-                ],
-                'sso' => ['ssoConnections' => app(ListSsoConnectionsAction::class)->execute(new ListSsoConnectionsData(organization: $model, perPage: 25, page: $page))->withQueryString()],
-                'scim' => [
-                    'scimTokens' => app(ListScimTokensAction::class)->execute($model, new ListScimTokensData(perPage: 25, page: $page))->withQueryString(),
-                    'ssoConnections' => app(ListSsoConnectionsAction::class)->execute(new ListSsoConnectionsData(organization: $model, perPage: 100)),
                 ],
                 default => [],
             },

@@ -23,9 +23,6 @@ return new class extends Migration
         'roles' => ['organization_id'],
         'profiles' => ['current_organization_id', 'current_team_id'],
         'impersonations' => ['organization_id', 'created_at'],
-        'sso_connections' => ['organization_id'],
-        'scim_tokens' => ['organization_id', 'sso_connection_id'],
-        'scim_groups' => ['organization_id'],
         'transfers' => ['organization_id'],
     ];
 

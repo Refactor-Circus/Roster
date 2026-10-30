@@ -122,7 +122,7 @@ class PermissionServiceProvider extends ServiceProvider
         // request; anything that changes them (assigning a role, switching
         // context, joining) clears that, so later checks see the change. Only
         // Roster's domains that hold roles, memberships and context count:
-        // other packages' actions, SSO, SCIM tokens, transfers and reads leave
+        // other packages' actions, transfers and reads leave
         // the caches alone, so bulk work does not rebuild them every row. A
         // change confined to one user forgets only that user; the permission
         // names are forgotten only when a permission itself changes.

@@ -36,11 +36,6 @@ final class Tables extends KeystoneTables
         'permission_role' => 'roster_permission_role',
         'role_assignments' => 'roster_role_assignments',
         'impersonations' => 'roster_impersonations',
-        'sso_connections' => 'roster_sso_connections',
-        'sso_identities' => 'roster_sso_identities',
-        'scim_tokens' => 'roster_scim_tokens',
-        'scim_users' => 'roster_scim_users',
-        'scim_groups' => 'roster_scim_groups',
         'transfers' => 'roster_transfers',
         'transfer_rows' => 'roster_transfer_rows',
     ];

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace RefactorCircus\Roster\Domains\Sso\Support;
+namespace RefactorCircus\Roster\Support\Rules;
 
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -10,13 +10,12 @@ use RefactorCircus\Roster\Roster;
 
 /**
  * For the app's password login form: fails when the email must sign in
- * elsewhere (an organization's enforced SSO, or any other registered
- * sign-in requirement), pointing the user at it. A requirement that throws
- * is not caught, so the login fails closed.
+ * elsewhere (a registered sign-in requirement claims it), pointing the user
+ * at it. A requirement that throws is not caught, so the login fails closed.
  *
- *     'email' => ['required', 'email', new NotSsoEnforced],
+ *     'email' => ['required', 'email', new NoExternalSignIn],
  */
-final class NotSsoEnforced implements ValidationRule
+final class NoExternalSignIn implements ValidationRule
 {
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -30,7 +29,7 @@ final class NotSsoEnforced implements ValidationRule
             return;
         }
 
-        $fail(__('roster::roster.sso_required', [
+        $fail(__('roster::roster.external_sign_in_required', [
             'organization' => $signIn->label,
             'url' => $signIn->url,
         ]));

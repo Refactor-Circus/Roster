@@ -9,8 +9,8 @@ use RefactorCircus\Roster\Contracts\AccountStatus;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 
 /**
- * Resolves the status an organization's externally provisioned users (SSO
- * just-in-time accounts, SCIM) start with, against one user-status enum.
+ * Resolves the status an organization's externally provisioned accounts
+ * start with, against one user-status enum.
  * `Roster::provisionedStatus()` builds it from `roster.statuses.users`.
  */
 final readonly class ProvisionedStatus

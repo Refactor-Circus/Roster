@@ -13,8 +13,8 @@ use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 /**
  * Shared checks for the bundled policies.
  *
- * Core policies are registered from `roster.policies`, and the SSO and SCIM
- * domains register theirs from their providers; either way an application
+ * Core policies are registered from `roster.policies`, and package
+ * resources register theirs from their providers; either way an application
  * swaps one by pointing its model at another class in `roster.policies`. The bundled policies
  * answer with Roster's own permissions: a method asks whether the user holds
  * the permission in the organization or team the subject belongs to.

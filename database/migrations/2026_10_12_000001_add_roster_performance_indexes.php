@@ -17,7 +17,7 @@ return new class extends Migration
     /**
      * @var array<int, string>
      */
-    private const array TABLES = ['memberships', 'role_assignments', 'invitations', 'scim_users', 'scim_groups'];
+    private const array TABLES = ['memberships', 'role_assignments', 'invitations'];
 
     private const array COLUMNS = ['organization_id', 'created_at', 'id'];
 

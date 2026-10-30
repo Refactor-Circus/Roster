@@ -20,7 +20,7 @@ return new class extends Migration
             UserKey::column($table, 'owner_id')->nullable()->index();
             $table->boolean('personal')->default(false);
             $table->boolean('auto_join')->default(false);
-            // The status of accounts this organization's SSO or SCIM creates.
+            // The status this organization's externally provisioned accounts start with.
             $table->string('provisioned_status', 16)->default('active');
             // Deleted organizations keep their slug and domains until purged.
             $table->softDeletes();

@@ -64,8 +64,8 @@ return [
     |           `active`, or `pending` to make people who sign up through the
     |           app's own registration (Laravel's Registered event) wait for
     |           an approver. Admins choose per user when they create one, and
-    |           each organization chooses for accounts its SSO or SCIM
-    |           creates (its `provisioned_status`).
+    |           each organization chooses for its externally provisioned
+    |           accounts (its `provisioned_status`).
     | approvals.notify_approvers:
     |           Email everyone holding `roster.users.approve` when someone is
     |           waiting for approval.
@@ -206,65 +206,6 @@ return [
         'redirect' => '/',
         'return_to' => null,
         'middleware_group' => 'web',
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Single Sign-On
-    |--------------------------------------------------------------------------
-    |
-    | Organizations can sign their people in through their own identity
-    | provider (OIDC, SAML or Microsoft Entra ID), configured per
-    | organization in Atrium or via the API. Requires the optional package
-    | laravel/socialite plus, per protocol, firebase/php-jwt (OIDC),
-    | socialiteproviders/saml2 (SAML) or socialiteproviders/microsoft-azure
-    | (Entra ID).
-    |
-    | redirect:                Where a successful sign-in lands.
-    | discovery_cache_seconds: How long OIDC discovery documents and signing
-    |                          keys are cached.
-    | prefix / middleware:     Where the sign-in routes live.
-    |
-    | SECURITY: serve the callback over HTTPS. An identity provider is only
-    | trusted for its organization's own domains: new accounts and automatic
-    | linking happen only for those emails.
-    |
-    */
-
-    'sso' => [
-        'redirect' => '/',
-        'discovery_cache_seconds' => 3600,
-        'prefix' => 'roster/sso',
-        'middleware' => ['web'],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | SCIM Provisioning
-    |--------------------------------------------------------------------------
-    |
-    | A SCIM 2.0 server per organization at /{prefix}/{organization}, so
-    | identity providers (Okta, Microsoft Entra ID, ...) can create, update
-    | and deprovision its members (Users) and teams (Groups).
-    |
-    | Each request needs one of the organization's SCIM tokens (issued in
-    | Atrium or via the API, shown once, revocable). SECURITY: a token can
-    | change the organization's membership; treat it like a password. It
-    | only ever reaches its own organization, and only claims existing
-    | accounts on the organization's own domains.
-    |
-    */
-
-    'scim' => [
-        'enabled' => true,
-        'prefix' => 'scim/v2',
-        'middleware' => ['api', 'throttle:roster'],
-        'default_count' => 100,
-        'max_count' => 500,
-        'bulk' => [
-            'max_operations' => 100,
-            'max_payload_bytes' => 1048576,
-        ],
     ],
 
     /*
@@ -503,9 +444,9 @@ return [
     | organizations, members (MembershipModel), teams, invitations and roles.
     | The other policies answer your own `$user->can('view', $record)` checks.
     |
-    | The SSO and SCIM models' policies are registered by those domains
-    | themselves; add an entry here to point one of those models at a class
-    | of your own, which wins over the bundled one.
+    | Package resources register their own policies; add an entry here to
+    | point one of their models at a class of your own, which wins over the
+    | bundled one.
     |
     | Lists that show only what falls within the caller's organizations still
     | work those out from Roster's permissions. Permissions blocked while
@@ -561,11 +502,6 @@ return [
         'permission_role' => 'roster_permission_role',
         'role_assignments' => 'roster_role_assignments',
         'impersonations' => 'roster_impersonations',
-        'sso_connections' => 'roster_sso_connections',
-        'sso_identities' => 'roster_sso_identities',
-        'scim_tokens' => 'roster_scim_tokens',
-        'scim_users' => 'roster_scim_users',
-        'scim_groups' => 'roster_scim_groups',
         'transfers' => 'roster_transfers',
         'transfer_rows' => 'roster_transfer_rows',
     ],

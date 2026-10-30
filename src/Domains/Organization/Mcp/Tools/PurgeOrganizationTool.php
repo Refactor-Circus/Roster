@@ -12,7 +12,7 @@ use RefactorCircus\Keystone\Mcp\Tool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Requests\PurgeOrganizationMcpRequest;
 use RefactorCircus\Roster\Mcp\Concerns\DescribesOrganization;
 
-#[Description('Permanently delete a deleted organization with its teams, memberships, invitations, roles, SSO connections and SCIM tokens. Cannot be undone. It must be deleted (delete-organization-tool) first.')]
+#[Description('Permanently delete a deleted organization with its teams, memberships, invitations, roles and links. Cannot be undone. It must be deleted (delete-organization-tool) first.')]
 final class PurgeOrganizationTool extends Tool
 {
     use DescribesOrganization;

@@ -16,7 +16,7 @@ final class PurgeOrganizationAction
 {
     /**
      * Delete an organization for good, with its teams, memberships,
-     * invitations, roles, SSO connections, SCIM tokens and links. It must be
+     * invitations, roles and links. It must be
      * deleted (trashed) first; `$personal` is for purging a user's personal
      * organization along with them.
      */

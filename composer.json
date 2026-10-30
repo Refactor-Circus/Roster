@@ -23,11 +23,9 @@
         "laravel/mcp": "^1.0.1"
     },
     "require-dev": {
-        "firebase/php-jwt": "^7.2.1",
         "larastan/larastan": "^3.13",
         "laravel/pao": "^1.1.5",
         "laravel/pint": "^1.32.1",
-        "laravel/socialite": "^5.31",
         "orchestra/testbench": "^11.3",
         "pestphp/pest": "^5.3.4",
         "pestphp/pest-plugin-browser": "^5.1.2",
@@ -40,9 +38,7 @@
         "refactor-circus/keen": "dev-main",
         "refactor-circus/pennantplus": "dev-main",
         "refactor-circus/ringside": "dev-main",
-        "refactor-circus/standards": "dev-main",
-        "socialiteproviders/microsoft-azure": "^5.2.1",
-        "socialiteproviders/saml2": "^4.10"
+        "refactor-circus/standards": "dev-main"
     },
     "conflict": {
         "refactor-circus/atrium": "<0.1.0"
@@ -50,10 +46,7 @@
     "suggest": {
         "refactor-circus/atrium": "The Atrium dashboard: Roster's admin screens, widgets and search (dev-main).",
         "refactor-circus/cortex": "Lets Cortex agents use the Roster tools (dev-main).",
-        "laravel/socialite": "Required for SSO login (^5.31).",
-        "socialiteproviders/saml2": "Required for SAML SSO connections (^4.10).",
-        "firebase/php-jwt": "Required for OIDC SSO connections, to verify id_tokens (^7.2).",
-        "socialiteproviders/microsoft-azure": "Required for Microsoft Entra ID (Azure) SSO connections (^5.2).",
+        "refactor-circus/guardian": "Single sign-on (OIDC, SAML, Entra ID) and SCIM provisioning for Roster's organizations (dev-main).",
         "refactor-circus/impex": "Required for CSV import and export (dev-main).",
         "refactor-circus/pennantplus": "Switch Roster in Atrium on and off with the RosterSupportFeature Pennant feature (dev-main).",
         "refactor-circus/keen": "Records Roster's changes in the suite-wide audit log (dev-main)."
