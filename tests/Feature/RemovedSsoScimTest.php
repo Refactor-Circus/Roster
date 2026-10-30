@@ -52,7 +52,8 @@ function removedSsoScimHits(array $folders, string $pattern, array $skip = []): 
 
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/'.$folder, FilesystemIterator::SKIP_DOTS)) as $file) {
             /** @var SplFileInfo $file */
-            $path = substr($file->getPathname(), strlen($root) + 1);
+            // Forward slashes on Windows too, so $skip and the hits match.
+            $path = str_replace('\\', '/', substr($file->getPathname(), strlen($root) + 1));
 
             if (array_filter($skip, fn (string $prefix): bool => str_starts_with($path, $prefix)) !== []) {
                 continue;
