@@ -977,7 +977,7 @@ Roster::externalSignInFor('ada@partner.example')?->url; // where her sign-in sta
 
 ### Provisioning status
 
-Accounts your package creates for an organization from outside, as Roster's SSO and SCIM do, start with the organization's provisioning status:
+`Roster::provisionedStatus()` is the provisioning API. Accounts your package creates for an organization from outside, as Roster's SSO and SCIM do, start with the status it returns:
 
 ```php
 use RefactorCircus\Roster\Facades\Roster;

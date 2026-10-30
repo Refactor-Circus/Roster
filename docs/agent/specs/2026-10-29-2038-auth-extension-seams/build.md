@@ -331,3 +331,11 @@ The SCIM `scim_token` audit test (`tests/Modes/Keen/KeenAuditTest.php`) did not 
 - None from the standards.
 - Left as is, because the file is not this group's: Roster's `CLAUDE.md` (Architecture, audit bullet) still says `Support\Audit` registers "the impersonator/transfer/SCIM token context". It now registers impersonator/transfer only; the SCIM domain adds `scim_token`. Group 3 noted this too.
 - Uncommitted changes from the factory's group 3/4 merges (ticks in `tasks.md`, the group 3/4 sections of `build.md`) were in the worktree. They are committed with this group. The uncommitted `AGENTS.md` change is not this job's and is left out.
+
+### Retry
+
+The group 5 work in `0ad7a87` was already complete, so this run kept it and checked it again.
+
+- Files: `README.md` "Provisioning status" now opens with "`Roster::provisionedStatus()` is the provisioning API", the wording criterion 7 asks for. No other change.
+- Tests: `tests/ArchTest.php`, `tests/Feature/DocsTest.php` and `tests/Feature/ExtendingRosterExamplesTest.php` ran in the worktree: 56 tests, all passing, before and after the README edit. The gate runs the full suite, `composer test` and `composer test:browser`.
+- Deviations: none. The changed existing tests listed above are unchanged by this run.
