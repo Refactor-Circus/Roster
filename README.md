@@ -269,7 +269,7 @@ If your app hasn't defined Atrium's `viewAtrium` gate, Roster defines it as the 
 
 ### Policies
 
-Each Roster model has a policy, registered with the Gate from `roster.policies`. Point a model at a class of your own to change who may do what:
+Each Roster model has a policy. The core models' policies are registered with the Gate from `roster.policies`; the SSO and SCIM domains register their own models' policies themselves, and an entry for one of those models in `roster.policies` still wins. Point a model at a class of your own to change who may do what:
 
 ```php
 'policies' => [
@@ -294,7 +294,7 @@ class OrganizationPolicy extends RosterOrganizationPolicy
 }
 ```
 
-**Roster's own checks ask them.** On every surface, permission `roster.{resource}.{verb}` asks the policy of the resource's model, by the camel-cased verb: `roster.organizations.update` asks `update()` on `OrganizationModel`'s policy, `roster.users.manage-status` asks `manageStatus()` on `UserModel`'s. The resources are `users` (`UserModel`, whatever your user model is), `organizations`, `members` (`MembershipModel`), `teams`, `invitations`, `roles` (which covers permissions), `sso` (`SsoConnectionModel`) and `scim` (`ScimTokenModel`). The other models' policies (profiles, domains, links, seats, assignments, permissions, impersonations, identities, SCIM records, transfers and their rows) answer your own checks: `$user->can('manage', $domain)`.
+**Roster's own checks ask them.** On every surface, permission `roster.{resource}.{verb}` asks the policy of the resource's model, by the camel-cased verb: `roster.organizations.update` asks `update()` on `OrganizationModel`'s policy, `roster.users.manage-status` asks `manageStatus()` on `UserModel`'s. The core resources are `users` (`UserModel`, whatever your user model is), `organizations`, `members` (`MembershipModel`), `teams`, `invitations` and `roles` (which covers permissions). The SSO and SCIM domains register `sso` (`SsoConnectionModel`) and `scim` (`ScimTokenModel`) the way any package registers its own resources (see [Extending Roster](#extending-roster)). The other models' policies (profiles, domains, links, seats, assignments, permissions, impersonations, identities, SCIM records, transfers and their rows) answer your own checks: `$user->can('manage', $domain)`.
 
 The bundled policies answer with Roster's permissions, so nothing changes until you swap one. Since checks now go through the Gate, your app's `Gate::before` callbacks apply to them too. Some things stay with Roster whatever a policy says: permissions blocked while impersonating are refused first, `roster.audit.view` has no model and is checked directly, and the organization-limited lists above still work out the caller's organizations from their roles. Remove a model's entry to check its resource by Roster's permissions alone.
 
@@ -382,7 +382,7 @@ use RefactorCircus\Roster\Domains\Sso\Support\NotSsoEnforced;
 $request->validate(['email' => ['required', 'email', new NotSsoEnforced]]);
 ```
 
-It fails with a link to the organization's SSO sign-in. Super-admins are never forced, so you can't lock yourself out. `Roster::ssoRequiredFor($email)` gives the same answer in code.
+It fails with a link to the organization's SSO sign-in. Super-admins are never forced, so you can't lock yourself out. `Roster::externalSignInFor($email)` gives the same answer in code: its `url` is the sign-in link and its `record` the `SsoConnectionModel`. SSO enforcement is a sign-in requirement, so the rule also enforces any requirement another package registers (see [Extending Roster](#extending-roster)).
 
 ## Syncing organizations from external systems
 
@@ -857,6 +857,174 @@ Labels are shown as given (escaped), so translate them yourself. `icon()` takes 
 Roster doesn't catch errors in your code: a resolver, view or component that throws surfaces as an error page on Roster's screen. Roster doesn't check that a view or component exists when you register the tab (your views may be loaded later), so a missing one fails only when someone opens the tab. Forms inside a tab post to your own routes; Roster adds none.
 
 If you published Roster's views (`roster-views`), your copies of the organization and user pages show no registered tabs (and no user tab bar), without any error. Re-publish them with `php artisan vendor:publish --tag="roster-views" --force`, or merge the new tab partials into your copies.
+
+## Extending Roster
+
+Other packages, and your app, add authorization resources, permissions, membership sources, sign-in requirements and audit context to Roster through registration points, without Roster naming them. Roster's own SSO and SCIM domains use the same ones. Register from a service provider's `boot()`, never per request. Each registry is a singleton holding code-defined state for the life of the process (Octane, queue workers), and registering the same thing twice throws.
+
+**`roster.*` is Roster's.** Resource prefixes and permission names under `roster.*` are reserved for Roster's own domains: `resource()` and `permission()` throw an `InvalidArgumentException` naming the value for any of them. Register under your package's own prefix, such as `acme.widgets`. The SSO and SCIM permissions keep their `roster.sso.*` and `roster.scim.*` names because they are still Roster's domains.
+
+### Resources
+
+A resource lets your model's Gate policy answer the permissions named after it in every one of Roster's checks: API and MCP requests, `ScreenAccess`, `@rosterCan` and `Authorizer::check()`. Register a prefix with its model, and permission `{prefix}.{verb}` asks that model's policy by the camel-cased verb, exactly as `roster.users.manage-status` asks `UserPolicy::manageStatus()`:
+
+```php
+use Acme\Widgets\Models\WidgetModel;
+use Acme\Widgets\Policies\WidgetPolicy;
+use Illuminate\Support\Facades\Gate;
+use RefactorCircus\Roster\Domains\Permission\Services\Resources;
+
+public function boot(): void
+{
+    app(Resources::class)->resource('acme.widgets', WidgetModel::class);
+    Gate::policy(WidgetModel::class, WidgetPolicy::class);
+}
+```
+
+```php
+use Illuminate\Database\Eloquent\Model;
+use RefactorCircus\Roster\Support\Policies\Policy;
+
+final class WidgetPolicy extends Policy
+{
+    // `acme.widgets.approve`, checked in the widget's organization or team.
+    public function approve(?Model $user, ?Model $subject = null, ?Model $self = null): bool
+    {
+        return $this->permits($user, 'acme.widgets.approve', $subject, $self);
+    }
+}
+```
+
+- A prefix is two lower-case segments of letters, digits and dashes (`acme.widgets`). An invalid prefix, a `roster.*` one, or one already registered throws an `InvalidArgumentException` naming it.
+- A permission's prefix is everything before its last dot, so `acme.widgets.approve.all` looks up `acme.widgets.approve`. A permission whose prefix nothing registers asks no policy and is refused.
+- Register the model's policy too. A registered model without one makes the check throw an `InvalidArgumentException` naming the resource, the first time a permission resolves to it. A missing policy never counts as an allow.
+- Asked with a record, `permits()` finds its organization or team through its `organization_id` / `team_id` attribute or its `organization()` / `team()` relation, whichever it has, as for Roster's own models.
+- A resource registered after checks have run still counts: `Resources` keeps its own `generation()`, and the answers remembered for the request start over when it changes.
+
+### Permissions
+
+Add your permissions to Roster's catalogue so they are created as system permissions, and say which built-in roles (`admin`, `member`, `lead`) they go to:
+
+```php
+use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
+
+public function boot(): void
+{
+    app(PermissionCatalogue::class)
+        ->permission('acme.widgets.view', 'See widgets.', ['admin', 'member'])
+        ->permission('acme.widgets.approve', 'Approve widgets.', ['admin']);
+}
+```
+
+- The role-tables migration, `BuiltInRoles::sync()` and `php artisan roster:sync-permissions` create them. A package registered after that migration ran (installed later, or upgraded with new permissions) needs `php artisan roster:sync-permissions` to create its permissions.
+- Existing built-in roles never gain a newly registered permission automatically: the grants apply only to the built-in roles the sync creates, so grant the permission to existing roles by hand, in Atrium or through the role API. Grants an app has changed are never altered.
+- A name registered twice, a `roster.*` name, or a role that is not built in throws an `InvalidArgumentException` naming it. `roster:sync-permissions` warns about system permissions in the database that nothing registers any more, and leaves them in place.
+- The impersonation-blocked list stays core-only: registered permissions are never added to `roster.impersonation.blocked`. If yours must not run while someone is impersonating, add its pattern there yourself (`'acme.widgets.*'`).
+
+### Membership sources
+
+A membership records how the user joined. Register your package's way in, with the label members show for it:
+
+```php
+use RefactorCircus\Roster\Domains\Organization\Services\MembershipSources;
+
+public function boot(): void
+{
+    app(MembershipSources::class)->register('hris', 'HR system');
+}
+```
+
+- `$membership->source` is the stored string. Roster's built-in sources are the `MembershipSource` cases (`direct`, `invitation`, `domain`, `personal`, `import`), and `$membership->sourceEnum()` answers the case, or null for a registered source such as SCIM's `scim`.
+- The API and MCP member data show the registered label (`HR system`). A stored source that nothing registers, from a package you removed for example, shows its stored value and never errors.
+- Code that joins users through Roster's `ManagesMemberships::join()`, as the SCIM domain does, passes a registered source as a string. An unregistered one throws an `InvalidArgumentException`, as does registering a built-in value or the same source twice.
+
+### Sign-in requirements
+
+A sign-in requirement says that an email must sign in somewhere else, such as an identity provider, instead of with a password. Roster's SSO enforcement is one:
+
+```php
+use RefactorCircus\Roster\Contracts\SignInRequirement;
+use RefactorCircus\Roster\Data\ExternalSignIn;
+
+final class PartnerSignIn implements SignInRequirement
+{
+    public function for(string $email): ?ExternalSignIn
+    {
+        if (! str_ends_with(strtolower($email), '@partner.example')) {
+            return null;
+        }
+
+        return new ExternalSignIn(key: 'partner', label: 'Partner Inc.', url: route('partner.sign-in'));
+    }
+}
+```
+
+```php
+use RefactorCircus\Roster\Facades\Roster;
+
+public function boot(): void
+{
+    Roster::requireSignIn(PartnerSignIn::class);
+}
+
+Roster::externalSignInFor('ada@partner.example')?->url; // where her sign-in starts
+```
+
+- `externalSignInFor()` asks the requirements in registration order and returns the first answer that isn't null. Requirements must not overlap: make sure no two claim the same emails. A class-string is resolved from the container once, on first use, and registering the same class or instance again is ignored.
+- Super-admins get `null` before any requirement is asked, so a broken requirement can't lock them out.
+- It fails closed. A requirement that throws is not caught: the login or registration asking (through `NotSsoEnforced`) fails, Laravel's handler reports the exception, and the user sees a generic error, never its message. This is deliberate for a security control, so keep requirements simple.
+- The `NotSsoEnforced` rule in your login validation enforces every registered requirement, not only Roster's SSO. `ExternalSignIn::$record` holds the record behind an answer, if any (the `SsoConnectionModel` for Roster's SSO).
+
+### Provisioning status
+
+`Roster::provisionedStatus()` is the provisioning API. Accounts your package creates for an organization from outside, as Roster's SSO and SCIM do, start with the status it returns:
+
+```php
+use RefactorCircus\Roster\Facades\Roster;
+
+$status = Roster::provisionedStatus($organization); // an AccountStatus, such as UserStatus::Pending
+```
+
+It is the organization's `provisioned_status`, resolved through the user statuses in `roster.statuses.users`. An organization with none starts its accounts as `active()`. A stored value the status enum doesn't know falls back to `active()` and is reported, so provisioning never fails and a bad value is never silent.
+
+### Audit context
+
+Roster has no audit API. To add context to the audit entries of Roster's changes, register a closure on refactor-circus/keystone's `AuditHooks`, as Roster's SCIM domain does for `scim_token`. `AuditHooks` runs every context closure for every package's events and catches nothing, so the closure keeps to Roster's entries itself and never lets an exception out:
+
+```php
+use RefactorCircus\Keystone\Audit\AuditHooks;
+use RefactorCircus\Keystone\Packages\PackageRegistry;
+use RefactorCircus\Roster\Facades\Roster;
+
+public function boot(): void
+{
+    // Once every provider has booted, when Roster registers its own hooks.
+    $this->app->booted(function (): void {
+        if (! Roster::auditing()) {
+            return;
+        }
+
+        app(AuditHooks::class)->context(function (object $event): array {
+            try {
+                if (app(PackageRegistry::class)->for($event)?->key !== 'roster') {
+                    return [];
+                }
+
+                $device = app(DeviceContext::class)->current();
+
+                return $device === null ? [] : ['acme_device' => ['id' => $device->id, 'name' => $device->name]];
+            } catch (Throwable $e) {
+                report($e);
+
+                return [];
+            }
+        });
+    });
+}
+```
+
+- Return `[]` when you have nothing to add, never `null`: `AuditHooks` spreads every closure's result into the entry.
+- On a failure the closure reports the exception and the entry is still written, without your key.
 
 ## Trying it locally
 

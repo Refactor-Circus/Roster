@@ -1,5 +1,5 @@
 ---
-description: "Roster requests authorize through its permission Authorizer: ability(), scope() and self() on AuthorizesWithRoster, never allows()/allowsEach(); roster.{resource}.{verb} goes to the roster.policies policy of the resource's model, which answers with Authorizer::permits(); same check on HTTP, MCP and Atrium; guest 401 vs 403"
+description: "Roster requests authorize through its permission Authorizer: ability(), scope() and self() on AuthorizesWithRoster, never allows()/allowsEach(); {prefix}.{verb} goes to the Gate policy of the model registered for the prefix in Resources (core policies from roster.policies, SSO/SCIM policies from their domain providers), which answers with Authorizer::permits(); same check on HTTP, MCP and Atrium; guest 401 vs 403"
 tags:
   - http
   - mcp
@@ -18,7 +18,8 @@ Every Roster request, HTTP or MCP, authorizes in `authorize()` through Roster's 
 ## Policies
 
 - Every model has a policy in its domain's `Policies/`, beside `Models/` ([[domain-modules]]), extending `RefactorCircus\Roster\Support\Policies\Policy` (on Keystone's `Policy`).
-- Policies are registered from the `roster.policies` config map (model class => policy class) by the provider ([[service-providers]], [[configuration]]). A host application swaps one by pointing the model at another class there. Removing an entry checks that resource by Roster's permissions alone.
+- Core models' policies are registered from the `roster.policies` config map (model class => policy class) by the package provider ([[service-providers]], [[configuration]]). A host application swaps one by pointing the model at another class there. Removing an entry checks that `roster.*` resource by Roster's permissions alone.
+- The SSO and SCIM domains are not in `roster.policies`: their providers register their models' policies themselves with Gate `policy()` in `boot()`, through the same seams another package uses. An application entry in `roster.policies` for one of those models still wins, because the package provider registers config policies after the domain providers boot.
 - Policy methods are named after the permission's verb, camel-cased (`roster.users.manage-status` => `manageStatus()`), and take `(?Model $user, ?Model $subject = null, ?Model $self = null)`. The bundled policies answer with `$this->permits($user, $permission, $subject, $self)`: the raw permission check, in the organization or team the subject is or belongs to.
 - A child model's policy checks its parent resource's permission (a team seat asks `roster.teams.view` / `roster.teams.manage`); `permits()` finds the parent through `Authorizer::parentOf()`, team before organization. Never repeat the parent's rules.
 
@@ -59,8 +60,9 @@ final class UpdateTeamRequest extends TeamRequest
 
 ## How the Authorizer answers
 
-- `Authorizer::check($actor, $permission, $scope, $self)` refuses permissions blocked while impersonating, then sends `roster.{resource}.{verb}` to the policy registered for the resource's model (`Authorizer::RESOURCES`) as `[ModelClass, $scope, $self]`. With no policy registered, it answers with `permits()`.
-- Answers are remembered for the request and dropped whenever `Permissions` forgets anything.
+- Resources live in the `Domains\Permission\Services\Resources` singleton (prefix => model). `Authorizer::RESOURCES` lists only the six core resources (`users`, `organizations`, `members`, `teams`, `invitations`, `roles`), registered as `roster.{resource}` by `PermissionServiceProvider::register()`. The SSO and SCIM domains register `roster.sso` / `roster.scim` from their providers' `boot()` through the `@internal` `rosterResource()`; other packages use `resource()`, which refuses `roster.*`. Permissions are added the same way through `PermissionCatalogue` (`permission()` / `@internal` `rosterPermission()`).
+- `Authorizer::check($actor, $permission, $scope, $self)` refuses permissions blocked while impersonating, then sends `{prefix}.{verb}` to the Gate policy of the model registered for the prefix (everything before the last dot) as `[ModelClass, $scope, $self]`. An unregistered prefix has no policy and is denied. A `roster.*` resource with no policy answers with `permits()`; a package resource with no policy throws `InvalidArgumentException` naming it.
+- Answers are remembered for the request and dropped whenever `Permissions` forgets anything or a resource is registered (`Resources::generation()`).
 - The same check guards every surface: HTTP and MCP requests through `AuthorizesWithRoster`, Atrium screens through `ScreenAccess` and `@rosterCan('roster.…', $scope, $self)`. Hide a control the user may not use with `@rosterCan`.
 - `roster.authorization` (default `true`) turns the check on. Set to `false`, every check passes and the route middleware is the only guard.
 
@@ -71,5 +73,5 @@ final class UpdateTeamRequest extends TeamRequest
 
 ## Enforcement
 
-- `tests/ArchTest.php` asserts every model has a policy in `roster.policies` (`Arch::modelsWithoutPolicies()`).
+- `tests/ArchTest.php` asserts every model has a policy, in `roster.policies` or registered on the Gate by its domain provider (`Arch::modelsWithoutPolicies()`), and that `roster.policies` names no SSO or SCIM model.
 - Surface tests run with `roster.authorization` off; refusals are tested in `tests/Authorization` (`AuthorizationTestCase`, as shipped) ([[testbench-environment]]).

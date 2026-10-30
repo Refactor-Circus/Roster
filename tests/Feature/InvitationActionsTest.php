@@ -66,7 +66,7 @@ it('accepts an invitation into the organization and its teams', function (): voi
     $invitation = app(AcceptInvitationAction::class)->execute(new AcceptInvitationData(token: $token), $ada);
 
     expect($invitation->status())->toBe(InvitationStatus::Accepted)
-        ->and($organization->membershipFor($ada)?->source)->toBe(MembershipSource::Invitation)
+        ->and($organization->membershipFor($ada)?->sourceEnum())->toBe(MembershipSource::Invitation)
         ->and($organization->teams()->sole()->hasMember($ada))->toBeTrue()
         ->and(app(Roster::class)->organization($ada)?->is($organization))->toBeTrue();
 });

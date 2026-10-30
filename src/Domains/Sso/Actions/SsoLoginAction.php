@@ -20,6 +20,7 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Roster;
 use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
@@ -140,7 +141,7 @@ final class SsoLoginAction
             email: $email,
             name: $claims->name ?? Str::before($email, '@'),
             // The organization decides whether its new accounts need approval.
-            status: Statuses::user($organization->provisioned_status),
+            status: app(Roster::class)->provisionedStatus($organization),
         ));
 
         // The identity provider is authoritative for this domain, so the

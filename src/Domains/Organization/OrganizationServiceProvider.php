@@ -10,12 +10,19 @@ use Illuminate\Routing\Router;
 use RefactorCircus\Keystone\Support\ServiceProvider;
 use RefactorCircus\Roster\Domains\Organization\Http\Middleware\EnsureUserHasOrganization;
 use RefactorCircus\Roster\Domains\Organization\Listeners\JoinOrganizationsOnVerified;
+use RefactorCircus\Roster\Domains\Organization\Services\MembershipSources;
 
 /**
  * Organizations, their members, domains, external links and the current context.
  */
 class OrganizationServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        // Code-defined state, filled from providers' boot().
+        $this->app->singleton(MembershipSources::class);
+    }
+
     public function boot(): void
     {
         $this->app->make(Router::class)->aliasMiddleware('roster.organization', EnsureUserHasOrganization::class);

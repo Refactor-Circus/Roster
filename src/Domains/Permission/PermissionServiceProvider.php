@@ -17,7 +17,9 @@ use RefactorCircus\Roster\Domains\Permission\Events\PermissionDeletedEvent;
 use RefactorCircus\Roster\Domains\Permission\Events\PermissionSavedEvent;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\PermissionCache;
+use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
+use RefactorCircus\Roster\Domains\Permission\Services\Resources;
 use RefactorCircus\Roster\Domains\Role\Events\RoleAssignedActionEvent;
 use RefactorCircus\Roster\Domains\Role\Events\RoleAssignmentDeletedEvent;
 use RefactorCircus\Roster\Domains\Role\Events\RoleAssignmentSavedEvent;
@@ -50,6 +52,19 @@ class PermissionServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        // Registries of code-defined state, filled from providers' boot().
+        // Roster's core resources are there from the start, before any boot().
+        $this->app->singleton(Resources::class, function (): Resources {
+            $resources = new Resources;
+
+            foreach (Authorizer::RESOURCES as $resource => $model) {
+                $resources->rosterResource('roster.'.$resource, $model);
+            }
+
+            return $resources;
+        });
+        $this->app->singleton(PermissionCatalogue::class);
+
         $this->app->scoped(Permissions::class);
         // Scoped like the Permissions it uses, so a long-lived worker (Octane,
         // queues) never keeps one request's resolved permissions.

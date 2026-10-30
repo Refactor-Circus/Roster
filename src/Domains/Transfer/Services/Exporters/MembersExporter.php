@@ -58,7 +58,7 @@ final class MembersExporter implements Exporter
                         $membership->teams->map(fn (TeamModel $team): string => $team->slug)->sort()->implode(';'),
                         $roles->get((string) $membership->user_id, ''),
                         $user instanceof Model && $organization->isOwnedBy($user),
-                        $membership->source->value,
+                        $membership->source,
                         $membership->created_at?->toIso8601String(),
                     ],
                 ];
