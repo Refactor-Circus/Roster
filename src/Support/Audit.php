@@ -14,7 +14,6 @@ use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
-use RefactorCircus\Roster\Domains\Scim\Services\ScimContext;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\TransferContext;
@@ -27,7 +26,7 @@ use RefactorCircus\Roster\Roster;
  *
  * Registered whether or not Keen is installed; the hooks cost nothing until
  * it records. Subjects and scopes are picked for Roster's own events only;
- * the impersonator, import and SCIM token context applies to every entry, as
+ * the impersonator and import context applies to every entry, as
  * a change made while impersonating is the impersonator's whatever package
  * made it.
  */
@@ -158,7 +157,8 @@ final readonly class Audit
 
     /**
      * Who was really acting when the change came from an impersonated
-     * session, and the import or SCIM token it came through.
+     * session, and the import it came through. The SCIM domain adds the
+     * token a change came through itself, on AuditHooks.
      *
      * @return array<string, mixed>
      */
@@ -179,12 +179,6 @@ final readonly class Audit
 
         if ($transfer !== null) {
             $context['transfer'] = ['id' => $transfer->id, 'type' => $transfer->type->value];
-        }
-
-        $scim = app(ScimContext::class)->token;
-
-        if ($scim !== null) {
-            $context['scim_token'] = ['id' => $scim->id, 'name' => $scim->name];
         }
 
         return $context;
