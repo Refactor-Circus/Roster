@@ -40,7 +40,7 @@ it('provisions a new member from Okta', function (): void {
 
     $user = User::query()->where('email', 'ada@acme.test')->sole();
 
-    expect($this->acme->membershipFor($user)?->source->value)->toBe('scim')
+    expect($this->acme->membershipFor($user)?->source)->toBe('scim')
         ->and(ScimUserModel::query()->sole()->id)->toBe($response->json('id'))
         ->and(ScimUserModel::query()->sole()->created_by_scim)->toBeTrue();
 });
