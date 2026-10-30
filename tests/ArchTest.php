@@ -188,6 +188,63 @@ arch('Roster\'s own tab registry is gone: screens declare themselves on Atrium\'
     ])))
     ->toBeEmpty();
 
+// Local installs symlink the sibling packages, so Pest reads them as this
+// project's code; their own Atrium use is not Roster's concern.
+arch('only Roster\'s Atrium folder uses Atrium')
+    ->expect('RefactorCircus\Atrium')
+    ->toOnlyBeUsedIn('RefactorCircus\Roster\Atrium')
+    ->ignoring(['RefactorCircus\Cortex', 'RefactorCircus\Impex', 'RefactorCircus\Keen', 'RefactorCircus\PennantPlus']);
+
+/**
+ * Every class under src/Atrium, the Atrium folder's own namespace.
+ *
+ * @return array<int, class-string>
+ */
+function rosterAtriumClasses(): array
+{
+    $classes = [];
+    $root = __DIR__.'/../src/Atrium/';
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)) as $file) {
+        /** @var SplFileInfo $file */
+        if ($file->getExtension() === 'php') {
+            /** @var class-string $class */
+            $class = 'RefactorCircus\\Roster\\Atrium\\'.str_replace(['/', '.php'], ['\\', ''], substr($file->getPathname(), strlen($root)));
+            $classes[] = $class;
+        }
+    }
+
+    sort($classes);
+
+    return $classes;
+}
+
+// The workbench is the demo application, which registers the plugin the
+// way a host application does.
+arch('outside the Atrium folder, nothing in Roster uses it but the provider seam')
+    ->expect(array_values(array_diff(rosterAtriumClasses(), ['RefactorCircus\Roster\Atrium\AtriumServiceProvider'])))
+    ->toOnlyBeUsedIn(['RefactorCircus\Roster\Atrium', 'Workbench']);
+
+arch('the Atrium seam is registered only by RosterServiceProvider')
+    ->expect('RefactorCircus\Roster\Atrium\AtriumServiceProvider')
+    ->toOnlyBeUsedIn('RefactorCircus\Roster\RosterServiceProvider');
+
+arch('ScreenAccess stands on Roster alone')
+    ->expect('RefactorCircus\Roster\Atrium\ScreenAccess')
+    ->not->toUse('RefactorCircus\Atrium');
+
+// Atrium stays autoloadable in the suite (it is a dev dependency), so the
+// rules above would not notice a name that is only a string. Outside
+// src/Atrium the one mention is RosterServiceProvider's installed check.
+arch('nothing outside the Atrium folder names an Atrium class')
+    ->expect(fn (): array => array_values(array_filter(
+        rosterFilesContaining(['src'], ['RefactorCircus\\Atrium', 'RefactorCircus\\\\Atrium'], ['src/Atrium']),
+        fn (string $found): bool => $found !== 'src/RosterServiceProvider.php: RefactorCircus\\Atrium'
+            || substr_count((string) file_get_contents(__DIR__.'/../src/RosterServiceProvider.php'), 'RefactorCircus\\Atrium') !== 1
+            || ! str_contains((string) file_get_contents(__DIR__.'/../src/RosterServiceProvider.php'), "class_exists('RefactorCircus\\Atrium\\Atrium')"),
+    )))
+    ->toBeEmpty();
+
 // This file names them to check they are gone. The README and the Boost
 // skill (resources/boost) are rewritten with the docs, which check them.
 arch('nothing names Roster\'s old tab registry')

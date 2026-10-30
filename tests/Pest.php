@@ -17,6 +17,7 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\RosterServer;
 use RefactorCircus\Roster\Tests\AtriumFeaturesTestCase;
+use RefactorCircus\Roster\Tests\AtriumUnavailableTestCase;
 use RefactorCircus\Roster\Tests\AuthorizationTestCase;
 use RefactorCircus\Roster\Tests\BrowserTestCase;
 use RefactorCircus\Roster\Tests\CortexTestCase;
@@ -61,6 +62,7 @@ uses(KeenTestCase::class)->in('Modes/Keen');
 uses(PennantPlusTestCase::class)->in('Modes/PennantPlus');
 uses(SsoUnavailableTestCase::class)->in('Modes/SsoUnavailable');
 uses(TransfersUnavailableTestCase::class)->in('Modes/TransfersUnavailable');
+uses(AtriumUnavailableTestCase::class)->in('Modes/AtriumUnavailable');
 uses(RenamedTablesTestCase::class)->in('Modes/RenamedTables');
 
 /**

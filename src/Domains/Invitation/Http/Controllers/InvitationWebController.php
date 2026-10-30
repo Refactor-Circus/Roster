@@ -10,12 +10,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use RefactorCircus\Roster\Domains\Invitation\Actions\AcceptInvitationAction;
 use RefactorCircus\Roster\Domains\Invitation\Actions\DeclineInvitationAction;
+use RefactorCircus\Roster\Domains\Invitation\Contracts\InvitationPage;
 use RefactorCircus\Roster\Domains\Invitation\Data\AcceptInvitationData;
 use RefactorCircus\Roster\Domains\Invitation\Data\DeclineInvitationData;
 use RefactorCircus\Roster\Domains\Invitation\Exceptions\InvalidInvitationException;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Invitation\Services\InvitationTokens;
-use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 
 /**
  * The page an invitation email links to, for the invited user rather than
@@ -23,19 +23,9 @@ use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
  */
 final class InvitationWebController
 {
-    public function show(string $token): View
+    public function show(Request $request, string $token): View
     {
-        $invitation = $this->find($token);
-
-        /** @var view-string $view */
-        $view = 'roster::invitations.show';
-
-        return view($view, [
-            'invitation' => $invitation,
-            'organization' => $invitation->organization,
-            'teams' => TeamModel::query()->whereIn('id', (array) $invitation->teams)->orderBy('name')->pluck('name'),
-            'token' => $token,
-        ]);
+        return app(InvitationPage::class)->render($this->find($token), $token, $request);
     }
 
     public function accept(Request $request, string $token): RedirectResponse

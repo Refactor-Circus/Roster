@@ -29,9 +29,12 @@ beforeEach(function (): void {
 });
 
 it('shows the invitation to the signed-in invitee', function (): void {
+    // Atrium is installed here, so the page is Atrium's guest page
+    // (roster::ui.invitations.show); tests/Modes/AtriumUnavailable covers the plain one.
     $this->actingAs(user(['email' => 'ada@example.com']))
         ->get($this->url)
         ->assertOk()
+        ->assertSee('data-testid="guest-layout"', false)
         ->assertSee('Join Acme')
         ->assertSee('Ops');
 });

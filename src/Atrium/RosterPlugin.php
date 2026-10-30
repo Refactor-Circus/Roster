@@ -48,7 +48,7 @@ class RosterPlugin extends Plugin
      * Where the user-status widget's counts are cached for a minute; Roster
      * forgets them whenever one of its User actions finishes.
      */
-    public const string STATUS_COUNTS_CACHE = 'roster:atrium:user-status-counts';
+    public const string STATUS_COUNTS_CACHE = Users::STATUS_COUNTS_CACHE;
 
     public function key(): string
     {

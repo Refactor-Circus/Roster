@@ -75,3 +75,34 @@ Retry that finishes task 2.3 on top of the salvaged commit (`e10f7f0`).
 
 - None beyond those listed in "Group 2 (salvaged)". `composer.json` and `composer.local.json` were not touched: the Atrium move and its `<0.1.0` conflict belong to Group 3, and `composer.local.json` must be edited by hand, never regenerated.
 - `AGENTS.md` has an uncommitted change from a Ringside sync (the "Keep this checkout on `main`" line). It was left out of this commit.
+
+## Group 3 (salvaged)
+
+### Found
+
+No index lock and no merge or rebase in progress. The interrupted agent had left all of 3.1 and 3.2 uncommitted in the worktree:
+
+- `composer.json`: Atrium moved from `require` to `require-dev` (`dev-main`) and `suggest`, with the three suggest strings from criterion 12 and `"conflict": {"refactor-circus/atrium": "<0.1.0"}`. `composer.local.json` (gitignored) has the same change, made by hand; it still points `refactor-circus/atrium` at `../Atrium--2026-10-29-2037-screen-extensions-registry` aliased `dev-main`.
+- `Support\Users::STATUS_COUNTS_CACHE`. `RosterPlugin::STATUS_COUNTS_CACHE` is now set to it, and the provider's cache listener uses it.
+- `Atrium\AtriumServiceProvider`. It binds the Atrium `InvitationPage`, registers `@rosterCan` and shares `rosterUsesAtrium`. `RosterServiceProvider` registers it after the domains, only when `! self::$withoutAtrium && class_exists('RefactorCircus\Atrium\Atrium')`. `$withoutAtrium` is a new `@internal` public static bool. `@rosterCan` and its `ScreenAccess` import left `RosterServiceProvider`.
+- `Domains\Invitation\Contracts\InvitationPage`, `Services\PlainInvitationPage` (bound in `InvitationServiceProvider::register()`, with the shared view data) and `Atrium\InvitationPage`, which declares `roster.invitation` as a detail screen with the `overview` tab. `InvitationWebController::show()` delegates to the bound page.
+- Views: `invitations/show` is now plain HTML (`data-testid="invitation-plain"`, inline styles). The Atrium markup moved to `ui/invitations/show`, which adds the screen's tabs, panel and slots. `impersonation-banner` is now a dispatcher. Its Atrium markup moved to `ui/impersonation-banner`, and the plain banner is in `partials/impersonation-banner-plain`.
+- Tests: `ComposerTest`, `AtriumSeamTest`, `tests/Modes/AtriumUnavailable/AtriumUnavailableTest.php` with `AtriumUnavailableTestCase` and its `Pest.php` mapping, the three arch rules plus the `RefactorCircus\Atrium` string scan in `ArchTest`, `StylesTest` excluding exactly the two plain views, and the markup assertions in `InvitationPageTest` and `ImpersonationFlowTest`.
+- `.github/workflows/tests.yml`: a `without-atrium` job. It removes Atrium, Cortex and Impex, runs `composer update --no-scripts`, checks that `RefactorCircus\Atrium\Atrium` does not exist, and runs `vendor/bin/pest tests/Modes/AtriumUnavailable`. I checked Keen's requirements: Keen, like PennantPlus, has Atrium only in `require-dev`, so it stays.
+- `docs/agent/standards-feedback.md`: a `roster/atrium-views` row for the two plain views.
+
+### Fixed in this salvage
+
+- `tests/Pest.php` was missing the `use RefactorCircus\Roster\Tests\AtriumUnavailableTestCase;` import, so the mapping named a global class that does not exist.
+- `tests/ArchTest.php`: the rule "only Roster's Atrium folder uses Atrium" failed locally. Local installs symlink the sibling packages, so Pest's arch plugin treats PennantPlus (and Cortex, Impex, Keen) as project code. It now `->ignoring()`s those four namespaces. The rule itself is unchanged.
+- `src/RosterServiceProvider.php`: reflowed one overlong docblock line.
+
+### Tests
+
+- Ran only this group's files (`ComposerTest`, `AtriumSeamTest`, `tests/Modes/AtriumUnavailable`, `StylesTest`, `tests/Feature/Web`, `ArchTest`): all pass, 60 tests. `composer analyse` and Pint on the touched files also pass.
+- 3.3 (the full `vendor/bin/pest`) was not run here, as instructed; the gate runs it.
+
+### Left
+
+- 3.3: run the full `vendor/bin/pest`.
+- The `without-atrium` CI job can only be proven green on the PR (criterion 15).
