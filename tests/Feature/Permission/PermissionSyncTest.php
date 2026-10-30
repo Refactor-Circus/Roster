@@ -48,13 +48,47 @@ it('drops the SSO and SCIM permissions from the core list', function (): void {
     expect(array_intersect(array_keys(BuiltInRoles::PERMISSIONS), DOMAIN_PERMISSIONS))->toBe([]);
 });
 
-it('creates the registered SSO and SCIM permissions as system permissions', function (): void {
-    PermissionModel::query()->whereIn('name', DOMAIN_PERMISSIONS)->delete();
-
+it('no longer creates the SSO and SCIM permissions', function (): void {
     BuiltInRoles::sync();
 
-    expect(PermissionModel::query()->whereIn('name', DOMAIN_PERMISSIONS)->where('system', true)->orderBy('name')->pluck('name')->all())
-        ->toBe(DOMAIN_PERMISSIONS);
+    expect(PermissionModel::query()->whereIn('name', DOMAIN_PERMISSIONS)->exists())->toBeFalse();
+});
+
+/**
+ * An upgraded install: the three SSO and SCIM permissions Roster used to
+ * register, still stored as system permissions and granted to admin.
+ */
+function legacySsoScimPermissions(): RoleModel
+{
+    $admin = builtInRole('admin');
+
+    foreach (DOMAIN_PERMISSIONS as $name) {
+        $admin?->permissions()->attach(PermissionModel::query()->create(['name' => $name, 'description' => 'Old.', 'system' => true]));
+    }
+
+    return $admin ?? throw new RuntimeException('No built-in admin role.');
+}
+
+it('reports the stored SSO and SCIM permissions as unregistered, and keeps them and their admin grants', function (): void {
+    $admin = legacySsoScimPermissions();
+    $command = Artisan::all()['roster:sync-permissions'];
+    $global = array_keys($command->getApplication()?->getDefinition()->getOptions() ?? []);
+    // Every option the command itself offers (prune, force, delete, ...), one run each.
+    $options = array_values(array_diff(array_keys($command->getDefinition()->getOptions()), $global));
+
+    foreach ([[], ...array_map(fn (string $option): array => ['--'.$option => true], $options)] as $parameters) {
+        $run = $this->artisan('roster:sync-permissions', $parameters);
+
+        foreach (DOMAIN_PERMISSIONS as $name) {
+            $run->expectsOutputToContain($name);
+        }
+
+        $run->assertSuccessful();
+        $run->run();
+
+        expect(PermissionModel::query()->whereIn('name', DOMAIN_PERMISSIONS)->where('system', true)->count())->toBe(3)
+            ->and(heldBy($admin->fresh() ?? $admin))->toContain(...DOMAIN_PERMISSIONS);
+    }
 });
 
 it('grants registered permissions to a built-in role sync creates', function (): void {
@@ -67,19 +101,19 @@ it('grants registered permissions to a built-in role sync creates', function ():
 
     expect($admin)->not->toBeNull()
         ->and($admin->system)->toBeTrue()
-        ->and(heldBy($admin))->toContain(...DOMAIN_PERMISSIONS, ...['acme.widgets.approve'])
+        ->and(heldBy($admin))->toContain('acme.widgets.approve')
         ->and(heldBy(builtInRole('member')))->not->toContain('acme.widgets.approve');
 });
 
 it('keeps the grants of an admin role the application edited', function (): void {
     $admin = builtInRole('admin');
-    $admin->permissions()->detach(PermissionModel::query()->where('name', 'roster.sso.view')->pluck('id'));
+    $admin->permissions()->detach(PermissionModel::query()->where('name', 'roster.organizations.update')->pluck('id'));
     $edited = heldBy($admin);
 
     BuiltInRoles::sync();
 
     expect(heldBy($admin))->toBe($edited)
-        ->and(heldBy($admin))->not->toContain('roster.sso.view');
+        ->and(heldBy($admin))->not->toContain('roster.organizations.update');
 });
 
 it('leaves an install that already has every permission unchanged', function (): void {
@@ -128,8 +162,7 @@ it('creates registered permissions and their admin grants when the role tables m
 
     $admin = builtInRole('admin');
 
-    expect(PermissionModel::query()->whereIn('name', [...DOMAIN_PERMISSIONS, 'acme.widgets.approve'])->where('system', true)->count())->toBe(4)
+    expect(PermissionModel::query()->whereIn('name', [...DOMAIN_PERMISSIONS, 'acme.widgets.approve'])->where('system', true)->pluck('name')->all())->toBe(['acme.widgets.approve'])
         ->and($admin)->not->toBeNull()
-        ->and(heldBy($admin))->toContain(...DOMAIN_PERMISSIONS, ...['acme.widgets.approve'])
-        ->and(array_values(array_intersect(heldBy(builtInRole('lead')), DOMAIN_PERMISSIONS)))->toBe([]);
+        ->and(heldBy($admin))->toContain('acme.widgets.approve');
 });

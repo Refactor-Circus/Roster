@@ -20,8 +20,7 @@ Headless, Action-first user management for Laravel. Every operation is a single 
 - Roles and permissions at global, organization and team scope, resolved through Laravel's Gate (`$user->can()`, `@can`)
 - Every change recorded in the suite-wide audit log of [`refactor-circus/keen`](https://github.com/Refactor-Circus/Keen), when installed, which adds each record's history to its Atrium page
 - Impersonation through one-time links, with time limits, a banner, blocked abilities and a full audit trail (with refactor-circus/keen)
-- Single sign-on per organization: OpenID Connect, SAML 2.0 and Microsoft Entra ID, with just-in-time accounts and optional enforcement
-- SCIM 2.0 provisioning per organization: identity providers create, update and deprovision members and teams
+- Extension seams for other packages: single sign-on and SCIM provisioning per organization come from [`refactor-circus/guardian`](https://github.com/Refactor-Circus/Guardian) (see [SSO and SCIM](#sso-and-scim-refactor-circusguardian))
 
 ## Installation
 
@@ -277,7 +276,7 @@ If your app hasn't defined Atrium's `viewAtrium` gate, Roster defines it as the 
 
 ### Policies
 
-Each Roster model has a policy. The core models' policies are registered with the Gate from `roster.policies`; the SSO and SCIM domains register their own models' policies themselves, and an entry for one of those models in `roster.policies` still wins. Point a model at a class of your own to change who may do what:
+Each Roster model has a policy. The core models' policies are registered with the Gate from `roster.policies`; package resources register their own policies (see [Extending Roster](#extending-roster)), and an entry for one of their models in `roster.policies` still wins. Point a model at a class of your own to change who may do what:
 
 ```php
 'policies' => [
@@ -302,7 +301,7 @@ class OrganizationPolicy extends RosterOrganizationPolicy
 }
 ```
 
-**Roster's own checks ask them.** On every surface, permission `roster.{resource}.{verb}` asks the policy of the resource's model, by the camel-cased verb: `roster.organizations.update` asks `update()` on `OrganizationModel`'s policy, `roster.users.manage-status` asks `manageStatus()` on `UserModel`'s. The core resources are `users` (`UserModel`, whatever your user model is), `organizations`, `members` (`MembershipModel`), `teams`, `invitations` and `roles` (which covers permissions). The SSO and SCIM domains register `sso` (`SsoConnectionModel`) and `scim` (`ScimTokenModel`) the way any package registers its own resources (see [Extending Roster](#extending-roster)). The other models' policies (profiles, domains, links, seats, assignments, permissions, impersonations, identities, SCIM records, transfers and their rows) answer your own checks: `$user->can('manage', $domain)`.
+**Roster's own checks ask them.** On every surface, permission `roster.{resource}.{verb}` asks the policy of the resource's model, by the camel-cased verb: `roster.organizations.update` asks `update()` on `OrganizationModel`'s policy, `roster.users.manage-status` asks `manageStatus()` on `UserModel`'s. The core resources are `users` (`UserModel`, whatever your user model is), `organizations`, `members` (`MembershipModel`), `teams`, `invitations` and `roles` (which covers permissions). Other packages register their own resources the same way (see [Extending Roster](#extending-roster)). The other models' policies (profiles, domains, links, seats, assignments, permissions, impersonations, transfers and their rows) answer your own checks: `$user->can('manage', $domain)`.
 
 The bundled policies answer with Roster's permissions, so nothing changes until you swap one. Since checks now go through the Gate, your app's `Gate::before` callbacks apply to them too. Some things stay with Roster whatever a policy says: permissions blocked while impersonating are refused first, `roster.audit.view` has no model and is checked directly, and the organization-limited lists above still work out the caller's organizations from their roles. Remove a model's entry to check its resource by Roster's permissions alone.
 
@@ -325,8 +324,8 @@ While it does, Roster teaches Keen about its records through refactor-circus/key
 - **Field changes** include profile fields (`profile.status`), a role's permissions, an organization's domains, and the role, organization and team of an assignment.
 - **Subject:** an entry about a role assignment or an impersonation is about the user; otherwise about the event's `user`, when it has one.
 - **Scope:** the organization the change belongs to (a user's current organization for changes to the user alone), so Keen can be read per organization.
-- **Context:** `impersonator` while someone is impersonating, `transfer` for a change made by a CSV import, and `scim_token` for one made through SCIM.
-- **Surfaces:** SCIM routes are recorded as `scim`, and the signed invitation and impersonation pages as `web`.
+- **Context:** `impersonator` while someone is impersonating, and `transfer` for a change made by a CSV import. Other packages add their own (see [Audit context](#audit-context)).
+- **Surfaces:** the signed invitation and impersonation pages are recorded as `web`.
 - **Redaction:** the users table's password column, on top of Keen's own list.
 
 ### Reading it
@@ -341,56 +340,24 @@ Otherwise the pages show no history, the route answers 404, and the tool is not 
 
 Record your app's own events with Keen directly: `Keen::record('invoice.paid')->on($invoice)->in($organization)->save();`.
 
-## Single sign-on
+## SSO and SCIM (refactor-circus/guardian)
 
-Each organization can sign its people in through its own identity provider: **OpenID Connect** (Okta, Auth0, Google Workspace, Keycloak …), **Microsoft Entra ID**, or **SAML 2.0** (ADFS, Okta, OneLogin …). SSO is built on Laravel Socialite, and its packages are optional. Install the ones you need:
+**Without Guardian, organizations that enforce SSO accept password sign-in.** Roster no longer ships single sign-on or SCIM provisioning, and adds no guard of its own: [`refactor-circus/guardian`](https://github.com/Refactor-Circus/Guardian) adds OpenID Connect, SAML 2.0 and Microsoft Entra ID sign-in, SSO enforcement and a SCIM 2.0 endpoint to Roster's organizations, through Roster's [extension seams](#extending-roster). Install it in the same deploy as this Roster version:
 
 ```bash
-composer require laravel/socialite firebase/php-jwt                      # OpenID Connect
-composer require laravel/socialite socialiteproviders/microsoft-azure    # Microsoft Entra ID
-composer require laravel/socialite socialiteproviders/saml2              # SAML 2.0
+composer require refactor-circus/guardian
 ```
 
-### Connecting an identity provider
+Upgrading from a Roster that still had them (the [CHANGELOG](CHANGELOG.md) has the full steps):
 
-Add a connection on the organization's **SSO** tab in Atrium, or with `CreateSsoConnectionAction`, the API or MCP:
+1. Install Guardian in the same deploy.
+2. **Before running any migrate command**, delete your published `create_roster_sso_tables` and `create_roster_scim_tables` migrations and never roll them back (their `down()` drops the tables), and remove the SSO/SCIM keys from published copies of the two index migrations.
+3. Publish and run Guardian's migrations, then `php artisan roster:sync-permissions`. Guardian renames the `roster_sso_*` / `roster_scim_*` tables and the `roster.sso.*` / `roster.scim.*` role grants to its own `guardian_*` / `guardian.*` names. If you installed Guardian before this Roster version, run `php artisan guardian:upgrade-from-roster` after upgrading Roster to finish the rename.
+4. Move published `roster.sso` / `roster.scim` config to Guardian's keys, and check its SCIM prefix (Roster's was `scim/v2`).
+5. Use Guardian's class, route and permission names in place of Roster's old ones.
+6. Replace `NotSsoEnforced` in your login validation with `RefactorCircus\Roster\Support\Rules\NoExternalSignIn`.
 
-| Protocol | Settings |
-|---|---|
-| `oidc` | `issuer` (https), `client_id`, `client_secret` |
-| `azure` | `tenant` (tenant ID or verified domain), `client_id`, `client_secret` |
-| `saml` | `metadata_url`, **or** `entity_id`, `sso_url` and `certificate` |
-
-Register the connection's **callback URL** at the provider. It's shown in Atrium and returned by the API: `/roster/sso/{connection}/callback`, the SAML ACS. For SAML, give the provider the service provider metadata at `/roster/sso/{connection}/metadata`. Secrets are encrypted at rest and never returned by any surface.
-
-### Signing in
-
-Send people to `/roster/sso?email=ada@acme.com`, which finds their organization's connection by email domain, or straight to `/roster/sso/{connection}`. After the provider confirms them:
-
-1. **A returning user** is matched by their identity at the provider (its subject), not by email.
-2. **An existing account with the same email** is linked automatically, but **only if the organization owns that email's domain**. Anyone else can link from their account while signed in (`POST /roster/sso/{connection}/link`).
-3. **Otherwise, a new account is created** (`jit`, on by default), again only for the organization's own domains, with the email marked verified.
-
-The user becomes a member of the organization. Suspended or deactivated users are refused. With Keen installed, every sign-in and refusal is in the audit log (`sso_login.succeeded` / `sso_login.failed`).
-
-**Security notes**
-
-- An identity provider is only trusted for its organization's verified domains, so a provider can't vouch for `ceo@someone-else.com`.
-- **OIDC** id_tokens are verified against the provider's published keys (signature, issuer, audience, expiry, nonce).
-- **SAML** assertions are verified by LightSAML.
-- **Entra ID** connections need a specific tenant (`common`, `organizations` and `consumers` are refused), and use the account's `userPrincipalName`. Roster never uses the `mail` attribute, which tenant admins can set to any address.
-
-### Requiring SSO
-
-Turn on `enforced` to make SSO mandatory for an organization's domains. Roster has no password login of its own; add the rule to yours:
-
-```php
-use RefactorCircus\Roster\Domains\Sso\Support\NotSsoEnforced;
-
-$request->validate(['email' => ['required', 'email', new NotSsoEnforced]]);
-```
-
-It fails with a link to the organization's SSO sign-in. Super-admins are never forced, so you can't lock yourself out. `Roster::externalSignInFor($email)` gives the same answer in code: its `url` is the sign-in link and its `record` the `SsoConnectionModel`. SSO enforcement is a sign-in requirement, so the rule also enforces any requirement another package registers (see [Extending Roster](#extending-roster)).
+Without Guardian nothing is deleted: the tables, their rows and the three permissions stay where they are, SSO sign-in and the SCIM endpoints answer 404, `roster:sync-permissions` reports the permissions as unregistered, `?tab=sso` and `?tab=scim` open the members tab, and members provisioned through SCIM show their stored source, `scim`.
 
 ## Syncing organizations from external systems
 
@@ -421,38 +388,6 @@ $result->organization->links;       // [OrganizationLink{source: erp, external_i
 - **In bulk:** `SyncOrganizationsAction` (`POST /roster/organizations/sync`) takes up to `roster.organizations.sync_batch` (500) records. Each record succeeds or fails on its own, and the response lists `created` / `updated` / `unchanged` / `error` (with messages) per record, in order. For files, use the `import_organizations` CSV import.
 - **Permission:** the sync Actions and the CSV import need the global `roster.organizations.sync` permission. Give an integration user just that, plus `roster.organizations.view` if it needs to look organizations up. Linking and unlinking by hand need `roster.organizations.update` in the organization.
 - **Audit:** with Keen installed, each sync records `organization.synced` with the source, id and outcome, next to the usual `organization.created` / `organization.updated` entries. A batch also records `organizations.synced` with its counts.
-
-## SCIM provisioning
-
-Each organization gets a SCIM 2.0 endpoint, so its identity provider (Okta, Microsoft Entra ID, OneLogin, JumpCloud …) keeps its members and teams in sync:
-
-| Okta / Entra setting | Value |
-|---|---|
-| SCIM base URL (Tenant URL) | `https://your-app.test/scim/v2/{organization-slug}` |
-| Authentication | Bearer token, from the organization's **SCIM** tab in Atrium (or `POST /roster/organizations/{organization}/scim-tokens`) |
-| Unique identifier | `userName` (email) |
-
-Tokens are shown **once**, stored only as a hash, can expire, can be revoked, and record when they were last used. A token only works for its own organization.
-
-**What the provider can do**
-
-- **Users are the organization's members.** Creating one makes the person a member, linking their existing account when the organization owns the email's domain, or creating a new account. Emails on other domains are refused, so a SCIM token can't claim accounts it doesn't own.
-- **Groups are the organization's teams.** The provider can create and rename them and sync their members.
-- **Deprovisioning** (`active: false`, or `DELETE`) removes the membership, with its team seats and roles. The account is deactivated only if SCIM created it and it belongs to no other organization. Accounts are never deleted. Setting `active: true` restores the membership.
-- **The owner** can't be deprovisioned; that's a 409 until ownership is transferred.
-
-**Supported (RFC 7643/7644)**
-
-- `/Users` and `/Groups` with GET, POST, PUT, PATCH and DELETE, plus `/Bulk`, `/ServiceProviderConfig`, `/ResourceTypes` and `/Schemas`.
-- **Filters:** `eq`, `co` and `sw`, joined by `and`, on `userName`, `externalId`, `emails.value`, `id`, `displayName` and `members.value`.
-- **PATCH:** `add`, `replace` and `remove`, including Entra's capitalised ops and string booleans, and Okta's `members[value eq "…"]`.
-- **Paging:** `startIndex` and `count`.
-- **ETags:** `If-Match` returns 412 on a stale version; `If-None-Match` returns 304.
-- **Bulk:** `bulkId` references and `failOnErrors`, up to `roster.scim.bulk.max_operations` operations.
-
-**Linking to SSO.** When you issue a token, you can name one of the organization's SSO connections. The provider's `externalId` then becomes that connection's SSO subject, so a provisioned user's first SSO sign-in lands on their account. Map Okta's user ID or Entra's objectId to `externalId`.
-
-**Audit.** Every SCIM change runs through Roster's Actions, so with Keen installed it is recorded with surface `scim` and the name of the token that made it.
 
 ## Impersonation
 
@@ -556,8 +491,8 @@ $export = app(StartExportAction::class)->execute(new StartExportData(type: Trans
 
 **Safety**
 
-- **No passwords.** A file with a `password` column is refused. New accounts get a random password; people reset it or sign in with SSO.
-- **Accounts outside the organization's domains are never claimed.** Those rows become invitations, the same rule SCIM follows.
+- **No passwords.** A file with a `password` column is refused. New accounts get a random password; people reset it or sign in another way their app offers.
+- **Accounts outside the organization's domains are never claimed.** Those rows become invitations.
 - **Limits:** `max_bytes` (5 MB) and `max_rows` (10,000). UTF-8 with or without a BOM is accepted.
 - **Formula injection:** exported cells starting with `=`, `+`, `-`, `@`, a tab or a carriage return get a leading `'`, so spreadsheets show them as text.
 - **Files** live on `roster.transfers.disk` (keep it private) under `roster/transfers/{id}`. They are only served through Roster's authorized download route, to whoever started the transfer or holds its permission in scope. MCP gets a signed link valid for 15 minutes. `roster:prune-transfers` deletes files older than `retention_days` (7).
@@ -580,7 +515,7 @@ Deleting a user or an organization is recoverable. It goes to **Deleted** (Atriu
   ```
 
   Laravel then hides deleted users everywhere, sign-in included. Their profile, memberships, team seats, roles and personal organization are kept for a restore. A model without the trait is deleted permanently, as before, and the warning says so.
-- **Organizations** always soft-delete. A deleted organization is switched off: its pages and API 404, its members lose access, and its SSO, SCIM and domain auto-join stop. **Its slug and domains stay reserved**, so a restore always works.
+- **Organizations** always soft-delete. A deleted organization is switched off: its pages and API 404, its members lose access, and its domain auto-join stops. **Its slug and domains stay reserved**, so a restore always works.
 - **Restore** with `RestoreUserAction` / `RestoreOrganizationAction`, `POST /roster/users/{user}/restore` / `POST /roster/organizations/{organization}/restore`, the MCP restore tools, or the Restore buttons in Atrium. It needs the same permission as deleting.
 - **Delete permanently** with `PurgeUserAction` / `PurgeOrganizationAction`, `DELETE …/purge`, the MCP purge tools, or the deleted record's Danger zone in Atrium. Only deleted records can be purged, and it needs `roster.users.purge` / `roster.organizations.purge`.
 - **Organizations are purged in the background**, since a large one takes all its teams, members, invitations, roles and connections with it: the API, MCP and Atrium check the request at once (a refusal answers right away), then queue a `PurgeOrganizationJob` and answer `202 Accepted`, so the organization disappears shortly after. Call `PurgeOrganizationAction::queue($organization)` to do the same, or `execute()` to purge in place. Run a queue worker. An organization restored before the job runs is kept.
@@ -594,7 +529,7 @@ New accounts can wait for an approver instead of becoming active straight away. 
 |---|---|
 | The app's own registration (Laravel's `Registered` event, which Breeze, Fortify and Jetstream fire) | `roster.users.registration_status`: `active` (default) or `pending` |
 | An admin: `CreateUserAction`, Atrium's create form, the API or MCP | Their choice, through the `status` input (`active` by default) |
-| An organization's SSO (just-in-time accounts) or SCIM | That organization's `provisioned_status` setting (`active` by default), on its Settings tab |
+| A package that provisions accounts for an organization from outside (refactor-circus/guardian, for one) | That organization's `provisioned_status` setting (`active` by default), on its Settings tab |
 
 CSV imports create active users.
 
@@ -605,7 +540,6 @@ CSV imports create active users.
   - In Atrium, a pending user's page shows Approve and Reject buttons, and the Users list filters by "Awaiting approval".
 - **While pending:**
   - `roster.active` answers 403 with "Your account is awaiting approval".
-  - SSO sign-in is refused with the same message. The account, its membership and its SSO link are still kept, so it's ready once approved.
   - Reactivating a pending account is refused; approve it instead.
 - **Emails,** each switchable in `roster.users.approvals`:
   - `notify_approvers` tells everyone with `roster.users.approve` (super-admins included) when someone is waiting.
@@ -706,12 +640,6 @@ enum CustomerStatus: string implements Status
 | GET, POST | `/roster/users/{user}/roles` | `roster.users.roles.index`, `.store` |
 | DELETE | `/roster/users/{user}/roles/{assignment}` | `roster.users.roles.destroy` |
 | GET | `/roster/users/{user}/permissions` | `roster.users.permissions` |
-| GET, POST | `/roster/organizations/{organization}/sso-connections` | `roster.organizations.sso-connections.index`, `.store` |
-| GET, PATCH, DELETE | `/roster/sso-connections/{connection}` | `roster.sso-connections.show`, `.update`, `.destroy` |
-| GET | `/roster/users/{user}/sso-identities` | `roster.users.sso-identities.index` |
-| DELETE | `/roster/sso-identities/{identity}` | `roster.sso-identities.destroy` |
-| GET, POST | `/roster/organizations/{organization}/scim-tokens` | `roster.organizations.scim-tokens.index`, `.store` |
-| DELETE | `/roster/scim-tokens/{token}` | `roster.scim-tokens.destroy` |
 | POST | `/roster/users/{user}/impersonate` | `roster.users.impersonate` |
 | GET | `/roster/impersonations` | `roster.impersonations.index` |
 | DELETE | `/roster/impersonations/{impersonation}` | `roster.impersonations.destroy` |
@@ -737,8 +665,6 @@ MCP tools (all behind Laravel MCP's tool search):
 | Organizations | `list-organizations-tool`, `show-organization-tool`, `create-organization-tool`, `update-organization-tool`, `delete-organization-tool`, `restore-organization-tool`, `purge-organization-tool`, `transfer-ownership-tool`, `list-members-tool`, `add-member-tool`, `remove-member-tool`, `sync-organization-tool`, `sync-organizations-tool`, `link-organization-tool`, `unlink-organization-tool` |
 | Teams | `list-teams-tool`, `show-team-tool`, `create-team-tool`, `update-team-tool`, `delete-team-tool`, `add-team-member-tool`, `remove-team-member-tool` |
 | Invitations | `list-invitations-tool`, `create-invitation-tool`, `revoke-invitation-tool`, `accept-invitation-tool`, `decline-invitation-tool` |
-| Single sign-on | `list-sso-connections-tool`, `show-sso-connection-tool`, `create-sso-connection-tool`, `update-sso-connection-tool`, `delete-sso-connection-tool`, `list-sso-identities-tool`, `unlink-sso-identity-tool` |
-| SCIM | `list-scim-tokens-tool`, `create-scim-token-tool`, `revoke-scim-token-tool` |
 | Impersonation | `start-impersonation-tool`, `list-impersonations-tool`, `stop-impersonation-tool` |
 | History | `list-roster-history-tool` (reads refactor-circus/keen) |
 | CSV import and export | `show-import-template-tool`, `start-import-tool`, `confirm-import-tool`, `start-export-tool`, `list-transfers-tool`, `show-transfer-tool`, `cancel-transfer-tool` |
@@ -765,8 +691,6 @@ When [`refactor-circus/atrium`](https://github.com/Refactor-Circus/Atrium) is in
 - an **Organizations** section: members, ownership, teams, invitations, settings (domains, auto-join) and external records (link, unlink; filter the list by source, external id or account number)
 - **Roles** and **Permissions** sections, a Roles card on each user, and a Roles tab on each organization
 - **Impersonations** (active and history, end any) and an Impersonate card on each user
-- an **SSO** tab on each organization (connections with their callback and metadata URLs) and SSO identities on each user
-- a **SCIM** tab on each organization (base URL, issue tokens that are shown once, revoke)
 - **Imports & exports**: upload a CSV, review the preview, confirm or cancel, follow progress, and download exports, also reached from each organization and from Users
 - "Users by status" and "Organizations" widgets
 - navigation, widgets and search hidden from users without the matching permission
@@ -859,9 +783,9 @@ public function boot(): void
 | `roster.transfer` | An import or export | detail | the transfer | `header.actions`, `before`, `after`, `aside` |
 | `roster.invitation` | The invitation page (`/roster/invitation/{token}`) | detail | the invitation | `header.actions`, `before`, `after`, `aside` |
 
-Deleted users and organizations show their deleted page, which is not a screen: registered tabs and sections never show there, and their closures never run. The SSO connection screen and the CSV template download are not screens either.
+Deleted users and organizations show their deleted page, which is not a screen: registered tabs and sections never show there, and their closures never run. The CSV template download is not a screen either.
 
-**Built-in tabs.** Every screen but `roster.organization` has one built-in tab, `overview`, holding the page; the tab bar appears only once a registered tab is visible to the viewer. The organization screen's built-in tabs are `members`, `teams`, `invitations`, `roles`, `sso`, `scim` and `settings`, in that order, each shown only to viewers holding its permission in the organization; the first one shown is the default. All seven keys are reserved for every viewer, including the tabs a viewer may not open: a registered tab named like one is skipped and reported, and shows to no one. `?tab=` naming a built-in tab the viewer may not open answers 403, and an unknown key (`?tab=activity` and `?tab=mcp` included, which were Roster's tabs before) opens the default tab. New built-in keys may arrive in minor releases, so prefix yours with your vendor, as `vendor.key` (`acme.orders`).
+**Built-in tabs.** Every screen but `roster.organization` has one built-in tab, `overview`, holding the page; the tab bar appears only once a registered tab is visible to the viewer. The organization screen's built-in tabs are `members`, `teams`, `invitations`, `roles` and `settings`, in that order, each shown only to viewers holding its permission in the organization; the first one shown is the default. All five keys are reserved for every viewer, including the tabs a viewer may not open: a registered tab named like one is skipped and reported, and shows to no one. `?tab=` naming a built-in tab the viewer may not open answers 403, and an unknown key (`?tab=activity`, `?tab=mcp`, `?tab=sso` and `?tab=scim` included, which were Roster's tabs before) opens the default tab. New built-in keys may arrive in minor releases, so prefix yours with your vendor, as `vendor.key` (`acme.orders`).
 
 **Access.** A `permission()` tab or section asks the screen's `access` closure, which is `ScreenAccess::allowsOn($permission, $record)`: the same check, in the same scope, as Roster's own controls and `@rosterCan`. In a row slot, `$record` is the row.
 
@@ -886,9 +810,9 @@ If you published Roster's views (`roster-views`), re-publish them (`php artisan 
 
 ## Extending Roster
 
-Other packages, and your app, add authorization resources, permissions, membership sources, sign-in requirements and audit context to Roster through registration points, without Roster naming them. Roster's own SSO and SCIM domains use the same ones. Register from a service provider's `boot()`, never per request. Each registry is a singleton holding code-defined state for the life of the process (Octane, queue workers), and registering the same thing twice throws.
+Other packages, and your app, add authorization resources, permissions, membership sources, sign-in requirements and audit context to Roster through registration points, without Roster naming them; refactor-circus/guardian, for one, adds single sign-on and provisioning this way. Register from a service provider's `boot()`, never per request. Each registry is a singleton holding code-defined state for the life of the process (Octane, queue workers), and registering the same thing twice throws.
 
-**`roster.*` is Roster's.** Resource prefixes and permission names under `roster.*` are reserved for Roster's own domains: `resource()` and `permission()` throw an `InvalidArgumentException` naming the value for any of them. Register under your package's own prefix, such as `acme.widgets`. The SSO and SCIM permissions keep their `roster.sso.*` and `roster.scim.*` names because they are still Roster's domains.
+**`roster.*` is Roster's.** Resource prefixes and permission names under `roster.*` are reserved for Roster's own domains: `resource()` and `permission()` throw an `InvalidArgumentException` naming the value for any of them. Register under your package's own prefix, such as `acme.widgets`.
 
 ### Resources
 
@@ -960,13 +884,21 @@ public function boot(): void
 }
 ```
 
-- `$membership->source` is the stored string. Roster's built-in sources are the `MembershipSource` cases (`direct`, `invitation`, `domain`, `personal`, `import`), and `$membership->sourceEnum()` answers the case, or null for a registered source such as SCIM's `scim`.
+- `$membership->source` is the stored string. Roster's built-in sources are the `MembershipSource` cases (`direct`, `invitation`, `domain`, `personal`, `import`), and `$membership->sourceEnum()` answers the case, or null for a registered source such as `hris`.
 - The API and MCP member data show the registered label (`HR system`). A stored source that nothing registers, from a package you removed for example, shows its stored value and never errors.
-- Code that joins users through Roster's `ManagesMemberships::join()`, as the SCIM domain does, passes a registered source as a string. An unregistered one throws an `InvalidArgumentException`, as does registering a built-in value or the same source twice.
+- Code that joins users through Roster's `ManagesMemberships::join()` passes a registered source as a string. An unregistered one throws an `InvalidArgumentException`, as does registering a built-in value or the same source twice.
 
 ### Sign-in requirements
 
-A sign-in requirement says that an email must sign in somewhere else, such as an identity provider, instead of with a password. Roster's SSO enforcement is one:
+A sign-in requirement says that an email must sign in somewhere else, such as an identity provider, instead of with a password. Guardian's single sign-on enforcement is one. Roster has no password login of its own; add the `NoExternalSignIn` rule to yours, and it fails for any email a registered sign-in requirement claims, with a link to where that sign-in starts:
+
+```php
+use RefactorCircus\Roster\Support\Rules\NoExternalSignIn;
+
+$request->validate(['email' => ['required', 'email', new NoExternalSignIn]]);
+```
+
+Register your own requirement the same way Guardian does:
 
 ```php
 use RefactorCircus\Roster\Contracts\SignInRequirement;
@@ -998,12 +930,13 @@ Roster::externalSignInFor('ada@partner.example')?->url; // where her sign-in sta
 
 - `externalSignInFor()` asks the requirements in registration order and returns the first answer that isn't null. Requirements must not overlap: make sure no two claim the same emails. A class-string is resolved from the container once, on first use, and registering the same class or instance again is ignored.
 - Super-admins get `null` before any requirement is asked, so a broken requirement can't lock them out.
-- It fails closed. A requirement that throws is not caught: the login or registration asking (through `NotSsoEnforced`) fails, Laravel's handler reports the exception, and the user sees a generic error, never its message. This is deliberate for a security control, so keep requirements simple.
-- The `NotSsoEnforced` rule in your login validation enforces every registered requirement, not only Roster's SSO. `ExternalSignIn::$record` holds the record behind an answer, if any (the `SsoConnectionModel` for Roster's SSO).
+- It fails closed. A requirement that throws is not caught: the login or registration asking (through `NoExternalSignIn`) fails, Laravel's handler reports the exception, and the user sees a generic error, never its message. This is deliberate for a security control, so keep requirements simple.
+- The `NoExternalSignIn` rule fails with the translated `roster::roster.external_sign_in_required` message, its `:organization` from the answer's `label` and `:url` from its `url`. `ExternalSignIn::$record` holds whatever record a registered sign-in requirement keeps behind its answer, if any.
+- With no requirement registered (no Guardian, say), every email passes the rule, so organizations that enforced single sign-on accept password sign-in.
 
 ### Provisioning status
 
-`Roster::provisionedStatus()` is the provisioning API. Accounts your package creates for an organization from outside, as Roster's SSO and SCIM do, start with the status it returns:
+`Roster::provisionedStatus()` is the provisioning API. Accounts your package creates for an organization from outside (externally provisioned accounts, such as Guardian's) start with the status it returns:
 
 ```php
 use RefactorCircus\Roster\Facades\Roster;
@@ -1015,7 +948,7 @@ It is the organization's `provisioned_status`, resolved through the user statuse
 
 ### Audit context
 
-Roster has no audit API. To add context to the audit entries of Roster's changes, register a closure on refactor-circus/keystone's `AuditHooks`, as Roster's SCIM domain does for `scim_token`. `AuditHooks` runs every context closure for every package's events and catches nothing, so the closure keeps to Roster's entries itself and never lets an exception out:
+Roster has no audit API. To add context to the audit entries of Roster's changes, register a closure on refactor-circus/keystone's `AuditHooks`. `AuditHooks` runs every context closure for every package's events and catches nothing, so the closure keeps to Roster's entries itself and never lets an exception out:
 
 ```php
 use RefactorCircus\Keystone\Audit\AuditHooks;

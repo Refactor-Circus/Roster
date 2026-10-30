@@ -18,8 +18,8 @@ use RefactorCircus\Roster\Support\Users;
  * Input for CreateOrganizationAction: the organization and its settings.
  *
  * Without a slug one is made from the name. `owner` is the owning user's
- * route key. `provisioned_status` is the status of accounts created through
- * its SSO or SCIM: active (the default), or waiting for approval. `status`
+ * route key. `provisioned_status` is the status its externally provisioned
+ * accounts start with: active (the default), or waiting for approval. `status`
  * is the organization's own, from `roster.statuses.organizations`; without
  * one it starts with the enum's default.
  */

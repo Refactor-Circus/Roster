@@ -29,7 +29,7 @@ trait OrganizationRules
 
         return [
             'auto_join' => ['sometimes', 'boolean'],
-            // Accounts created through its SSO or SCIM: active, or waiting for approval.
+            // Its externally provisioned accounts: active, or waiting for approval.
             'provisioned_status' => ['sometimes', Rule::in([Statuses::users()::active()->value, Statuses::users()::pending()->value])],
             'status' => ['sometimes', Rule::enum(Statuses::organizations())],
             'status_reason' => ['sometimes', 'nullable', 'string', 'max:1000'],

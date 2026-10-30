@@ -25,7 +25,6 @@ use RefactorCircus\Roster\Tests\DefaultsTestCase;
 use RefactorCircus\Roster\Tests\KeenTestCase;
 use RefactorCircus\Roster\Tests\PennantPlusTestCase;
 use RefactorCircus\Roster\Tests\RenamedTablesTestCase;
-use RefactorCircus\Roster\Tests\SsoUnavailableTestCase;
 use RefactorCircus\Roster\Tests\TestCase;
 use RefactorCircus\Roster\Tests\TraitlessTestCase;
 use RefactorCircus\Roster\Tests\TransfersUnavailableTestCase;
@@ -60,7 +59,6 @@ uses(TestCase::class)->in('Modes/Owned');
 uses(AtriumFeaturesTestCase::class)->in('Modes/AtriumFeatures');
 uses(KeenTestCase::class)->in('Modes/Keen');
 uses(PennantPlusTestCase::class)->in('Modes/PennantPlus');
-uses(SsoUnavailableTestCase::class)->in('Modes/SsoUnavailable');
 uses(TransfersUnavailableTestCase::class)->in('Modes/TransfersUnavailable');
 uses(AtriumUnavailableTestCase::class)->in('Modes/AtriumUnavailable');
 uses(RenamedTablesTestCase::class)->in('Modes/RenamedTables');
@@ -133,10 +131,6 @@ const PARITY_EXCEPTIONS = [
     // Using the one-time link swaps a browser session; it has no API or
     // MCP meaning. Start, list and stop are on every surface.
     'EnterImpersonationAction' => ['http', 'mcp'],
-    // Signing in and linking happen in the browser, between Roster and the
-    // identity provider; there is nothing for an API caller to send.
-    'SsoLoginAction' => ['http', 'mcp'],
-    'LinkSsoIdentityAction' => ['http', 'mcp'],
     // Machine-to-machine sync from an ERP or CRM. In Atrium the same results
     // come from the organization CSV import (bulk) and the link form.
     'SyncOrganizationAction' => ['ui'],

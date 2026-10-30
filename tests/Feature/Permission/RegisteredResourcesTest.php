@@ -15,10 +15,6 @@ use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Permission\Services\Resources;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
-use RefactorCircus\Roster\Domains\Scim\Policies\ScimTokenPolicy;
-use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
-use RefactorCircus\Roster\Domains\Sso\Policies\SsoConnectionPolicy;
 use RefactorCircus\Roster\Support\Policies\Policy;
 use RefactorCircus\Roster\Tests\Fixtures\Policies\OpenPolicy;
 use Workbench\App\Models\User;
@@ -254,13 +250,6 @@ it('takes registered permissions on ScreenAccess and @rosterCan', function (): v
 
     expect(ScreenAccess::allows('acme.widgets.approve', $acme))->toBeFalse()
         ->and(trim(Blade::render($view, ['scope' => $acme])))->toBe('');
-});
-
-it('registers the SSO and SCIM resources and policies from their own domains', function (): void {
-    expect(app(Resources::class)->model('roster.sso'))->toBe(SsoConnectionModel::class)
-        ->and(app(Resources::class)->model('roster.scim'))->toBe(ScimTokenModel::class)
-        ->and(Gate::getPolicyFor(SsoConnectionModel::class))->toBeInstanceOf(SsoConnectionPolicy::class)
-        ->and(Gate::getPolicyFor(ScimTokenModel::class))->toBeInstanceOf(ScimTokenPolicy::class);
 });
 
 it('leaves the impersonation-blocked list to the application', function (): void {

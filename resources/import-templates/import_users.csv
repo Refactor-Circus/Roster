@@ -1,3 +1,3 @@
 email,name,display_name
-"# Rows starting with # are ignored: delete them or replace them with your own. Required: email. There is no password column: people reset their password or sign in with SSO."
+"# Rows starting with # are ignored: delete them or replace them with your own. Required: email. There is no password column: people reset their password or sign in another way."
 #ada@example.com,Ada Lovelace,Ada

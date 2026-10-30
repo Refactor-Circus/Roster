@@ -293,7 +293,7 @@ it('reserves every built-in key for a viewer who may open only settings', functi
     expect($this->calls->resolve)->toBe(0);
     Exceptions::assertReportedCount(1);
     Exceptions::assertReported(fn (InvalidArgumentException $exception): bool => str_contains($exception->getMessage(), '['.$key.']'));
-})->with(['members', 'teams', 'invitations', 'roles', 'sso', 'scim']);
+})->with(['members', 'teams', 'invitations', 'roles']);
 
 it('loads only the open built-in tab\'s data, and none while a registered tab is open', function (): void {
     Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls)->public());
@@ -302,16 +302,14 @@ it('loads only the open built-in tab\'s data, and none while a registered tab is
 
     $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'invitations']))->assertOk();
 
-    expect(organizationReads($queries, 'invitations'))->toBeTrue()
-        ->and(organizationReads($queries, 'scim_tokens'))->toBeFalse()
-        ->and(organizationReads($queries, 'sso_connections'))->toBeFalse();
+    expect(organizationReads($queries, 'invitations'))->toBeTrue();
 
     $queries->splice(0);
     app()->forgetScopedInstances();
 
-    $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'scim']))->assertOk();
+    $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'teams']))->assertOk();
 
-    expect(organizationReads($queries, 'scim_tokens'))->toBeTrue()
+    expect(organizationReads($queries, 'teams'))->toBeTrue()
         ->and(organizationReads($queries, 'invitations'))->toBeFalse();
 
     $queries->splice(0);
@@ -322,7 +320,7 @@ it('loads only the open built-in tab\'s data, and none while a registered tab is
     expect($queries)->not->toBeEmpty();
 
     // The tables only a built-in tab reads; the members list is the default's.
-    foreach (['invitations', 'scim_tokens', 'sso_connections'] as $table) {
+    foreach (['invitations'] as $table) {
         expect(organizationReads($queries, $table))->toBeFalse("the {$table} table is not read while a registered tab is open");
     }
 });

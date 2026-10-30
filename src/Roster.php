@@ -144,9 +144,9 @@ class Roster
     }
 
     /**
-     * The status the organization's externally provisioned users (SSO
-     * just-in-time accounts, SCIM) start with: its `provisioned_status`,
-     * resolved through the app's user statuses. No stored value starts them
+     * The status the organization's externally provisioned accounts start
+     * with: its `provisioned_status`, resolved through the app's user
+     * statuses. No stored value starts them
      * active; a value that is not one of those statuses starts them active
      * too, and is reported, so provisioning never fails and a bad value is
      * never silent. Resolved by `Support\ProvisionedStatus` against

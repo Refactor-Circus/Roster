@@ -21,8 +21,6 @@ use RefactorCircus\Roster\Domains\Permission\Actions\ListUserPermissionsAction;
 use RefactorCircus\Roster\Domains\Role\Actions\ListRoleAssignmentsAction;
 use RefactorCircus\Roster\Domains\Role\Data\ListRoleAssignmentsData;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
-use RefactorCircus\Roster\Domains\Sso\Actions\ListSsoIdentitiesAction;
-use RefactorCircus\Roster\Domains\Sso\Data\ListSsoIdentitiesData;
 use RefactorCircus\Roster\Domains\User\Actions\ApproveUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\DeactivateUserAction;
@@ -314,7 +312,6 @@ final class UserUiController
                 ->orderBy('scope')
                 ->orderBy('name')
                 ->get(),
-            'ssoIdentities' => app(ListSsoIdentitiesAction::class)->execute(new ListSsoIdentitiesData(user: $model, perPage: 50)),
         ];
     }
 

@@ -11,7 +11,7 @@ use RefactorCircus\Roster\Support\Users;
 /*
  * Optional, for PostgreSQL apps: an expression index on lower(email) for
  * the users table, which serves Roster's case-insensitive email lookups
- * (sign-in by SSO, SCIM provisioning, invitations, imports) when an address
+ * (externally provisioned accounts, invitations, imports) when an address
  * is stored with other casing. MySQL's case-insensitive collations already
  * use the plain email index, so this does nothing on other databases.
  * Published with the `roster-email-index-migration` tag; never loaded

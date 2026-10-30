@@ -473,13 +473,13 @@ it('lets a throwing resolver propagate', function (): void {
 it('does not load the overview\'s data while a registered tab is open', function (): void {
     Atrium::screens()->tab('roster.user', countedUserTab($this->calls)->public());
 
-    // Only the overview reads the SSO identities table.
-    $table = Tables::name('sso_identities');
+    // Only the overview lists the user's memberships of live organizations.
+    $table = Tables::name('memberships');
     $queries = collect();
     DB::listen(function (QueryExecuted $query) use ($queries): void {
         $queries->push($query->sql);
     });
-    $reads = fn (): bool => $queries->contains(fn (string $sql): bool => str_contains($sql, $table));
+    $reads = fn (): bool => $queries->contains(fn (string $sql): bool => str_contains($sql, $table) && str_contains($sql, 'exists ('));
 
     assertUserTabOpen($this->get(route('atrium.roster.users.show', $this->target->getRouteKey()))->assertOk(), 'overview');
 

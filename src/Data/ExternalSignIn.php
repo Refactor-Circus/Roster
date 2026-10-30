@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Model;
  * The sign-in an email must use instead of a password, as a
  * `SignInRequirement` answers it: a stable `key` for the sign-in, the `label`
  * people see (who requires it), the `url` where the sign-in starts, and the
- * record behind it, if any (the SSO connection, for Roster's own).
+ * record behind it, if any (whatever the registered sign-in requirement
+ * keeps for it).
  */
 final readonly class ExternalSignIn
 {

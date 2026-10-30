@@ -9,9 +9,6 @@ use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
-use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
-use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
-use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
@@ -40,11 +37,6 @@ function authorizationWorld(): array
 
     $impersonation = ImpersonationModel::factory()->create(['impersonator_id' => user()->getKey(), 'user_id' => $target->getKey()]);
 
-    $connection = SsoConnectionModel::factory()->create(['organization_id' => $acme->id, 'slug' => 'acme-okta']);
-    $identity = SsoIdentityModel::query()->create(['connection_id' => $connection->id, 'user_id' => $target->getKey(), 'subject' => 'sub-1']);
-
-    $scimToken = ScimTokenModel::query()->create(['organization_id' => $acme->id, 'name' => 'Okta', 'token_hash' => hash('sha256', 'x')]);
-
     $acme->links()->create(['source' => 'erp', 'external_id' => 'C-1']);
 
     $transfer = TransferModel::factory()->create([
@@ -54,7 +46,7 @@ function authorizationWorld(): array
         'requested_by' => user()->getKey(),
     ]);
 
-    return compact('acme', 'target', 'ops', 'invitation', 'role', 'assignment', 'impersonation', 'connection', 'identity', 'scimToken', 'transfer');
+    return compact('acme', 'target', 'ops', 'invitation', 'role', 'assignment', 'impersonation', 'transfer');
 }
 
 /**
@@ -128,16 +120,6 @@ function apiRoutes(): array
         'users.roles.store' => ['POST', 'roster.users.roles.store', $user, ['role' => 'x']],
         'users.roles.destroy' => ['DELETE', 'roster.users.roles.destroy', fn (array $w): array => [$w['target']->getRouteKey(), $w['assignment']->id], []],
         'users.permissions' => ['GET', 'roster.users.permissions', $user, []],
-        'sso-connections.index' => ['GET', 'roster.organizations.sso-connections.index', $org, []],
-        'sso-connections.store' => ['POST', 'roster.organizations.sso-connections.store', $org, ['name' => 'X', 'protocol' => 'oidc']],
-        'sso-connections.show' => ['GET', 'roster.sso-connections.show', fn (): array => ['acme-okta'], []],
-        'sso-connections.update' => ['PATCH', 'roster.sso-connections.update', fn (): array => ['acme-okta'], ['name' => 'Y']],
-        'sso-connections.destroy' => ['DELETE', 'roster.sso-connections.destroy', fn (): array => ['acme-okta'], []],
-        'users.sso-identities.index' => ['GET', 'roster.users.sso-identities.index', $user, []],
-        'sso-identities.destroy' => ['DELETE', 'roster.sso-identities.destroy', fn (array $w): array => [$w['identity']->id], []],
-        'scim-tokens.index' => ['GET', 'roster.organizations.scim-tokens.index', $org, []],
-        'scim-tokens.store' => ['POST', 'roster.organizations.scim-tokens.store', $org, ['name' => 'Okta']],
-        'scim-tokens.destroy' => ['DELETE', 'roster.scim-tokens.destroy', fn (array $w): array => [$w['scimToken']->id], []],
         'users.impersonate' => ['POST', 'roster.users.impersonate', $user, ['reason' => 'Ticket 1']],
         'impersonations.index' => ['GET', 'roster.impersonations.index', $none, []],
         'impersonations.destroy' => ['DELETE', 'roster.impersonations.destroy', fn (array $w): array => [$w['impersonation']->id], []],

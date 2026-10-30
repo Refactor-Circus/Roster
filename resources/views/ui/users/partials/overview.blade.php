@@ -218,25 +218,6 @@
         </x-atrium::card>
     @endrosterCan
 
-    @if ($ssoIdentities->isNotEmpty())
-        <x-atrium::card :title="__('roster::roster.sso_identities')" class="lg:col-span-2">
-            <ul class="flex flex-col gap-1 text-sm">
-                @foreach ($ssoIdentities as $identity)
-                    <li class="flex items-center justify-between gap-2">
-                        <span>{{ $identity->connection?->name }} — {{ $identity->email ?? $identity->subject }} <span class="opacity-60">{{ __('roster::roster.last_login') }}: {{ $identity->last_login_at?->diffForHumans() ?? __('roster::roster.none') }}</span></span>
-                        @rosterCan('roster.sso.manage', $identity->connection?->organization, $identity->user_id == auth()->id() ? auth()->user() : null)
-                        <form method="POST" action="{{ route('atrium.roster.sso-identities.destroy', $identity->id) }}">
-                            @csrf
-                            @method('DELETE')
-                            <x-atrium::icon-button icon="link-slash" :label="__('roster::roster.unlink')" type="submit" size="sm" variant="ghost" data-testid="unlink-sso-identity" />
-                        </form>
-                        @endrosterCan
-                    </li>
-                @endforeach
-            </ul>
-        </x-atrium::card>
-    @endif
-
     @rosterCan('roster.users.delete')
     <x-atrium::card :title="__('roster::roster.danger_zone')" class="lg:col-span-2" data-testid="danger-zone">
         @if ($directory->softDeletes())

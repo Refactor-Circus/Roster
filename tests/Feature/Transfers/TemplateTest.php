@@ -95,5 +95,5 @@ it('links an organization\'s import and export from its members and teams tabs o
     $this->get(route('atrium.roster.organizations.show', 'acme'))->assertSee($transfers, false)->assertSee('aria-label="'.__('roster::roster.import_export').'"', false);
     $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'teams']))->assertSee($transfers, false);
     $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'settings']))->assertDontSee($transfers, false);
-    $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'sso']))->assertDontSee($transfers, false);
+    $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'roles']))->assertDontSee($transfers, false);
 });

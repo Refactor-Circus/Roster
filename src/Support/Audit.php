@@ -157,8 +157,8 @@ final readonly class Audit
 
     /**
      * Who was really acting when the change came from an impersonated
-     * session, and the import it came through. The SCIM domain adds the
-     * token a change came through itself, on AuditHooks.
+     * session, and the import it came through. Other packages add their own
+     * context on AuditHooks.
      *
      * @return array<string, mixed>
      */

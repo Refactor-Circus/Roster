@@ -24,16 +24,6 @@ it('adds a permission with its description and built-in role grants', function (
         ->and($catalogue->grantedTo('member'))->toBe([]);
 });
 
-it('registers the SSO and SCIM permissions from their domains, granted to admin', function (): void {
-    $catalogue = app(PermissionCatalogue::class);
-
-    expect($catalogue->all())->toMatchArray([
-        'roster.sso.view' => ['description' => "View an organization's single sign-on connections.", 'grantTo' => ['admin']],
-        'roster.sso.manage' => ['description' => 'Configure single sign-on connections.', 'grantTo' => ['admin']],
-        'roster.scim.manage' => ['description' => 'Issue and revoke SCIM provisioning tokens.', 'grantTo' => ['admin']],
-    ]);
-});
-
 it('rejects a name registered twice, naming it', function (): void {
     $catalogue = (new PermissionCatalogue)->permission('acme.widgets.approve', 'Approve widgets.');
 

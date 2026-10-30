@@ -22,8 +22,6 @@ use RefactorCircus\Roster\Atrium\Http\Controllers\InvitationUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\OrganizationUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\PermissionUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\RoleUiController;
-use RefactorCircus\Roster\Atrium\Http\Controllers\ScimUiController;
-use RefactorCircus\Roster\Atrium\Http\Controllers\SsoUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\TeamUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\TransferUiController;
 use RefactorCircus\Roster\Atrium\Http\Controllers\UserUiController;
@@ -188,15 +186,6 @@ class RosterPlugin extends Plugin
             Route::post('roster/permissions', [PermissionUiController::class, 'store'])->name('permissions.store');
             Route::patch('roster/permissions/{permission}', [PermissionUiController::class, 'update'])->name('permissions.update');
             Route::delete('roster/permissions/{permission}', [PermissionUiController::class, 'destroy'])->name('permissions.destroy');
-
-            Route::post('roster/organizations/{organization}/sso', [SsoUiController::class, 'store'])->name('sso.store');
-            Route::get('roster/sso/{connection}', [SsoUiController::class, 'show'])->name('sso.show');
-            Route::patch('roster/sso/{connection}', [SsoUiController::class, 'update'])->name('sso.update');
-            Route::delete('roster/sso/{connection}', [SsoUiController::class, 'destroy'])->name('sso.destroy');
-            Route::delete('roster/sso-identities/{identity}', [SsoUiController::class, 'unlink'])->name('sso-identities.destroy');
-
-            Route::post('roster/organizations/{organization}/scim-tokens', [ScimUiController::class, 'store'])->name('scim-tokens.store');
-            Route::delete('roster/scim-tokens/{token}', [ScimUiController::class, 'revoke'])->name('scim-tokens.revoke');
 
             Route::post('roster/users/{user}/impersonate', [ImpersonationUiController::class, 'start'])->name('users.impersonate');
             Route::get('roster/impersonations', [ImpersonationUiController::class, 'index'])->name('impersonations.index');

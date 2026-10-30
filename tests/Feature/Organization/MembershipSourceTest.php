@@ -13,6 +13,14 @@ use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Organization\Resources\MemberResource;
 use RefactorCircus\Roster\Domains\Organization\Services\MembershipSources;
+use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
+use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
+use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
+use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
+use RefactorCircus\Roster\Domains\Transfer\Actions\ConfirmImportAction;
+use RefactorCircus\Roster\Domains\Transfer\Actions\StartImportAction;
+use RefactorCircus\Roster\Domains\Transfer\Data\StartImportData;
+use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Support\Tables;
 use Workbench\App\Models\User;
 
@@ -107,7 +115,9 @@ it('still takes an enum case when one is assigned', function (): void {
         ->and($membership->sourceEnum())->toBe(MembershipSource::Direct);
 });
 
-it('reads a membership stored as scim back as scim and shows SCIM', function (): void {
+it('reads a membership stored as scim back as scim and shows SCIM once registered', function (): void {
+    // As Guardian does: Roster itself no longer registers scim.
+    app(MembershipSources::class)->register('scim', 'SCIM');
     $organization = organization();
     $membership = storedMembership($organization, user(), 'scim');
 
@@ -131,6 +141,7 @@ it('declares the member source as a plain string', function (): void {
 });
 
 it('passes the member tool output schema with registered and unregistered sources', function (): void {
+    app(MembershipSources::class)->register('scim', 'SCIM');
     app(MembershipSources::class)->register('acme-sync', 'Acme sync');
     $organization = organization();
     storedMembership($organization, user(), 'scim');
@@ -143,6 +154,7 @@ it('passes the member tool output schema with registered and unregistered source
 });
 
 it('lists members with the registered label', function (): void {
+    app(MembershipSources::class)->register('scim', 'SCIM');
     app(MembershipSources::class)->register('acme-sync', 'Acme sync');
     $organization = organization();
     storedMembership($organization, user(), 'scim');
@@ -160,6 +172,7 @@ it('lists members with the registered label', function (): void {
 });
 
 it('joins with a built-in case, a built-in value or a registered source', function (): void {
+    app(MembershipSources::class)->register('scim', 'SCIM');
     app(MembershipSources::class)->register('acme-sync', 'Acme sync');
     $organization = organization();
 
@@ -167,6 +180,58 @@ it('joins with a built-in case, a built-in value or a registered source', functi
         ->and(membershipJoiner()->joinAs($organization, user(), 'domain')->fresh()?->source)->toBe('domain')
         ->and(membershipJoiner()->joinAs($organization, user(), 'acme-sync')->fresh()?->source)->toBe('acme-sync')
         ->and(membershipJoiner()->joinAs($organization, user(), 'scim')->fresh()?->source)->toBe('scim');
+});
+
+it('reads a stored scim membership as scim, with no enum case, while nothing registers it', function (): void {
+    $membership = storedMembership(organization(), user(), 'scim');
+
+    expect(app(MembershipSources::class)->has('scim'))->toBeFalse()
+        ->and($membership->source)->toBe('scim')
+        ->and($membership->sourceEnum())->toBeNull()
+        ->and((new MemberResource($membership))->resolve()['source'])->toBe('scim');
+});
+
+it('lists an unregistered scim member through the API, MCP and the members tab', function (): void {
+    $owner = user();
+    $organization = organization($owner);
+    storedMembership($organization, user(['name' => 'Okta Provisioned', 'email' => 'okta@acme.test']), 'scim');
+
+    $sources = collect($this->getJson(route('roster.organizations.members.index', $organization->slug))->assertOk()->json('data'))->pluck('source')->sort()->values()->all();
+
+    expect($sources)->toBe(['direct', 'scim']);
+
+    mcpTool(ListMembersTool::class, ['organization' => $organization->slug])->assertOk()->assertSee('scim');
+
+    $this->actingAs($owner)
+        ->get(route('atrium.roster.organizations.show', [$organization, 'tab' => 'members']))
+        ->assertOk()
+        ->assertSee('Okta Provisioned')
+        ->assertSeeInOrder(['Okta Provisioned', 'scim']);
+});
+
+it('keeps an unregistered scim source through filtering, a team change and an import', function (): void {
+    $owner = user();
+    $organization = organization($owner, ['name' => 'Acme']);
+    $ada = user(['email' => 'ada@acme.test']);
+    $membership = storedMembership($organization, $ada, 'scim');
+
+    // Filtering the list by the stored value neither fails validation nor drops it.
+    $filtered = $this->getJson(route('roster.organizations.members.index', [$organization->slug, 'source' => 'scim']))->assertOk()->json('data');
+
+    expect(collect($filtered)->pluck('source')->all())->toContain('scim');
+
+    // A write that touches the membership: seating the member on a team.
+    $ops = app(CreateTeamAction::class)->execute($organization, new CreateTeamData(name: 'Ops'));
+    app(AddTeamMemberAction::class)->execute($ops, new AddTeamMemberData(user: $ada->getRouteKey()));
+
+    expect($membership->fresh()?->source)->toBe('scim');
+
+    // An import row for the same person.
+    $transfer = app(StartImportAction::class)->execute(new StartImportData(type: TransferType::ImportMembers, organization: 'acme', content: "email,name\nada@acme.test,Ada"), $owner);
+    app(ConfirmImportAction::class)->execute($transfer, $owner);
+
+    expect($membership->fresh()?->source)->toBe('scim')
+        ->and(MembershipModel::query()->where('user_id', $ada->getKey())->count())->toBe(1);
 });
 
 it('refuses to join with a source nothing registers, naming it', function (): void {

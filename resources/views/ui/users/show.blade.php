@@ -39,7 +39,6 @@
                 'assignments' => $assignments,
                 'effective' => $effective,
                 'assignableRoles' => $assignableRoles,
-                'ssoIdentities' => $ssoIdentities,
             ])
 
             @if ($aside)

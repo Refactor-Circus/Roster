@@ -100,7 +100,7 @@ class RosterServiceProvider extends PackageServiceProvider
         $this->registerCortex();
 
         // Core models' policies, from `roster.policies`: Roster's own checks ask
-        // them. The SSO and SCIM domains register theirs in their providers.
+        // them. Package resources register their own policies.
         $this->registerPolicies();
         $this->registerRateLimiter();
         $this->registerNotFoundResponses();
@@ -161,15 +161,14 @@ class RosterServiceProvider extends PackageServiceProvider
     }
 
     /**
-     * Roster's routes outside its JSON API: SCIM, and the signed pages a
-     * person opens from an email. The shared surface is scoped, so name them
-     * each time it is resolved.
+     * Roster's routes outside its JSON API: the signed pages a person opens
+     * from an email. The shared surface is scoped, so name them each time it
+     * is resolved.
      */
     private function registerSurfaces(): void
     {
         $this->app->afterResolving(Surface::class, function (Surface $surface): void {
-            $surface->route('roster.scim.', 'scim')
-                ->route('roster.invitations.page', 'web')
+            $surface->route('roster.invitations.page', 'web')
                 ->route('roster.invitations.show', 'web')
                 ->route('roster.impersonation.', 'web');
         });
