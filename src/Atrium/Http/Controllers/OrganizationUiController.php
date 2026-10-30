@@ -7,11 +7,10 @@ namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use RefactorCircus\Atrium\Domains\Screens\Data\Screen;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Atrium\ScreenAccess;
-use RefactorCircus\Roster\Atrium\TabDefinition;
-use RefactorCircus\Roster\Atrium\Tabs;
-use RefactorCircus\Roster\Atrium\TabVisibility;
 use RefactorCircus\Roster\Domains\Invitation\Actions\ListInvitationsAction;
 use RefactorCircus\Roster\Domains\Invitation\Data\ListInvitationsData;
 use RefactorCircus\Roster\Domains\Invitation\Enums\InvitationStatus;
@@ -60,7 +59,7 @@ final class OrganizationUiController
     /**
      * Each built-in tab, in order, and the permission, in the organization,
      * that opens it. Other packages' tabs (Keen's history, Cortex's MCP
-     * domains) are theirs to register.
+     * domains) are theirs to register on Atrium's registry.
      */
     private const array TAB_PERMISSIONS = [
         'members' => 'roster.members.view',
@@ -72,31 +71,52 @@ final class OrganizationUiController
         'settings' => 'roster.organizations.view',
     ];
 
+    /**
+     * Each built-in tab's Atrium icon.
+     */
+    private const array TAB_ICONS = [
+        'members' => 'users',
+        'teams' => 'user-group',
+        'invitations' => 'envelope',
+        'roles' => 'shield-check',
+        'sso' => 'arrow-right-end-on-rectangle',
+        'scim' => 'server-stack',
+        'settings' => 'cog',
+    ];
+
     public function __construct(private readonly Users $users) {}
 
     public function index(Request $request): View
     {
         $within = $this->authorizeList('roster.organizations.view');
 
+        $resolved = Atrium::screens()->resolve($this->screen('roster.organizations', Screen::LIST)->tabs($this->overviewTab()), $request);
         $filters = ListOrganizationsData::from($request->query());
 
         /** @var view-string $view */
         $view = 'roster::ui.organizations.index';
 
         return view($view, [
-            'organizations' => app(ListOrganizationsAction::class)->execute($filters, $within)->withQueryString(),
+            'resolved' => $resolved,
             'filters' => $filters,
+            // The list only while it is the open tab.
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => ['organizations' => app(ListOrganizationsAction::class)->execute($filters, $within)->withQueryString()],
+                default => [],
+            },
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         $this->authorizeScreen('roster.organizations.create');
 
         /** @var view-string $view */
         $view = 'roster::ui.organizations.create';
 
-        return view($view);
+        return view($view, [
+            'resolved' => Atrium::screens()->resolve($this->screen('roster.organization-create', Screen::DETAIL)->tabs($this->overviewTab()), $request),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -126,49 +146,38 @@ final class OrganizationUiController
 
         $model = app(ShowOrganizationAction::class)->execute($model);
 
-        // Only the tabs the viewer may open here; asking for another is refused.
-        $tabs = array_keys(array_filter(self::TAB_PERMISSIONS, fn (string $permission): bool => ScreenAccess::allows($permission, $model)));
-        // A string only: ?tab[]=x and the like count as no tab.
+        // A built-in tab the viewer may not open is refused before any
+        // host closure runs; ?tab=activity, ?tab=mcp and unknown keys are
+        // no built-in, so they open the default tab.
         $requested = $request->query('tab');
-        $requested = is_string($requested) ? $requested : null;
 
-        if ($requested !== null && array_key_exists($requested, self::TAB_PERMISSIONS)) {
+        if (is_string($requested) && array_key_exists($requested, self::TAB_PERMISSIONS)) {
             $this->authorizeScreen(self::TAB_PERMISSIONS[$requested], $model);
         }
 
-        // Registered tabs never become the default.
-        $default = $tabs[0] ?? 'settings';
-        $tab = $requested !== null && in_array($requested, $tabs, true) ? $requested : $default;
+        // Only the built-in tabs the viewer may open, in order; the first is
+        // the default. Registered tabs follow them and are never the default.
+        $open = array_keys(array_filter(self::TAB_PERMISSIONS, fn (string $permission): bool => ScreenAccess::allows($permission, $model)));
 
-        // The registered tabs this viewer may see, asked once and used for
-        // both the tab bar and ?tab=; a hidden one is refused like a built-in.
-        $all = app(Tabs::class)->organizations();
-        $visibility = app(TabVisibility::class);
-        $registered = array_filter($all, fn (TabDefinition $definition): bool => $visibility->allows('organization', $definition, $request, $model, $model, null));
-        $registeredTab = null;
+        $screen = $this->screen('roster.organization', Screen::DETAIL, $model)
+            ->tabs(array_map(fn (string $key): array => ['key' => $key, 'label' => __('roster::roster.'.$key), 'icon' => self::TAB_ICONS[$key]], $open))
+            ->defaultTab($open[0] ?? 'settings');
 
-        if ($requested !== null && isset($all[$requested])) {
-            $registeredTab = $registered[$requested] ?? abort(403);
-            $tab = $registeredTab->key;
-        }
+        $resolved = Atrium::screens()->resolve($screen, $request);
 
         /** @var view-string $view */
         $view = 'roster::ui.organizations.show';
 
-        // Only the open tab's data: each list is paginated and loaded on its own.
+        // Only the open built-in tab's data, each list paginated on its own;
+        // none while a registered tab is open.
         $page = $request->integer('page', 1);
 
         return view($view, [
+            'resolved' => $resolved,
             'organization' => $model,
-            'tab' => $tab,
-            'tabs' => [...$tabs, ...array_map(fn (TabDefinition $definition): string => $definition->key, array_values($registered))],
-            'registeredTabs' => $registered,
-            'registeredTab' => $registeredTab,
-            // The host's data for the open registered tab only, after its access check.
-            'registeredData' => $registeredTab?->resolveData($model) ?? [],
             'pending' => InvitationStatus::Pending,
             'directory' => $this->users,
-            ...match ($tab) {
+            ...match ($resolved->openTab) {
                 'members' => ['members' => app(ListMembersAction::class)->execute($model, new ListMembersData(perPage: 25, page: $page))->withQueryString()],
                 'teams' => ['teams' => app(ListTeamsAction::class)->execute($model, new ListTeamsData(perPage: 25, page: $page))->withQueryString()],
                 'invitations' => [

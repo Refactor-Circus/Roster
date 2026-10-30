@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Gate;
@@ -12,12 +15,14 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Testing\TestResponse;
-use RefactorCircus\Roster\Atrium\TabDefinition;
-use RefactorCircus\Roster\Atrium\Tabs;
+use RefactorCircus\Atrium\Domains\Screens\Data\ResolvedScreen;
+use RefactorCircus\Atrium\Domains\Screens\Data\TabDefinition;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationShownActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
+use RefactorCircus\Roster\Support\Tables;
 use Workbench\App\Models\User;
 
 beforeEach(function (): void {
@@ -27,7 +32,7 @@ beforeEach(function (): void {
     $this->calls = (object) ['resolve' => 0, 'authorize' => 0];
 
     // A host's tab view and component, written where only these tests look.
-    $directory = sys_get_temp_dir().'/roster-registered-tabs-'.getmypid();
+    $directory = sys_get_temp_dir().'/roster-organization-tabs-'.getmypid();
 
     if (! is_dir($directory.'/components')) {
         mkdir($directory.'/components', 0777, true);
@@ -35,18 +40,17 @@ beforeEach(function (): void {
 
     file_put_contents($directory.'/orders.blade.php', <<<'BLADE'
         <div data-testid="host-view">
-            <span data-testid="host-record">{{ $organization instanceof \RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel ? $organization->slug : 'replaced' }}</span>
+            <span data-testid="host-record">{{ $record instanceof \RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel ? $record->slug : 'replaced' }}</span>
             <span data-testid="host-tab">{{ is_string($tab) ? $tab : 'replaced' }}</span>
-            <span data-testid="host-tabs">{{ is_array($tabs) ? implode(',', $tabs) : 'replaced' }}</span>
-            <span data-testid="host-definition">{{ $registeredTab instanceof \RefactorCircus\Roster\Atrium\TabDefinition ? $registeredTab->key : 'replaced' }}</span>
+            <span data-testid="host-screen">{{ $screen instanceof \RefactorCircus\Atrium\Domains\Screens\Data\Screen ? $screen->key : 'replaced' }}</span>
             <span data-testid="host-errors">{{ $errors instanceof \Illuminate\Support\ViewErrorBag ? $errors->first('name') : 'replaced' }}</span>
             <span data-testid="host-total">{{ $total ?? 'none' }}</span>
         </div>
         BLADE);
 
     file_put_contents($directory.'/components/orders.blade.php', <<<'BLADE'
-        @props(['organization', 'data' => []])
-        <div data-testid="host-component">{{ $organization->slug }}|{{ implode(',', array_keys($data)) }}|{{ $data['slot'] ?? '' }}</div>
+        @props(['data' => []])
+        <div data-testid="host-component">{{ implode(',', array_keys($data)) }}|{{ $data['slot'] ?? '' }}</div>
         BLADE);
 
     View::addNamespace('tabfixtures', $directory);
@@ -55,7 +59,7 @@ beforeEach(function (): void {
 
 /**
  * A registered organization tab rendering the fixture view, its resolver
- * and authorize closures counted on the test's `$calls`.
+ * counted on the test's `$calls`.
  */
 function countedOrganizationTab(object $calls, string $key = 'acme.orders'): TabDefinition
 {
@@ -63,7 +67,7 @@ function countedOrganizationTab(object $calls, string $key = 'acme.orders'): Tab
         ->label('Orders')
         ->icon('shopping-cart')
         ->view('tabfixtures::orders')
-        ->resolve(function (Model $record) use ($calls): array {
+        ->resolve(function (?Model $record) use ($calls): array {
             $calls->resolve++;
 
             return ['total' => 42];
@@ -73,11 +77,11 @@ function countedOrganizationTab(object $calls, string $key = 'acme.orders'): Tab
 /**
  * A closure that counts its runs and answers `$answer`.
  *
- * @return Closure(Request, Model): bool
+ * @return Closure(Request, ?Model): bool
  */
 function countedAuthorize(object $calls, bool $answer): Closure
 {
-    return function (Request $request, Model $record) use ($calls, $answer): bool {
+    return function (Request $request, ?Model $record) use ($calls, $answer): bool {
         $calls->authorize++;
 
         return $answer;
@@ -85,8 +89,8 @@ function countedAuthorize(object $calls, bool $answer): Closure
 }
 
 /**
- * Turn authorization on and sign in a user holding these permissions in
- * the organization.
+ * Turn authorization on and make a user holding these permissions in the
+ * organization.
  *
  * @param  array<int, string>  $permissions
  */
@@ -114,11 +118,47 @@ function organizationTabIcon(TestResponse $response, string $key): string
     return trim($match[1] ?? '');
 }
 
+/**
+ * Assert the organization screen opened this tab.
+ */
+function assertOrganizationTabOpen(TestResponse $response, string $tab): TestResponse
+{
+    return $response->assertViewHas('resolved', fn (ResolvedScreen $resolved): bool => $resolved->openTab === $tab);
+}
+
+/**
+ * Collect the SQL of every query run from here on.
+ *
+ * @return Collection<int, string>
+ */
+function organizationQueries(): Collection
+{
+    $queries = collect();
+
+    DB::listen(function (QueryExecuted $query) use ($queries): void {
+        $queries->push($query->sql);
+    });
+
+    return $queries;
+}
+
+/**
+ * Whether any collected query reads the table under this key.
+ *
+ * @param  Collection<int, string>  $queries
+ */
+function organizationReads(Collection $queries, string $table): bool
+{
+    $name = Tables::name($table);
+
+    return $queries->contains(fn (string $sql): bool => (bool) preg_match('/["`\s]'.preg_quote($name, '/').'["`\s.]/', $sql.' '));
+}
+
 it('shows visible registered tabs after the built-in ones, in registration order', function (): void {
-    app(Tabs::class)
-        ->organization(TabDefinition::make('a')->view('tabfixtures::orders')->public())
-        ->organization(TabDefinition::make('b')->view('tabfixtures::orders'))
-        ->organization(TabDefinition::make('c')->view('tabfixtures::orders')->public());
+    Atrium::screens()
+        ->tab('roster.organization', TabDefinition::make('a')->view('tabfixtures::orders')->public())
+        ->tab('roster.organization', TabDefinition::make('b')->view('tabfixtures::orders'))
+        ->tab('roster.organization', TabDefinition::make('c')->view('tabfixtures::orders')->public());
 
     $this->get(route('atrium.roster.organizations.show', $this->organization))
         ->assertOk()
@@ -128,7 +168,7 @@ it('shows visible registered tabs after the built-in ones, in registration order
 });
 
 it('escapes a registered tab\'s label', function (): void {
-    app(Tabs::class)->organization(TabDefinition::make('acme.orders')->label('<em>Orders</em>')->view('tabfixtures::orders')->public());
+    Atrium::screens()->tab('roster.organization', TabDefinition::make('acme.orders')->label('<em>Orders</em>')->view('tabfixtures::orders')->public());
 
     $this->get(route('atrium.roster.organizations.show', $this->organization))
         ->assertOk()
@@ -137,9 +177,9 @@ it('escapes a registered tab\'s label', function (): void {
 });
 
 it('falls back to squares-2x2 for an icon Atrium does not know', function (): void {
-    app(Tabs::class)
-        ->organization(TabDefinition::make('acme.unknown')->icon('no-such-icon')->view('tabfixtures::orders')->public())
-        ->organization(TabDefinition::make('acme.squares')->icon('squares-2x2')->view('tabfixtures::orders')->public());
+    Atrium::screens()
+        ->tab('roster.organization', TabDefinition::make('acme.unknown')->icon('no-such-icon')->view('tabfixtures::orders')->public())
+        ->tab('roster.organization', TabDefinition::make('acme.squares')->icon('squares-2x2')->view('tabfixtures::orders')->public());
 
     $response = $this->get(route('atrium.roster.organizations.show', $this->organization))
         ->assertOk()
@@ -152,11 +192,10 @@ it('falls back to squares-2x2 for an icon Atrium does not know', function (): vo
 });
 
 it('renders the open registered tab\'s view with the organization and the resolver\'s data', function (): void {
-    app(Tabs::class)->organization(countedOrganizationTab($this->calls)->public());
+    Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls)->public());
 
-    $response = $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'acme.orders']))
-        ->assertOk()
-        ->assertViewHas('tab', 'acme.orders')
+    $response = assertOrganizationTabOpen($this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'acme.orders']))->assertOk(), 'acme.orders')
+        ->assertSee('data-testid="tab-panel-acme.orders"', false)
         ->assertSee('<span data-testid="host-record">acme</span>', false)
         ->assertSee('<span data-testid="host-total">42</span>', false);
 
@@ -166,14 +205,14 @@ it('renders the open registered tab\'s view with the organization and the resolv
 });
 
 it('runs the resolver only for the open registered tab, after the access check', function (array $query, int $calls, int $status, ?string $tab): void {
-    app(Tabs::class)
-        ->organization(countedOrganizationTab($this->calls)->public())
-        ->organization(countedOrganizationTab($this->calls, 'acme.hidden'));
+    Atrium::screens()
+        ->tab('roster.organization', countedOrganizationTab($this->calls)->public())
+        ->tab('roster.organization', countedOrganizationTab($this->calls, 'acme.hidden'));
 
     $response = $this->get(route('atrium.roster.organizations.show', [$this->organization, ...$query]))->assertStatus($status);
 
     if ($tab !== null) {
-        $response->assertViewHas('tab', $tab);
+        assertOrganizationTabOpen($response, $tab);
     }
 
     expect($this->calls->resolve)->toBe($calls);
@@ -187,13 +226,71 @@ it('runs the resolver only for the open registered tab, after the access check',
     'a map' => [['tab' => ['a' => 'b']], 0, 200, 'members'],
 ]);
 
-it('gives Roster\'s variables precedence over the resolver\'s data', function (): void {
-    app(Tabs::class)->organization(TabDefinition::make('acme.orders')->view('tabfixtures::orders')->public()->resolve(fn (Model $record): array => [
-        'organization' => 'host',
+it('opens the default tab for the removed activity and MCP tabs', function (string $tab): void {
+    assertOrganizationTabOpen($this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => $tab]))->assertOk(), 'members')
+        ->assertDontSee('data-testid="tab-'.$tab.'"', false);
+})->with(['activity', 'mcp']);
+
+it('refuses a built-in tab the viewer may not open', function (): void {
+    $viewer = organizationViewer($this->organization, ['roster.organizations.view', 'roster.members.view']);
+
+    $this->actingAs($viewer)
+        ->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'roles']))
+        ->assertForbidden();
+});
+
+it('skips and reports a registered tab named like a built-in it is given, keeping one tab', function (): void {
+    Exceptions::fake();
+
+    Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls, 'members')->public());
+
+    $response = assertOrganizationTabOpen($this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'members']))->assertOk(), 'members')
+        ->assertDontSee('data-testid="host-view"', false);
+
+    expect(substr_count((string) $response->getContent(), 'data-testid="tab-members"'))->toBe(1)
+        ->and($this->calls->resolve)->toBe(0);
+
+    Exceptions::assertReportedCount(1);
+    Exceptions::assertReported(fn (InvalidArgumentException $exception): bool => str_contains($exception->getMessage(), '[members]'));
+});
+
+it('loads only the open built-in tab\'s data, and none while a registered tab is open', function (): void {
+    Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls)->public());
+
+    $queries = organizationQueries();
+
+    $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'invitations']))->assertOk();
+
+    expect(organizationReads($queries, 'invitations'))->toBeTrue()
+        ->and(organizationReads($queries, 'scim_tokens'))->toBeFalse()
+        ->and(organizationReads($queries, 'sso_connections'))->toBeFalse();
+
+    $queries->splice(0);
+    app()->forgetScopedInstances();
+
+    $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'scim']))->assertOk();
+
+    expect(organizationReads($queries, 'scim_tokens'))->toBeTrue()
+        ->and(organizationReads($queries, 'invitations'))->toBeFalse();
+
+    $queries->splice(0);
+    app()->forgetScopedInstances();
+
+    $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'acme.orders']))->assertOk();
+
+    expect($queries)->not->toBeEmpty();
+
+    // The tables only a built-in tab reads; the members list is the default's.
+    foreach (['invitations', 'scim_tokens', 'sso_connections'] as $table) {
+        expect(organizationReads($queries, $table))->toBeFalse("the {$table} table is not read while a registered tab is open");
+    }
+});
+
+it('gives the host\'s screen, record and tab precedence over the resolver\'s data', function (): void {
+    Atrium::screens()->tab('roster.organization', TabDefinition::make('acme.orders')->view('tabfixtures::orders')->public()->resolve(fn (?Model $record): array => [
+        'screen' => 'host',
+        'record' => 'host',
         'tab' => 'host',
-        'tabs' => 'host',
-        'registeredTab' => 'host',
-        'errors' => 'host',
         'total' => 7,
     ]));
 
@@ -202,15 +299,14 @@ it('gives Roster\'s variables precedence over the resolver\'s data', function ()
         ->assertOk()
         ->assertSee('<span data-testid="host-record">acme</span>', false)
         ->assertSee('<span data-testid="host-tab">acme.orders</span>', false)
-        ->assertSee('<span data-testid="host-tabs">members,teams,invitations,roles,sso,scim,settings,acme.orders</span>', false)
-        ->assertSee('<span data-testid="host-definition">acme.orders</span>', false)
+        ->assertSee('<span data-testid="host-screen">roster.organization</span>', false)
         ->assertSee('<span data-testid="host-errors">Roster error</span>', false)
         ->assertSee('<span data-testid="host-total">7</span>', false)
         ->assertSee('data-testid="tab-members"', false);
 });
 
 it('hands a component the resolver\'s data as one data prop', function (): void {
-    app(Tabs::class)->organization(TabDefinition::make('acme.orders')->component('tabfixtures::orders')->public()->resolve(fn (Model $record): array => [
+    Atrium::screens()->tab('roster.organization', TabDefinition::make('acme.orders')->component('tabfixtures::orders')->public()->resolve(fn (?Model $record): array => [
         'slot' => 'host slot',
         'attributes' => 'host attributes',
         'data-key' => 'dashed',
@@ -218,11 +314,11 @@ it('hands a component the resolver\'s data as one data prop', function (): void 
 
     $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'acme.orders']))
         ->assertOk()
-        ->assertSee('<div data-testid="host-component">acme|slot,attributes,data-key|host slot</div>', false);
+        ->assertSee('<div data-testid="host-component">slot,attributes,data-key|host slot</div>', false);
 });
 
 it('authorizes the screen before any host closure runs', function (): void {
-    app(Tabs::class)->organization(countedOrganizationTab($this->calls)->authorize(countedAuthorize($this->calls, true)));
+    Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls)->authorize(countedAuthorize($this->calls, true)));
 
     $viewer = organizationViewer($this->organization, ['roster.members.view']);
 
@@ -234,7 +330,7 @@ it('authorizes the screen before any host closure runs', function (): void {
         ->and($this->calls->resolve)->toBe(0);
 });
 
-it('opens a built-in tab by default even when only a registered one is visible', function (): void {
+it('never opens a registered tab by default, even when only a registered one is visible', function (): void {
     // A host policy that lets the viewer open the screen, then refuses the
     // settings tab: no built-in tab is left for this viewer.
     $policy = new class
@@ -254,12 +350,12 @@ it('opens a built-in tab by default even when only a registered one is visible',
         app(Permissions::class)->flush();
     });
 
-    app(Tabs::class)->organization(countedOrganizationTab($this->calls)->public());
+    Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls)->public());
 
     $this->actingAs(organizationViewer($this->organization, []))
         ->get(route('atrium.roster.organizations.show', $this->organization))
         ->assertOk()
-        ->assertViewHas('tab', 'settings')
+        ->assertViewHas('resolved', fn (ResolvedScreen $resolved): bool => $resolved->openTab !== 'acme.orders' && $resolved->openRegisteredTab === null)
         ->assertSee('data-testid="tab-acme.orders"', false)
         ->assertDontSee('data-testid="tab-settings"', false)
         ->assertDontSee('data-testid="host-view"', false);
@@ -270,7 +366,7 @@ it('opens a built-in tab by default even when only a registered one is visible',
 it('offers a registered tab by its permission, closure or public()', function (string $case, bool $visible): void {
     $organization = $this->organization;
     $viewer = organizationViewer($organization, ['roster.organizations.view', 'roster.members.view']);
-    $closure = fn (bool $answer): Closure => fn (Request $request, Model $record): bool => $record->is($organization) && $request->user()?->is($viewer) && $answer;
+    $closure = fn (bool $answer): Closure => fn (Request $request, ?Model $record): bool => $record?->is($organization) === true && $request->user()?->is($viewer) === true && $answer;
 
     $tab = TabDefinition::make('acme.orders')->view('tabfixtures::orders');
 
@@ -288,7 +384,7 @@ it('offers a registered tab by its permission, closure or public()', function (s
         'neither passes' => $tab->permission('roster.teams.view')->authorize($closure(false)),
     };
 
-    app(Tabs::class)->organization($tab);
+    Atrium::screens()->tab('roster.organization', $tab);
 
     $bar = $this->actingAs($viewer)->get(route('atrium.roster.organizations.show', $organization))->assertOk();
     $visible
@@ -317,7 +413,7 @@ it('offers a registered tab by its permission, closure or public()', function (s
 it('hides a tab whose authorize closure throws, reporting it once', function (): void {
     Exceptions::fake();
 
-    app(Tabs::class)->organization(countedOrganizationTab($this->calls)->authorize(function (Request $request, Model $record): bool {
+    Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls)->authorize(function (Request $request, ?Model $record): bool {
         $this->calls->authorize++;
 
         throw new RuntimeException('authorize broke');
@@ -331,9 +427,7 @@ it('hides a tab whose authorize closure throws, reporting it once', function ():
 
     app()->forgetScopedInstances();
 
-    $this->get(route('atrium.roster.organizations.show', $this->organization))
-        ->assertOk()
-        ->assertViewHas('tab', 'members')
+    assertOrganizationTabOpen($this->get(route('atrium.roster.organizations.show', $this->organization))->assertOk(), 'members')
         ->assertDontSee('data-testid="tab-acme.orders"', false);
 
     expect($this->calls->authorize)->toBe(2)
@@ -342,10 +436,10 @@ it('hides a tab whose authorize closure throws, reporting it once', function ():
 });
 
 it('runs no closure when no tab is registered on the organization screen', function (): void {
-    app(Tabs::class)->user(countedOrganizationTab($this->calls)->authorize(countedAuthorize($this->calls, true)));
+    Atrium::screens()->tab('roster.user', countedOrganizationTab($this->calls)->authorize(countedAuthorize($this->calls, true)));
 
     $this->get(route('atrium.roster.organizations.show', $this->organization))->assertOk();
-    $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'acme.orders']))->assertOk()->assertViewHas('tab', 'members');
+    assertOrganizationTabOpen($this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'acme.orders']))->assertOk(), 'members');
 
     expect($this->calls->authorize)->toBe(0)
         ->and($this->calls->resolve)->toBe(0);
@@ -356,13 +450,13 @@ it('asks again on each request', function (): void {
     $ada = user();
     $bob = user();
 
-    app(Tabs::class)
-        ->organization(countedOrganizationTab($this->calls)->authorize(function (Request $request, Model $record) use ($ada): bool {
+    Atrium::screens()
+        ->tab('roster.organization', countedOrganizationTab($this->calls)->authorize(function (Request $request, ?Model $record) use ($ada): bool {
             $this->calls->authorize++;
 
             return $request->user()?->is($ada) === true;
         }))
-        ->organization(TabDefinition::make('acme.broken')->view('tabfixtures::orders')->authorize(function (): bool {
+        ->tab('roster.organization', TabDefinition::make('acme.broken')->view('tabfixtures::orders')->authorize(function (): bool {
             throw new RuntimeException('authorize broke');
         }));
 
@@ -384,7 +478,7 @@ it('asks again on each request', function (): void {
 });
 
 it('lets a throwing resolver propagate', function (): void {
-    app(Tabs::class)->organization(TabDefinition::make('acme.orders')->view('tabfixtures::orders')->public()->resolve(function (Model $record): array {
+    Atrium::screens()->tab('roster.organization', TabDefinition::make('acme.orders')->view('tabfixtures::orders')->public()->resolve(function (?Model $record): array {
         throw new RuntimeException('resolver broke');
     }));
 
@@ -395,25 +489,25 @@ it('lets a throwing resolver propagate', function (): void {
 });
 
 it('keeps all-digit keys as strings', function (): void {
-    app(Tabs::class)
-        ->organization(TabDefinition::make('123')->view('tabfixtures::orders')->public())
-        ->organization(TabDefinition::make('007')->view('tabfixtures::orders')->public());
+    Atrium::screens()
+        ->tab('roster.organization', TabDefinition::make('123')->view('tabfixtures::orders')->public())
+        ->tab('roster.organization', TabDefinition::make('007')->view('tabfixtures::orders')->public());
 
     $this->get(route('atrium.roster.organizations.show', $this->organization))
         ->assertOk()
         ->assertSeeInOrder(['data-testid="tab-settings"', 'data-testid="tab-123"', 'data-testid="tab-007"'], false)
-        ->assertViewHas('tabs', fn (array $tabs): bool => array_slice($tabs, -2) === ['123', '007']);
+        ->assertViewHas('resolved', fn (ResolvedScreen $resolved): bool => array_slice(array_map(fn (TabDefinition $tab): string => $tab->key, $resolved->tabs), -2) === ['123', '007']);
 
     foreach (['123', '007'] as $key) {
-        $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => $key]))
-            ->assertOk()
-            ->assertViewHas('tab', fn (mixed $tab): bool => $tab === $key)
+        app()->forgetScopedInstances();
+
+        assertOrganizationTabOpen($this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => $key]))->assertOk(), $key)
             ->assertSee('<span data-testid="host-tab">'.$key.'</span>', false);
     }
 });
 
 it('renders the deleted page and ignores ?tab= on a deleted organization', function (): void {
-    app(Tabs::class)->organization(countedOrganizationTab($this->calls)->authorize(countedAuthorize($this->calls, true)));
+    Atrium::screens()->tab('roster.organization', countedOrganizationTab($this->calls)->authorize(countedAuthorize($this->calls, true)));
     $this->organization->delete();
 
     $this->get(route('atrium.roster.organizations.show', [$this->organization, 'tab' => 'acme.orders']))

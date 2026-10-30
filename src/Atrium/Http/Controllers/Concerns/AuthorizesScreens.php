@@ -6,12 +6,15 @@ namespace RefactorCircus\Roster\Atrium\Http\Controllers\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use RefactorCircus\Atrium\Domains\Screens\Data\Screen;
+use RefactorCircus\Atrium\Domains\Screens\Data\TabDefinition;
 use RefactorCircus\Roster\Atrium\ScreenAccess;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 
 /**
- * The same permission checks the JSON API and MCP make, for Atrium screens.
+ * The same permission checks the JSON API and MCP make, for Atrium screens,
+ * and the screen each page declares to Atrium's extension registry.
  */
 trait AuthorizesScreens
 {
@@ -38,6 +41,28 @@ trait AuthorizesScreens
         abort_if($organizations === null || $organizations === [], 403);
 
         return $organizations;
+    }
+
+    /**
+     * The screen a page declares to Atrium's registry, with the standard
+     * slots for its kind. Extensions' permissions are asked through
+     * ScreenAccess, in the scope the screens use for the record or row.
+     */
+    private function screen(string $key, string $kind, ?Model $record = null): Screen
+    {
+        return Screen::standard($key, $kind)
+            ->record($record)
+            ->access(fn (string $permission, Request $request, ?Model $record): bool => ScreenAccess::allowsOn($permission, $record));
+    }
+
+    /**
+     * The one built-in tab of a screen without tabs of its own: the page.
+     *
+     * @return list<array{key: string, label: string, icon: string}>
+     */
+    private function overviewTab(string $icon = TabDefinition::DEFAULT_ICON): array
+    {
+        return [['key' => Screen::OVERVIEW, 'label' => __('roster::roster.overview'), 'icon' => $icon]];
     }
 
     /**

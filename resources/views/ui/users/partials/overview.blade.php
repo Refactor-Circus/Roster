@@ -5,12 +5,7 @@
     The user screen's own content: the page as it is with no registered tab,
     and the `overview` tab when one is visible.
 --}}
-<div class="mt-5 grid gap-4 lg:grid-cols-2">
-    <div class="flex flex-col gap-4 lg:col-span-2">
-        @include('roster::impersonation-banner', ['bannerClass' => 'rounded-radius'])
-        <x-atrium::flash />
-    </div>
-
+<div class="grid gap-4 lg:grid-cols-2">
     @rosterCan('roster.users.update')
     <x-atrium::card :title="__('roster::roster.account')">
         <form method="POST" action="{{ route('atrium.roster.users.update', $user->getRouteKey()) }}" class="flex flex-col gap-4">

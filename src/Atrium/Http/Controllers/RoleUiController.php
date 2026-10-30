@@ -7,6 +7,8 @@ namespace RefactorCircus\Roster\Atrium\Http\Controllers;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use RefactorCircus\Atrium\Domains\Screens\Data\Screen;
+use RefactorCircus\Atrium\Facades\Atrium;
 use RefactorCircus\Roster\Atrium\Http\Controllers\Concerns\AuthorizesScreens;
 use RefactorCircus\Roster\Domains\Permission\Actions\ListPermissionsAction;
 use RefactorCircus\Roster\Domains\Permission\Data\ListPermissionsData;
@@ -42,16 +44,26 @@ final class RoleUiController
         $scope = Scopes::fromInput($filters->organization);
         $within = $this->authorizeList('roster.roles.view', $scope);
 
+        $resolved = Atrium::screens()->resolve($this->screen('roster.roles', Screen::LIST)->tabs($this->overviewTab()), $request);
+
         /** @var view-string $view */
         $view = 'roster::ui.roles.index';
 
         return view($view, [
-            'roles' => app(ListRolesAction::class)->execute($filters, $within)->withQueryString(),
+            'resolved' => $resolved,
             'filters' => $filters,
             // Where new roles go: the filtered organization, or global.
             'newRoleScope' => $scope,
             'scopes' => RoleScope::cases(),
-            'permissions' => app(ListPermissionsAction::class)->execute(new ListPermissionsData(perPage: 200))->items(),
+            // The list only while it is the open tab. Each role's organization
+            // is loaded with it, so its row slot asks no query per row.
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => [
+                    'roles' => app(ListRolesAction::class)->execute($filters, $within)->withQueryString(),
+                    'permissions' => app(ListPermissionsAction::class)->execute(new ListPermissionsData(perPage: 200))->items(),
+                ],
+                default => [],
+            },
         ]);
     }
 
@@ -66,17 +78,24 @@ final class RoleUiController
             ->with('status', __('roster::roster.role_created'));
     }
 
-    public function show(string $role): View
+    public function show(Request $request, string $role): View
     {
         $model = $this->find($role);
         $this->authorizeScreen('roster.roles.view', $model->organization);
+
+        $model = app(ShowRoleAction::class)->execute($model);
+        $resolved = Atrium::screens()->resolve($this->screen('roster.role', Screen::DETAIL, $model)->tabs($this->overviewTab()), $request);
 
         /** @var view-string $view */
         $view = 'roster::ui.roles.show';
 
         return view($view, [
-            'role' => app(ShowRoleAction::class)->execute($model),
-            'permissions' => app(ListPermissionsAction::class)->execute(new ListPermissionsData(perPage: 200))->items(),
+            'resolved' => $resolved,
+            'role' => $model,
+            ...match ($resolved->openTab) {
+                Screen::OVERVIEW => ['permissions' => app(ListPermissionsAction::class)->execute(new ListPermissionsData(perPage: 200))->items()],
+                default => [],
+            },
         ]);
     }
 

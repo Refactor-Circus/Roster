@@ -22,8 +22,6 @@ use RefactorCircus\Keystone\Support\PackageServiceProvider;
 use RefactorCircus\Keystone\Support\Surface;
 use RefactorCircus\Roster\Atrium\RosterPlugin;
 use RefactorCircus\Roster\Atrium\ScreenAccess;
-use RefactorCircus\Roster\Atrium\Tabs;
-use RefactorCircus\Roster\Atrium\TabVisibility;
 use RefactorCircus\Roster\Console\Commands\PurgeDeletedCommand;
 use RefactorCircus\Roster\Domains\DomainServiceProvider;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
@@ -68,11 +66,6 @@ class RosterServiceProvider extends PackageServiceProvider
 
         $this->app->scoped(Roster::class);
         $this->app->singleton(Users::class);
-
-        // Registered tabs are code state, filled from host providers' boot();
-        // who may see them is per viewer, so that memo is rebuilt per request.
-        $this->app->singleton(Tabs::class);
-        $this->app->scoped(TabVisibility::class);
 
         $this->app->register(DomainServiceProvider::class);
 

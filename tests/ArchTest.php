@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Illuminate\Filesystem\Filesystem;
+use Illuminate\View\FileViewFinder;
 use RefactorCircus\Keystone\Testing\Arch;
 use RefactorCircus\Roster\Support\Tables;
 
@@ -106,9 +108,10 @@ arch('tables are named through Tables, never as literals')
  *
  * @param  array<int, string>  $folders
  * @param  array<int, string>  $needles
+ * @param  array<int, string>  $except  Paths, relative to the package, left out.
  * @return array<int, string>
  */
-function rosterFilesContaining(array $folders, array $needles): array
+function rosterFilesContaining(array $folders, array $needles, array $except = []): array
 {
     $found = [];
 
@@ -117,11 +120,19 @@ function rosterFilesContaining(array $folders, array $needles): array
 
         foreach ($files as $file) {
             /** @var SplFileInfo $file */
+            $path = str_replace(__DIR__.'/../', '', $file->getPathname());
+
+            foreach ($except as $excluded) {
+                if ($path === $excluded || str_starts_with($path, rtrim($excluded, '/').'/')) {
+                    continue 2;
+                }
+            }
+
             $content = (string) file_get_contents($file->getPathname());
 
             foreach ($needles as $needle) {
                 if (str_contains($content, $needle)) {
-                    $found[] = str_replace(__DIR__.'/../', '', $file->getPathname()).': '.$needle;
+                    $found[] = $path.': '.$needle;
                 }
             }
         }
@@ -144,4 +155,45 @@ arch('Roster ships no audit trail or history navigation')
 
 arch('no Roster view renders an Atrium audit component')
     ->expect(fn (): array => rosterFilesContaining(['resources/views'], ['x-atrium::audit']))
+    ->toBeEmpty();
+
+/**
+ * Whether a `roster::` view exists in the package's own views, as
+ * `view()->exists()` answers for it without an application.
+ */
+function rosterViewExists(string $name): bool
+{
+    $finder = new FileViewFinder(new Filesystem, []);
+    $finder->addNamespace('roster', __DIR__.'/../resources/views');
+
+    try {
+        $finder->find($name);
+
+        return true;
+    } catch (InvalidArgumentException) {
+        return false;
+    }
+}
+
+arch('Roster\'s own tab registry is gone: screens declare themselves on Atrium\'s')
+    ->expect(fn (): array => array_values(array_filter([
+        ...array_map(
+            fn (string $class): ?string => class_exists($class) ? $class : null,
+            ['RefactorCircus\\Roster\\Atrium\\Tabs', 'RefactorCircus\\Roster\\Atrium\\TabDefinition', 'RefactorCircus\\Roster\\Atrium\\TabVisibility'],
+        ),
+        ...array_map(
+            fn (string $view): ?string => rosterViewExists($view) ? $view : null,
+            ['roster::ui.partials.tabs', 'roster::ui.partials.registered-tab'],
+        ),
+    ])))
+    ->toBeEmpty();
+
+// This file names them to check they are gone. The README and the Boost
+// skill (resources/boost) are rewritten with the docs, which check them.
+arch('nothing names Roster\'s old tab registry')
+    ->expect(fn (): array => rosterFilesContaining(
+        ['src', 'resources', 'tests'],
+        ['Atrium\\Tabs', 'Roster\\Atrium\\TabDefinition', 'TabVisibility', 'partials.tabs', 'registered-tab'],
+        ['tests/ArchTest.php', 'resources/boost', 'tests/Browser/Screenshots', 'tests/Browser/Traces'],
+    ))
     ->toBeEmpty();
