@@ -25,6 +25,7 @@ use RefactorCircus\Roster\Domains\DomainServiceProvider;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Mcp\RosterServer;
 use RefactorCircus\Roster\Support\Audit;
+use RefactorCircus\Roster\Support\SignInRequirements;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -75,6 +76,10 @@ class RosterServiceProvider extends PackageServiceProvider
         $this->app->scoped(Roster::class);
         $this->app->singleton(Users::class);
 
+        // Sign-in requirements are code state, registered from providers'
+        // boot(); Roster, which takes them, is rebuilt per request.
+        $this->app->singleton(SignInRequirements::class);
+
         $this->app->register(DomainServiceProvider::class);
 
         // After the domains, so the seam's bindings replace their plain defaults.
@@ -94,7 +99,8 @@ class RosterServiceProvider extends PackageServiceProvider
         // Cortex is optional: agents get the Roster tools only when it is loaded.
         $this->registerCortex();
 
-        // Each model's policy, from `roster.policies`: Roster's own checks ask them.
+        // Core models' policies, from `roster.policies`: Roster's own checks ask
+        // them. The SSO and SCIM domains register theirs in their providers.
         $this->registerPolicies();
         $this->registerRateLimiter();
         $this->registerNotFoundResponses();

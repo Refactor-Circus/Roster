@@ -9,13 +9,12 @@ use Illuminate\Contracts\Config\Repository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
-use RefactorCircus\Roster\Domains\Scim\Models\ScimTokenModel;
-use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Models\UserModel;
 
@@ -27,17 +26,20 @@ use RefactorCircus\Roster\Domains\User\Models\UserModel;
  * authenticated user allowed the Action's permission in the right scope.
  * Turning it off leaves the route middleware as the only check.
  *
- * A permission `roster.{resource}.{verb}` is answered by the policy
- * registered for the resource's model (`roster.policies`), as the camel-cased
- * verb: `roster.users.manage-status` asks the UserModel policy's
- * `manageStatus()`. The bundled policies check the permission itself, through
- * `permits()`. Impersonation's blocked permissions are refused before any
- * policy is asked.
+ * A permission `{prefix}.{verb}` is answered by the Gate policy of the model
+ * registered for its prefix in Resources (everything before the last dot), as
+ * the camel-cased verb: `roster.users.manage-status` asks the UserModel
+ * policy's `manageStatus()`, and a package's `acme.widgets.approve` asks its
+ * WidgetModel policy's `approve()`. The bundled policies check the permission
+ * itself, through `permits()`. Impersonation's blocked permissions are
+ * refused before any policy is asked.
  */
 final class Authorizer
 {
     /**
-     * The model whose policy answers each resource's permissions.
+     * Roster's core resources: the model whose policy answers each
+     * `roster.{resource}.*` permission. PermissionServiceProvider registers
+     * them with Resources; Roster's other domains register their own there.
      *
      * @var array<string, class-string<Model>>
      */
@@ -48,12 +50,11 @@ final class Authorizer
         'teams' => TeamModel::class,
         'invitations' => InvitationModel::class,
         'roles' => RoleModel::class,
-        'sso' => SsoConnectionModel::class,
-        'scim' => ScimTokenModel::class,
     ];
 
     /**
-     * The policy answering each permission, worked out once per request.
+     * The policy answering each permission, worked out once per request and
+     * again whenever a resource is registered.
      *
      * @var array<string, array{0: class-string<Model>, 1: string}|null>
      */
@@ -61,13 +62,16 @@ final class Authorizer
 
     /**
      * Answers already given this request, by actor, permission, scope and
-     * subject; started over whenever Permissions forgets anything.
+     * subject; started over whenever Permissions forgets anything or a
+     * resource is registered. A check that throws remembers nothing.
      *
      * @var array<string, bool>
      */
     private array $answers = [];
 
     private int $generation = 0;
+
+    private int $resourcesGeneration = 0;
 
     /**
      * Organizations and teams found for records checked by parent, by class
@@ -81,6 +85,7 @@ final class Authorizer
         private readonly Repository $config,
         private readonly Permissions $permissions,
         private readonly Gate $gate,
+        private readonly Resources $resources,
     ) {}
 
     public function enabled(): bool
@@ -92,6 +97,8 @@ final class Authorizer
      * Whether `$actor` may use a permission in a scope, as the policy for the
      * permission's resource decides. `$self` names the user the call is about,
      * for abilities everyone has over themselves.
+     *
+     * @throws InvalidArgumentException when a package's registered resource has no policy
      */
     public function check(?Model $actor, string $permission, OrganizationModel|TeamModel|null $scope = null, ?Model $self = null): bool
     {
@@ -186,8 +193,10 @@ final class Authorizer
      * The organization or team a record belongs to through its `$relation`
      * (`organization`, `team`): the loaded relation when there is one, else
      * found by the record's foreign key, once per request for every record
-     * sharing it. Eager-load the relation on lists checked record by record
-     * to skip even that.
+     * sharing it. A record without that relation (another package's model,
+     * say) is looked up by its `organization_id` / `team_id` attribute the
+     * same way. Eager-load the relation on lists checked record by record to
+     * skip even that.
      */
     public function parentOf(Model $subject, string $relation): OrganizationModel|TeamModel|null
     {
@@ -198,7 +207,7 @@ final class Authorizer
         }
 
         if (! $subject->isRelation($relation)) {
-            return null;
+            return $this->parentByAttribute($subject, $relation);
         }
 
         $related = $subject->{$relation}();
@@ -234,10 +243,47 @@ final class Authorizer
     }
 
     /**
-     * Drop remembered answers once Permissions has forgotten anything.
+     * The organization or team named by a record's `{$relation}_id`
+     * attribute, for records without the relation itself.
+     */
+    private function parentByAttribute(Model $subject, string $relation): OrganizationModel|TeamModel|null
+    {
+        $class = match ($relation) {
+            'organization' => OrganizationModel::class,
+            'team' => TeamModel::class,
+            default => null,
+        };
+
+        $foreign = $class === null ? null : $subject->getAttribute($relation.'_id');
+
+        if ($class === null || (! is_int($foreign) && ! is_string($foreign))) {
+            return null;
+        }
+
+        $this->startOverIfForgotten();
+
+        $key = $class.':'.$foreign;
+
+        if (! array_key_exists($key, $this->parents)) {
+            $found = $class::query()->find($foreign);
+            $this->parents[$key] = $found instanceof OrganizationModel || $found instanceof TeamModel ? $found : null;
+        }
+
+        return $this->parents[$key];
+    }
+
+    /**
+     * Drop remembered answers once Permissions has forgotten anything, and
+     * the resolved policies too once a resource has been registered.
      */
     private function startOverIfForgotten(): void
     {
+        if ($this->resourcesGeneration !== $this->resources->generation()) {
+            $this->policies = [];
+            $this->answers = [];
+            $this->resourcesGeneration = $this->resources->generation();
+        }
+
         if ($this->generation !== $this->permissions->generation()) {
             $this->answers = [];
             $this->parents = [];
@@ -261,18 +307,40 @@ final class Authorizer
     }
 
     /**
+     * The registered model for the permission's prefix (everything before
+     * its last dot) and the policy method for its verb. Null when the prefix
+     * is not registered, so no policy is asked; null too for one of Roster's
+     * own resources whose policy the application removed, which is then
+     * checked by Roster's permissions alone.
+     *
      * @return array{0: class-string<Model>, 1: string}|null
+     *
+     * @throws InvalidArgumentException when a package's registered resource has no policy
      */
     private function resolvePolicy(string $permission): ?array
     {
-        $parts = explode('.', $permission);
+        $dot = strrpos($permission, '.');
 
-        if (count($parts) !== 3 || $parts[0] !== 'roster' || ! isset(self::RESOURCES[$parts[1]])) {
+        if ($dot === false) {
             return null;
         }
 
-        $model = self::RESOURCES[$parts[1]];
+        $prefix = substr($permission, 0, $dot);
+        $verb = substr($permission, $dot + 1);
+        $model = $this->resources->model($prefix);
 
-        return $this->gate->getPolicyFor($model) === null ? null : [$model, Str::camel($parts[2])];
+        if ($model === null || $verb === '') {
+            return null;
+        }
+
+        if ($this->gate->getPolicyFor($model) === null) {
+            if ($this->resources->reserved($prefix)) {
+                return null;
+            }
+
+            throw new InvalidArgumentException("The resource [{$prefix}] is registered for [{$model}], which has no Gate policy: register one with Gate::policy() to answer [{$permission}].");
+        }
+
+        return [$model, Str::camel($verb)];
     }
 }

@@ -6,11 +6,13 @@ namespace RefactorCircus\Roster\Domains\Role\Support;
 
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
+use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
 use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 
 /**
- * Roster's own permissions and default roles.
+ * Roster's core permissions and default roles. Permissions its domains and
+ * other packages register in the PermissionCatalogue are synced with them.
  *
  * Seeded by the roles migration and re-synced by `roster:sync-permissions`.
  * Syncing adds anything missing and never removes or rewrites what an admin
@@ -46,9 +48,6 @@ final class BuiltInRoles
         'roster.roles.view' => 'View roles and permissions.',
         'roster.roles.manage' => 'Create, edit and delete roles and permissions.',
         'roster.roles.assign' => 'Assign and revoke roles.',
-        'roster.sso.view' => "View an organization's single sign-on connections.",
-        'roster.sso.manage' => 'Configure single sign-on connections.',
-        'roster.scim.manage' => 'Issue and revoke SCIM provisioning tokens.',
         'roster.audit.view' => "Read Roster's history in the audit log.",
         'atrium.view' => 'Open the Atrium dashboard.',
     ];
@@ -82,10 +81,26 @@ final class BuiltInRoles
         ];
     }
 
-    public static function sync(): void
+    /**
+     * Create every missing permission - Roster's own and those registered in
+     * the PermissionCatalogue - and every missing default role. A role the
+     * sync creates gets its permissions and the registered ones granted to
+     * it; existing roles and permissions are left exactly as they are.
+     *
+     * @return array<int, string> system permissions in the database that
+     *                            nothing registers any more, left in place
+     */
+    public static function sync(): array
     {
-        DB::transaction(function (): void {
-            foreach (self::PERMISSIONS as $name => $description) {
+        $catalogue = app(PermissionCatalogue::class);
+
+        return DB::transaction(function () use ($catalogue): array {
+            $permissions = self::PERMISSIONS + array_map(
+                fn (array $permission): string => $permission['description'],
+                $catalogue->all(),
+            );
+
+            foreach ($permissions as $name => $description) {
                 PermissionModel::query()->firstOrCreate(['name' => $name], ['description' => $description, 'system' => true]);
             }
 
@@ -108,8 +123,18 @@ final class BuiltInRoles
                     'system' => true,
                 ]);
 
-                $role->permissions()->sync(PermissionModel::query()->whereIn('name', $definition['permissions'])->pluck('id'));
+                $granted = [...$definition['permissions'], ...$catalogue->grantedTo($slug)];
+
+                $role->permissions()->sync(PermissionModel::query()->whereIn('name', $granted)->pluck('id'));
             }
+
+            return PermissionModel::query()
+                ->where('system', true)
+                ->whereNotIn('name', array_keys($permissions))
+                ->orderBy('name')
+                ->pluck('name')
+                ->map(strval(...))
+                ->all();
         });
     }
 }

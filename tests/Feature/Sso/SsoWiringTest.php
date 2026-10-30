@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Laravel\Socialite\Contracts\Provider;
 use Laravel\Socialite\Two\User as SocialiteUser;
+use RefactorCircus\Roster\Contracts\SignInRequirement;
+use RefactorCircus\Roster\Data\ExternalSignIn;
 use RefactorCircus\Roster\Domains\Sso\Actions\CreateSsoConnectionAction;
 use RefactorCircus\Roster\Domains\Sso\Actions\UpdateSsoConnectionAction;
 use RefactorCircus\Roster\Domains\Sso\Data\CreateSsoConnectionData;
@@ -17,6 +19,7 @@ use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Sso\Models\SsoIdentityModel;
 use RefactorCircus\Roster\Domains\Sso\Resources\SsoConnectionResource;
 use RefactorCircus\Roster\Domains\Sso\Services\Sso;
+use RefactorCircus\Roster\Domains\Sso\Services\SsoSignInRequirement;
 use RefactorCircus\Roster\Domains\Sso\Support\NotSsoEnforced;
 use RefactorCircus\Roster\Roster;
 
@@ -102,14 +105,60 @@ it('links an identity to the signed-in account', function (): void {
 it('enforces SSO for the organization\'s domains, except for super-admins', function (): void {
     $connection = acmeWithSso(['enforced' => true]);
 
-    expect(app(Roster::class)->ssoRequiredFor('ada@acme.test')?->is($connection))->toBeTrue()
-        ->and(app(Roster::class)->ssoRequiredFor('ada@gmail.test'))->toBeNull()
+    expect(app(Roster::class)->externalSignInFor('ada@acme.test')?->record?->is($connection))->toBeTrue()
+        ->and(app(Roster::class)->externalSignInFor('ada@gmail.test'))->toBeNull()
         ->and(validator(['email' => 'ada@acme.test'], ['email' => [new NotSsoEnforced]])->errors()->first('email'))->toContain('requires single sign-on');
 
     $boss = user(['email' => 'boss@acme.test']);
     grant($boss, 'super-admin');
 
-    expect(app(Roster::class)->ssoRequiredFor('boss@acme.test'))->toBeNull();
+    expect(app(Roster::class)->externalSignInFor('boss@acme.test'))->toBeNull();
+});
+
+it('points the enforced sign-in at the connection\'s start page, in the same message', function (): void {
+    acmeWithSso(['enforced' => true]);
+
+    $signIn = app(Roster::class)->externalSignInFor('ada@acme.test');
+
+    expect($signIn)->toBeInstanceOf(ExternalSignIn::class)
+        ->and($signIn?->key)->toBe('acme-sso')
+        ->and($signIn?->label)->toBe('Acme')
+        ->and($signIn?->url)->toBe(route('roster.sso.start', 'acme-sso'))
+        ->and(validator(['email' => 'ada@acme.test'], ['email' => [new NotSsoEnforced]])->errors()->first('email'))
+        ->toBe(__('roster::roster.sso_required', ['organization' => 'Acme', 'url' => route('roster.sso.start', 'acme-sso')]));
+});
+
+it('ignores connections that are not enforced or not enabled, and values that are not emails', function (): void {
+    $connection = acmeWithSso(['enforced' => false]);
+
+    expect(app(Roster::class)->externalSignInFor('ada@acme.test'))->toBeNull();
+
+    $connection->update(['enforced' => true, 'enabled' => false]);
+
+    expect(app(Roster::class)->externalSignInFor('ada@acme.test'))->toBeNull()
+        ->and(app(Roster::class)->externalSignInFor('acme.test'))->toBeNull()
+        ->and(validator(['email' => ['ada@acme.test']], ['email' => [new NotSsoEnforced]])->passes())->toBeTrue();
+});
+
+it('registers SSO enforcement as a sign-in requirement', function (): void {
+    acmeWithSso(['enforced' => true]);
+
+    expect(app(SsoSignInRequirement::class)->for('ada@acme.test')?->key)->toBe('acme-sso')
+        ->and(app(SsoSignInRequirement::class)->for('ada@gmail.test'))->toBeNull()
+        ->and(method_exists(Roster::class, 'ssoRequiredFor'))->toBeFalse();
+});
+
+it('fails the password login closed when a sign-in requirement throws', function (): void {
+    app(Roster::class)->requireSignIn(new class implements SignInRequirement
+    {
+        public function for(string $email): ?ExternalSignIn
+        {
+            throw new RuntimeException('identity provider unreachable');
+        }
+    });
+
+    expect(fn () => validator(['email' => 'ada@acme.test'], ['email' => [new NotSsoEnforced]])->validate())
+        ->toThrow(RuntimeException::class, 'identity provider unreachable');
 });
 
 it('keeps secrets encrypted, hidden and redacted', function (): void {

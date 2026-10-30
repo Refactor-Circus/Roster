@@ -30,7 +30,13 @@ function rosterModels(): array
 }
 
 it('registers a configurable policy for every model', function (): void {
-    $policies = config('roster.policies');
+    // Core models from `roster.policies`; the SSO and SCIM domains register
+    // their own models' policies with the Gate when they boot.
+    $policies = config('roster.policies') + array_filter(
+        Gate::policies(),
+        fn (string $model): bool => str_starts_with($model, 'RefactorCircus\\Roster\\'),
+        ARRAY_FILTER_USE_KEY,
+    );
 
     expect(array_keys($policies))->toEqualCanonicalizing(rosterModels());
 

@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\JsonSchema\Types\Type;
 use RefactorCircus\Keystone\Http\Resources\JsonResource;
-use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
+use RefactorCircus\Roster\Domains\Organization\Services\MembershipSources;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Resources\UserSummaryResource;
 use RefactorCircus\Roster\Support\Statuses;
@@ -30,7 +30,9 @@ final class MemberResource extends JsonResource
             'user' => $schema->object(UserSummaryResource::schema($schema))->nullable()->required(),
             'owner' => $schema->boolean()->required(),
             'status' => $schema->string()->enum([...array_column(Statuses::users()::cases(), 'value'), null])->nullable()->required(),
-            'source' => $schema->string()->enum(array_column(MembershipSource::cases(), 'value'))->required(),
+            // Not an enum: other packages register sources, and a stored one
+            // nothing registers any more still shows as stored.
+            'source' => $schema->string()->description('How the user joined: a registered source\'s label, otherwise the stored value.')->required(),
             'teams' => $schema->array()->items($schema->string())->description('Team slugs, when loaded.'),
             'joined_at' => $schema->string()->nullable()->required(),
         ];
@@ -48,7 +50,7 @@ final class MemberResource extends JsonResource
             'user' => $user instanceof Model ? (new UserSummaryResource($user))->resolve($request) : null,
             'owner' => $user instanceof Model && $organization !== null && $organization->isOwnedBy($user),
             'status' => $user instanceof Model ? app(Users::class)->status($user)->value : null,
-            'source' => $this->source->value,
+            'source' => app(MembershipSources::class)->label($this->source),
             'teams' => $this->whenLoaded('teams', fn (): array => $this->teams
                 ->map(fn (TeamModel $team): string => $team->slug)
                 ->sort()
