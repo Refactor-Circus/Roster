@@ -50,13 +50,14 @@ function markdownSection(string $markdown, string $title): ?string
 }
 
 /**
- * The CHANGELOG's Unreleased section, up to the first released version.
+ * The CHANGELOG's v0.1.0 section, which carries these upgrade notes, up to
+ * the next version.
  */
-function unreleasedChangelog(): string
+function releaseChangelog(): string
 {
     $changelog = (string) file_get_contents(dirname(__DIR__, 2).'/CHANGELOG.md');
 
-    return preg_match('/^## \[Unreleased\][^\n]*\n(.*?)(?=^## |\z)/ms', $changelog, $match) === 1 ? $match[1] : '';
+    return preg_match('/^## \[v0\.1\.0\][^\n]*\n(.*?)(?=^## |\z)/ms', $changelog, $match) === 1 ? $match[1] : '';
 }
 
 it('reads a section up to the next heading of the same or a higher level', function (): void {
@@ -130,10 +131,10 @@ it('says in the README that Atrium is optional and drops the MCP redirect domain
         ->toContain('composer remove --dev --no-update refactor-circus/atrium');
 });
 
-it('writes the upgrade note in the Unreleased Breaking section of the CHANGELOG', function (): void {
-    $breaking = markdownSection(unreleasedChangelog(), 'Breaking');
+it('writes the upgrade note in the v0.1.0 Breaking section of the CHANGELOG', function (): void {
+    $breaking = markdownSection(releaseChangelog(), 'Breaking');
 
-    expect($breaking)->not->toBeNull('the Unreleased section has no Breaking heading')
+    expect($breaking)->not->toBeNull('the v0.1.0 section has no Breaking heading')
         ->toContain('Roster no longer requires `refactor-circus/atrium`; require it to keep the dashboard')
         ->toContain('atrium.roster.')
         ->toContain('Tabs')
@@ -255,10 +256,10 @@ it('finds a changelog entry by its bold title, up to the next top-level bullet',
         ->and(withoutSection("## A\nkeep\n## B\ndrop\n## C\nkeep too", 'B'))->not->toContain('drop')->toContain('keep too');
 });
 
-it('writes the Guardian upgrade entry in the Unreleased Breaking section of the CHANGELOG', function (): void {
-    $entry = changelogEntry((string) markdownSection(unreleasedChangelog(), 'Breaking'), GUARDIAN_ENTRY);
+it('writes the Guardian upgrade entry in the v0.1.0 Breaking section of the CHANGELOG', function (): void {
+    $entry = changelogEntry((string) markdownSection(releaseChangelog(), 'Breaking'), GUARDIAN_ENTRY);
 
-    expect($entry)->not->toBeNull('the Unreleased Breaking section has no "'.GUARDIAN_ENTRY.'" entry')
+    expect($entry)->not->toBeNull('the v0.1.0 Breaking section has no "'.GUARDIAN_ENTRY.'" entry')
         ->and(firstLine((string) $entry))->toStartWith(FAIL_OPEN_WARNING);
 
     foreach ([
@@ -274,7 +275,7 @@ it('writes the Guardian upgrade entry in the Unreleased Breaking section of the 
 });
 
 it('gives the six upgrade steps in order, with step 2 bold', function (): void {
-    $steps = numberedSteps((string) changelogEntry((string) markdownSection(unreleasedChangelog(), 'Breaking'), GUARDIAN_ENTRY));
+    $steps = numberedSteps((string) changelogEntry((string) markdownSection(releaseChangelog(), 'Breaking'), GUARDIAN_ENTRY));
 
     expect(array_column($steps, 0))->toBe([1, 2, 3, 4, 5, 6]);
 

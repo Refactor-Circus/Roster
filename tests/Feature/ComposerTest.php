@@ -25,7 +25,7 @@ it('requires only Keystone of the suite packages', function (): void {
 });
 
 it('keeps Atrium as a dev dependency', function (): void {
-    expect(rosterComposer()['require-dev'])->toHaveKey('refactor-circus/atrium', 'dev-main');
+    expect(rosterComposer()['require-dev'])->toHaveKey('refactor-circus/atrium', '^0.1');
 });
 
 it('suggests Atrium, Cortex and Keen', function (): void {
