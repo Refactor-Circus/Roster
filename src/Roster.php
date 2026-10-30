@@ -7,17 +7,23 @@ namespace RefactorCircus\Roster;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use RefactorCircus\Keystone\Packages\PackageRegistry;
+use RefactorCircus\Roster\Contracts\AccountStatus;
+use RefactorCircus\Roster\Contracts\SignInRequirement;
+use RefactorCircus\Roster\Data\ExternalSignIn;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Sso\Models\SsoConnectionModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\ProvisionedStatus;
+use RefactorCircus\Roster\Support\SignInRequirements;
+use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Users;
 
 /**
  * Resolves a user's working context: the organization and team they have
- * switched to.
+ * switched to. Also the seams other packages plug into at sign-in and
+ * provisioning: sign-in requirements and the provisioned status.
  */
 class Roster
 {
@@ -32,7 +38,10 @@ class Roster
     /** @var array<string, TeamModel|null> */
     private array $teams = [];
 
-    public function __construct(private readonly Users $users) {}
+    public function __construct(
+        private readonly Users $users,
+        private readonly SignInRequirements $signInRequirements,
+    ) {}
 
     /**
      * Drop the remembered current organizations and teams.
@@ -90,30 +99,62 @@ class Roster
     }
 
     /**
-     * The enforced SSO connection that must be used to sign in with this
-     * email, if any. Super-admins are never forced, so nobody is locked out.
+     * Register a sign-in requirement, from a provider's `boot()`. A
+     * class-string is resolved from the container on the first
+     * `externalSignInFor()`, once; the same class or instance registered
+     * again is ignored. Requirements are asked in registration order and
+     * must not claim the same emails.
+     *
+     * @param  SignInRequirement|class-string<SignInRequirement>  $requirement
      */
-    public function ssoRequiredFor(string $email): ?SsoConnectionModel
+    public function requireSignIn(SignInRequirement|string $requirement): void
     {
-        $domain = strtolower(substr($email, (int) strrpos($email, '@') + 1));
+        $this->signInRequirements->add($requirement);
+    }
 
-        if (! str_contains($email, '@')) {
-            return null;
-        }
-
-        $connection = SsoConnectionModel::query()
-            ->where('enforced', true)
-            ->where('enabled', true)
-            ->whereHas('organization.domains', fn (Builder $query): Builder => $query->where('domain', $domain))
-            ->first();
-
-        if ($connection === null) {
+    /**
+     * The sign-in this email must use instead of a password: the first
+     * registered requirement's answer. Super-admins get null before any
+     * requirement is asked, so a broken one cannot lock them out.
+     *
+     * Fails closed: a requirement that throws is not caught here, so the
+     * login or registration asking fails and Laravel's handler reports it.
+     */
+    public function externalSignInFor(string $email): ?ExternalSignIn
+    {
+        if ($this->signInRequirements->isEmpty()) {
             return null;
         }
 
         $user = $this->users->findByEmail($email);
 
-        return $user !== null && app(Permissions::class)->isSuperAdmin($user) ? null : $connection;
+        if ($user !== null && app(Permissions::class)->isSuperAdmin($user)) {
+            return null;
+        }
+
+        foreach ($this->signInRequirements->all() as $requirement) {
+            $signIn = $requirement->for($email);
+
+            if ($signIn !== null) {
+                return $signIn;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The status the organization's externally provisioned users (SSO
+     * just-in-time accounts, SCIM) start with: its `provisioned_status`,
+     * resolved through the app's user statuses. No stored value starts them
+     * active; a value that is not one of those statuses starts them active
+     * too, and is reported, so provisioning never fails and a bad value is
+     * never silent. Resolved by `Support\ProvisionedStatus` against
+     * `roster.statuses.users`.
+     */
+    public function provisionedStatus(OrganizationModel $organization): AccountStatus
+    {
+        return (new ProvisionedStatus(Statuses::users()))->for($organization);
     }
 
     /**

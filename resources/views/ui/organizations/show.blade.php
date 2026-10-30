@@ -83,7 +83,7 @@
                                     @endif
                                 </x-atrium::table.cell>
                                 <x-atrium::table.cell>{{ $membership->teams->pluck('name')->join(', ') ?: __('roster::roster.none') }}</x-atrium::table.cell>
-                                <x-atrium::table.cell>{{ $membership->source->value }}</x-atrium::table.cell>
+                                <x-atrium::table.cell>{{ $membership->source }}</x-atrium::table.cell>
                                 <x-atrium::table.cell>
                                     <div class="flex justify-end gap-2">
                                         @if ($member)

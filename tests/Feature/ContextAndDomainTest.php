@@ -74,7 +74,7 @@ it('joins auto-join organizations on email verification', function (): void {
 
     $acme = OrganizationModel::query()->where('slug', 'acme')->sole();
 
-    expect($acme->membershipFor($ada)?->source)->toBe(MembershipSource::Domain);
+    expect($acme->membershipFor($ada)?->sourceEnum())->toBe(MembershipSource::Domain);
 
     $grace = user(['email' => 'grace@closed.com']);
 
@@ -90,7 +90,7 @@ it('creates a personal organization when configured', function (): void {
 
     expect($personal->personal)->toBeTrue()
         ->and($personal->isOwnedBy($ada))->toBeTrue()
-        ->and($personal->membershipFor($ada)?->source)->toBe(MembershipSource::Personal);
+        ->and($personal->membershipFor($ada)?->sourceEnum())->toBe(MembershipSource::Personal);
 
     // Deleting the user moves their personal organization to Deleted too;
     // restoring brings both back.

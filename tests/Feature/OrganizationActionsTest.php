@@ -35,7 +35,7 @@ it('creates an organization with its owner as first member', function (): void {
         ->and($organization->isOwnedBy($owner))->toBeTrue()
         ->and($organization->auto_join)->toBeTrue()
         ->and($organization->domains->pluck('domain')->all())->toBe(['acme.com'])
-        ->and($organization->membershipFor($owner)?->source)->toBe(MembershipSource::Direct);
+        ->and($organization->membershipFor($owner)?->sourceEnum())->toBe(MembershipSource::Direct);
 });
 
 it('generates unique slugs', function (): void {

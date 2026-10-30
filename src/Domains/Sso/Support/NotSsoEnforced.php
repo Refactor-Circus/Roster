@@ -6,12 +6,13 @@ namespace RefactorCircus\Roster\Domains\Sso\Support;
 
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Support\Facades\Route;
 use RefactorCircus\Roster\Roster;
 
 /**
- * For the app's password login form: fails when the email's organization
- * requires single sign-on, pointing the user at it.
+ * For the app's password login form: fails when the email must sign in
+ * elsewhere (an organization's enforced SSO, or any other registered
+ * sign-in requirement), pointing the user at it. A requirement that throws
+ * is not caught, so the login fails closed.
  *
  *     'email' => ['required', 'email', new NotSsoEnforced],
  */
@@ -23,15 +24,15 @@ final class NotSsoEnforced implements ValidationRule
             return;
         }
 
-        $connection = app(Roster::class)->ssoRequiredFor($value);
+        $signIn = app(Roster::class)->externalSignInFor($value);
 
-        if ($connection === null) {
+        if ($signIn === null) {
             return;
         }
 
         $fail(__('roster::roster.sso_required', [
-            'organization' => $connection->organization?->name,
-            'url' => Route::has('roster.sso.start') ? route('roster.sso.start', $connection->slug) : '',
+            'organization' => $signIn->label,
+            'url' => $signIn->url,
         ]));
     }
 }

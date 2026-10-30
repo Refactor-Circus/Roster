@@ -12,7 +12,6 @@ use Illuminate\Validation\ValidationException;
 use RefactorCircus\Keystone\Data\Missing;
 use RefactorCircus\Roster\Domains\Organization\Actions\RemoveMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Concerns\ManagesMemberships;
-use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Scim\Exceptions\ScimException;
@@ -28,6 +27,7 @@ use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Domains\User\Data\DeactivateUserData;
 use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
 use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
+use RefactorCircus\Roster\Roster;
 use RefactorCircus\Roster\Support\Statuses;
 use RefactorCircus\Roster\Support\Tables;
 use RefactorCircus\Roster\Support\Users;
@@ -112,7 +112,7 @@ final class ScimUsers
 
             if ($user === null) {
                 // The organization decides whether its new accounts need approval.
-                $user = app(CreateUserAction::class)->execute(new CreateUserData(email: $email, name: $this->name($data, $email), status: Statuses::user($organization->provisioned_status)));
+                $user = app(CreateUserAction::class)->execute(new CreateUserData(email: $email, name: $this->name($data, $email), status: app(Roster::class)->provisionedStatus($organization)));
                 $created = true;
             }
 
@@ -124,7 +124,7 @@ final class ScimUsers
                 'active' => true,
             ]);
 
-            $this->join($organization, $user, MembershipSource::Scim);
+            $this->join($organization, $user, 'scim');
             $this->profile($user, $data);
             $this->linkIdentity($user, $externalId, $email);
 
@@ -255,7 +255,7 @@ final class ScimUsers
             app(ReactivateUserAction::class)->execute($user);
         }
 
-        $this->join($this->organization(), $user, MembershipSource::Scim);
+        $this->join($this->organization(), $user, 'scim');
 
         $scimUser->update(['active' => true, 'deactivated_by_scim' => false]);
     }
