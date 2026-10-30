@@ -224,3 +224,21 @@ All four findings were test faults. No `src` or view change was needed: `ScreenA
 ### Deviations
 
 - None. The PR's list of changed tests should add the `ScreenControlsTest` and `RosterPluginTest` cases above as forced changes.
+
+## Rework round 2
+
+### Fixes
+
+- `tests/Modes/Keen/OrganizationActivityRemovedTest.php`, "opens the default tab for ?tab=activity" (criteria 7, 11; minor, test weakness): round 1 compared two audit-trail counts, which passed vacuously when both were 0. The test now parses the page with `Dom\HTMLDocument` and `Dom\XPath` and asserts that Keen's `section-keen.history` renders once, that at least one `data-testid="audit-trail"` renders (Keen is installed and Roster audits, so the history must appear), and that no `audit-trail` has no `section-keen.history` ancestor. So the trail shown is Keen's registered section, and Roster renders none of its own.
+
+### Nits
+
+- Criteria 15 (the CI `without-atrium` lane), 20 (`composer test:browser`) and 21 (the PR description lists the four blockers) cannot be proven by the local gate. Confirm them in CI and in the PR description at ship time.
+
+### Tests
+
+- `composer test:unit`: 1271 passed, 4760 assertions. `composer lint:check` passes.
+
+### Deviations
+
+- None.

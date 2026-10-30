@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Dom\HTMLDocument;
+use Dom\XPath;
 use RefactorCircus\Roster\Facades\Roster;
 
 /*
@@ -38,8 +40,12 @@ it('opens the default tab for ?tab=activity', function (): void {
         ->assertDontSee('data-testid="tab-activity"', false)
         ->getContent();
 
-    // Keen may add the history through its own registered section; Roster
-    // renders no audit trail of its own, so every one opens a section.
-    expect(substr_count($content, 'data-testid="audit-trail"'))
-        ->toBe(preg_match_all('/data-testid="section-[^"]+">\s*<[^>]*data-testid="audit-trail"/', $content));
+    // Keen adds the organization's history through its own registered
+    // section, so an audit trail does render here. Roster renders none of its
+    // own: every audit trail on the page sits inside Keen's section.
+    $page = new XPath(HTMLDocument::createFromString($content, LIBXML_NOERROR));
+
+    expect($page->query('//*[@data-testid="section-keen.history"]')->length)->toBe(1)
+        ->and($page->query('//*[@data-testid="audit-trail"]')->length)->toBeGreaterThan(0)
+        ->and($page->query('//*[@data-testid="audit-trail"][not(ancestor::*[@data-testid="section-keen.history"])]')->length)->toBe(0);
 });
