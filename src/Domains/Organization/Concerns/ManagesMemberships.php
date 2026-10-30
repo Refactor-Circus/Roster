@@ -6,9 +6,11 @@ namespace RefactorCircus\Roster\Domains\Organization\Concerns;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Organization\Services\MembershipSources;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
@@ -26,12 +28,20 @@ trait ManagesMemberships
     /**
      * Make the user a member. A new member gets the default member role from
      * `roster.roles.default_member`; owners need none.
+     *
+     * @param  MembershipSource|string  $source  a built-in source, or one registered with `MembershipSources`
+     *
+     * @throws InvalidArgumentException for a source nothing registers
      */
-    private function join(OrganizationModel $organization, Model $user, MembershipSource $source): MembershipModel
+    private function join(OrganizationModel $organization, Model $user, MembershipSource|string $source): MembershipModel
     {
+        if (is_string($source) && ! app(MembershipSources::class)->has($source)) {
+            throw new InvalidArgumentException("The membership source [{$source}] is not registered: register it with MembershipSources::register().");
+        }
+
         $membership = MembershipModel::query()->firstOrCreate(
             ['organization_id' => $organization->getKey(), 'user_id' => $user->getKey()],
-            ['source' => $source],
+            ['source' => $source instanceof MembershipSource ? $source->value : $source],
         );
 
         if ($membership->wasRecentlyCreated && ! $organization->isOwnedBy($user)) {

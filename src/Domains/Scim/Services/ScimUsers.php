@@ -12,7 +12,6 @@ use Illuminate\Validation\ValidationException;
 use RefactorCircus\Keystone\Data\Missing;
 use RefactorCircus\Roster\Domains\Organization\Actions\RemoveMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Concerns\ManagesMemberships;
-use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Scim\Exceptions\ScimException;
@@ -124,7 +123,7 @@ final class ScimUsers
                 'active' => true,
             ]);
 
-            $this->join($organization, $user, MembershipSource::Scim);
+            $this->join($organization, $user, 'scim');
             $this->profile($user, $data);
             $this->linkIdentity($user, $externalId, $email);
 
@@ -255,7 +254,7 @@ final class ScimUsers
             app(ReactivateUserAction::class)->execute($user);
         }
 
-        $this->join($this->organization(), $user, MembershipSource::Scim);
+        $this->join($this->organization(), $user, 'scim');
 
         $scimUser->update(['active' => true, 'deactivated_by_scim' => false]);
     }

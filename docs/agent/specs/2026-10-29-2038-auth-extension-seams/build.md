@@ -65,3 +65,81 @@ This run finishes task 1.2 under D-020 and keeps the D-021 behaviour as it is. T
 - Left for group 5, because the README and the Boost skill are not this group's files:
   - README "Policies" (line 272) still says every model's policy is registered from `roster.policies`.
   - `resources/boost/skills/roster-development/SKILL.md` line 159 says the same.
+
+## Group 2
+
+Membership sources (criterion 4). Tasks 2.1 and 2.2 are done and ticked. Task 2.3 stays unticked: one existing test outside criterion 10's list fails because of the string cast, and that is returned as a decision (below).
+
+### Files
+
+- `src/Domains/Organization/Services/MembershipSources.php` (new). A singleton holding the five built-in sources (the enum's cases) and the registered ones.
+  - `register($source, $label)` throws `InvalidArgumentException` naming the value for a built-in source, a duplicate, or a value the `source` column (32 characters) cannot hold.
+  - `has()` answers true for built-in and registered sources.
+  - `label()` gives the registered label, or the value itself for a built-in or unregistered source.
+  - `all()` lists every source with its label.
+- `src/Domains/Organization/Enums/MembershipSource.php`: `Scim` is gone.
+- `src/Domains/Organization/Models/MembershipModel.php`:
+  - `source` is cast to `string`, and `sourceEnum(): ?MembershipSource` uses `tryFrom()`.
+  - A set-only `source()` attribute stores a `MembershipSource` case as its value. Without it, `MembershipFactory` (which keeps passing `MembershipSource::Direct`, as the spec says) would leave an enum in the attributes, and the string cast would fail on it when read.
+- `src/Domains/Organization/Concerns/ManagesMemberships.php`: `join()` takes `MembershipSource|string`. If `MembershipSources::has()` says no, it throws `InvalidArgumentException` naming the source, before any write.
+- `src/Domains/Organization/Resources/MemberResource.php`: `source` is `MembershipSources::label()`, and the schema declares `source` as a plain required string (with a description, no enum).
+- `src/Domains/Organization/OrganizationServiceProvider.php`: `register()` binds `MembershipSources` as a singleton.
+- `src/Domains/Scim/ScimServiceProvider.php`: `boot()` registers `scim` / "SCIM".
+- `src/Domains/Scim/Services/ScimUsers.php`: both `join()` calls pass `'scim'`, and the enum import is gone.
+- Outside the group's file list, both forced by the string cast (each read `->source->value`, which now fails on a string):
+  - `src/Domains/Transfer/Services/Exporters/MembersExporter.php`: the export's `source` cell is `$membership->source`. The output is the same stored value as before.
+  - `resources/views/ui/organizations/show.blade.php`: the members table cell is `{{ $membership->source }}`. The output is unchanged: the raw stored value, not the label, since the spec says no screen changes.
+- `CHANGELOG.md`: a Breaking entry with an upgrade note. It names `sourceEnum()` as the migration path, warns that `=== MembershipSource::X` now silently evaluates false and that `match` on `->source` throws `UnhandledMatchError`, and says an unregistered stored value displays raw. It also notes that SCIM members now show `SCIM` in the API/MCP member data.
+- Tests (new):
+  - `tests/Unit/Organization/MembershipSourcesTest.php`
+  - `tests/Feature/Organization/MembershipSourceTest.php`. This includes the consumer grep test. It scans `src/` and `resources/views` for:
+    - `->source` compared (`==`, `===`, `!=`, `!==`, either side) with a `MembershipSource` case
+    - `match` on `->source`
+    - a property or method read from `->source`
+    - a case passed to `where`/`whereIn`/`whereNot`/`whereNotIn('source', ...)`
+
+    A dataset proves each pattern catches a sample line.
+- Existing tests changed, as criterion 10 allows: `->source` becomes `->sourceEnum()`, with the same expected case.
+  - `tests/Feature/ContextAndDomainTest.php`: "joins auto-join organizations on email verification" (line 77) and "creates a personal organization when configured" (line 93)
+  - `tests/Feature/InvitationActionsTest.php`: "accepts an invitation into the organization and its teams" (line 69)
+  - `tests/Feature/OrganizationActionsTest.php` "creates an organization with its owner as first member"
+
+### Consumer audit (for the PR)
+
+Every `->source` read and `MembershipSource` use under `src/` and `resources/`:
+
+- Fixed because they read the enum:
+  - `MemberResource::toArray()`
+  - `MembersExporter` line 61
+  - `ui/organizations/show.blade.php` line 78
+- Pass a case to `join()`, and still work:
+  - `AddMemberAction`
+  - `CreateOrganizationAction`
+  - `JoinOrganizationsByDomainAction`
+  - `SyncOrganizationAction`
+  - `AcceptInvitationAction`
+  - `SsoLoginAction`
+  - `MembersPlanner`
+  - `MembershipFactory` (in `database/`)
+- `ScimUsers` passes `'scim'`.
+- The other `source` hits are organization links (`OrganizationLinkModel::$source`, a string already), sync/import records, or exporter headers. None of them is a membership source.
+
+### Tests
+
+- Run in the worktree on the two new files: 38 tests, all passing.
+- Also run:
+  - the three changed tests
+  - `tests/Feature/Scim` and `tests/Feature/Transfers`
+  - `tests/Feature/Http/OrganizationsHttpTest.php`, which asserts `data.source` is `direct` and is unchanged
+  - `tests/Feature/Mcp/OrganizationToolsTest.php`
+  - `tests/Feature/Ui/OrganizationPagesTest.php`
+
+  137 tests, 136 passing. The failure is `tests/Feature/Scim/ScimUsersTest.php` "provisions a new member from Okta", line 43: `expect($this->acme->membershipFor($user)?->source->value)->toBe('scim')` now fails with `Attempt to read property "value" on string`. That test is not in criterion 10's list, so it is left unchanged and returned as a decision.
+- `phpstan` on `src/Domains/Organization`, `src/Domains/Scim` and `MembersExporter` and `pint --test` on every changed PHP file both pass.
+
+### Deviations
+
+- None from the standards.
+- The member label for built-in sources is their stored value (`direct`, ...), not a title-cased label. `tests/Feature/Http/OrganizationsHttpTest.php` asserts `data.source` is `direct`, and criterion 10 does not allow changing it. Only registered sources show a different label (`scim` shows `SCIM`).
+- Two source files outside the group's list changed (`MembersExporter`, `show.blade.php`), listed above.
+- `register()` also rejects an empty value or one longer than the 32-character column. The spec does not ask for this; it stops a registration that could never be stored.

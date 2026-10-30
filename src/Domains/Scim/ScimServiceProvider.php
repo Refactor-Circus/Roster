@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Scim;
 
 use Illuminate\Contracts\Auth\Access\Gate;
 use RefactorCircus\Keystone\Support\ServiceProvider;
+use RefactorCircus\Roster\Domains\Organization\Services\MembershipSources;
 use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
 use RefactorCircus\Roster\Domains\Permission\Services\Resources;
 use RefactorCircus\Roster\Domains\Scim\Models\ScimGroupModel;
@@ -29,6 +30,9 @@ class ScimServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerAuthorization();
+
+        // Members SCIM provisions join with this source.
+        $this->app->make(MembershipSources::class)->register('scim', 'SCIM');
 
         $this->loadApiRoutesFrom(__DIR__.'/routes.php');
         $this->loadRoutesFrom(__DIR__.'/scim.php');
