@@ -87,8 +87,10 @@ php artisan migrate
 
 ### 8. Single sign-on and provisioning
 
-- Roster ships neither: install refactor-circus/guardian, which adds them to Roster's organizations through Roster's seams.
-- Without it, register your own sign-in requirement with `Roster::requireSignIn()`, and add `new \RefactorCircus\Roster\Support\Rules\NoExternalSignIn` to the app's password login validation.
+- Roster ships neither: install refactor-circus/guardian (`composer require refactor-circus/guardian`), which adds OpenID Connect, SAML 2.0 and Entra ID sign-in, its enforcement and provisioning to Roster's organizations through Roster's seams.
+- **Without Guardian, organizations that enforce single sign-on accept password sign-in.** Roster adds no guard of its own, so install Guardian in the same deploy as the Roster upgrade that dropped them.
+- Upgrading from a Roster that still had them: before any migrate command, delete the app's published copies of Roster's old sign-on and provisioning table migrations (never roll them back: their `down()` drops the tables) and strip those keys from published copies of the two index migrations; then publish and run Guardian's migrations before `php artisan roster:sync-permissions`. If Guardian was installed before that Roster upgrade, run `php artisan guardian:upgrade-from-roster` after it to finish moving the tables and role grants. Roster's CHANGELOG has every step.
+- Add `new \RefactorCircus\Roster\Support\Rules\NoExternalSignIn` to the app's password login validation: it fails for any email a registered sign-in requirement claims (Guardian's, or your own registered with `Roster::requireSignIn()`).
 
 ### 9. Impersonation
 
@@ -191,7 +193,7 @@ Roster::externalSignInFor($email)?->url;              // first answer, in regist
 Roster::provisionedStatus($organization);             // the AccountStatus externally provisioned accounts start with
 ```
 
-- Requirements must not overlap. A throwing requirement fails closed: the login or registration (`NoExternalSignIn`) fails and Laravel reports it. Ask whether an email must sign in elsewhere with `externalSignInFor()` (its `record` is whatever the registered sign-in requirement keeps for it).
+- Requirements must not overlap. A throwing requirement fails closed: the login or registration (`NoExternalSignIn`) fails and Laravel reports it. Ask whether an email must sign in elsewhere with `externalSignInFor()` (its `record` is whatever a registered sign-in requirement keeps for it). With no requirement registered, every email passes `NoExternalSignIn`.
 - Audit context is not a Roster API: register on Keystone's `AuditHooks`, filter to Roster's entries and never throw (`AuditHooks` runs every closure for every package and spreads each result, so return `[]`, never null):
 
 ```php
@@ -300,3 +302,4 @@ In app tests, assert with `expect($user->rosterStatus())->toBe(UserStatus::Suspe
 - Writing `roster_memberships` or `roster_team_members` rows directly; seats must go through an organization membership.
 - Removing `auth` from `roster.invitations.middleware`: accepting acts as the signed-in user.
 - Enabling domain auto-join and expecting unverified users to join; that is deliberately blocked.
+- Upgrading Roster past the sign-on and provisioning removal without installing refactor-circus/guardian in the same deploy, or rolling back the old published table migrations Guardian takes over.

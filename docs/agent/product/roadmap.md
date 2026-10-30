@@ -20,4 +20,6 @@
 - **User approval** — configurable starting status (self-registration, admin create, per-organization SSO/SCIM) with a pending status, approve/reject and notifications.
 - **Organization sync** — create and update organizations from external systems (ERP, CRM) with per-source external IDs and account numbers; upsert, bulk, and CSV.
 
+Note (2026-10-30): SSO and SCIM moved out of Roster to `refactor-circus/guardian`, which adds them through Roster's extension seams; the entries above stay as history.
+
 Specs and decision logs: `agent-os/specs/`.
