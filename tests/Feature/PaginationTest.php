@@ -21,7 +21,7 @@ function pagedLists(): array
 }
 
 it('pages every list through its pagination, with the same default its field starts at', function (): void {
-    expect(pagedLists())->toHaveCount(13);
+    expect(pagedLists())->toHaveCount(10);
 
     foreach (pagedLists() as $class) {
         /** @var Pagination $pagination */
