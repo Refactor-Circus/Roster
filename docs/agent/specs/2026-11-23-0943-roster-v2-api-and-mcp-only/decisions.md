@@ -197,3 +197,9 @@
 - Rationale: Recommended option.
 - Date: 2026-11-23
 - Raised by: factory build; default chosen because the user asked to proceed without stopping
+
+## D-034: How do group 13's out-of-list changes get onto the job branch?
+- Choice: Committed as a group 13 follow-up (as D-032 did for group 10): `RosterServiceProvider` takes over `Gate::before` and the context-forgetting listener, `composer.json` drops the Guardian suggest, the workbench seeder seeds no roles, `RoleDomainsRemovedTest` covers criteria 28 and 30, the test helpers move to `withRoleStore()`/`roleGranting()`, and `RoleFactory`, `PermissionFactory` and `PermissionCatalogueTest` are deleted. `OutputSchemaTest` now expects 48 structured tools (13 role/permission tools removed, 10 of them structured) and `PaginationTest` 7 paged lists (`ListRolesData`, `ListRoleAssignmentsData`, `ListPermissionsData` removed). 13.1 and 13.5 are ticked with the suite green except `DocsTest` (group 16) and `OpenApiTest` (group 15).
+- Rationale: The group 13 commit alone was not green; the follow-up is what makes it so. The stale docs and OpenAPI document belong to the later groups that rewrite them.
+- Date: 2026-11-23
+- Raised by: direct build (user instruction to finish the spec without stopping)

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster;
 
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Auth\Access\Gate as GateContract;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
@@ -25,10 +26,13 @@ use RefactorCircus\Keystone\Support\PackageServiceProvider;
 use RefactorCircus\Keystone\Support\Surface;
 use RefactorCircus\Roster\Console\Commands\PurgeDeletedCommand;
 use RefactorCircus\Roster\Domains\DomainServiceProvider;
+use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationDeletedEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationForceDeletedEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationRestoredEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\OrganizationSavedEvent;
+use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\RosterServer;
 use RefactorCircus\Roster\Support\Audit;
 use RefactorCircus\Roster\Support\Authorization\Authorizer;
@@ -49,6 +53,12 @@ use RefactorCircus\Roster\Support\Users;
  */
 class RosterServiceProvider extends PackageServiceProvider
 {
+    /**
+     * The finished events that can change a user's memberships or their
+     * current organization or team.
+     */
+    private const string CHANGES_CONTEXT = '/^RefactorCircus\\\\Roster\\\\Domains\\\\(Organization|Team|Invitation|User)\\\\Events\\\\/';
+
     /**
      * Roster checks every call by default: `roster.authorization` is on
      * unless an application turns it off. The shared history route and tool
@@ -101,6 +111,8 @@ class RosterServiceProvider extends PackageServiceProvider
         // The abilities Roster checks, for a role store to list and grant.
         RosterAbilities::define($this->app->make(Abilities::class));
 
+        $this->registerGate();
+
         $this->registerRateLimiter();
         $this->registerNotFoundResponses();
 
@@ -112,6 +124,20 @@ class RosterServiceProvider extends PackageServiceProvider
         Event::listen(ActionFinishedEvent::class, function (ActionFinishedEvent $event): void {
             if (str_starts_with($event::class, 'RefactorCircus\\Roster\\Domains\\User\\Events\\') && ! $event instanceof ReadActionEvent) {
                 Cache::forget(Users::STATUS_COUNTS_CACHE);
+            }
+        });
+
+        // A user's current organization and team are remembered for the
+        // request; anything that changes memberships or context (switching,
+        // joining, leaving, deleting) forgets them, so later reads see the
+        // change. Lists, shows and other packages' actions leave them alone.
+        Event::listen(ActionFinishedEvent::class, function (ActionFinishedEvent $event): void {
+            if (preg_match(self::CHANGES_CONTEXT, $event::class) !== 1 || preg_match('/(Listed|Shown)ActionEvent$/', $event::class) === 1) {
+                return;
+            }
+
+            if ($this->app->resolved(Roster::class)) {
+                $this->app->make(Roster::class)->forget();
             }
         });
 
@@ -197,6 +223,73 @@ class RosterServiceProvider extends PackageServiceProvider
         $this->app->extend(Permissions::class, fn (Permissions $permissions, Application $app): Permissions => $permissions instanceof ImpersonationAwarePermissions
             ? $permissions
             : new ImpersonationAwarePermissions($permissions, $app));
+    }
+
+    /**
+     * Roster's place in Laravel's Gate, so `$user->can()` and `@can` work
+     * with its abilities: impersonation-blocked abilities are refused whoever
+     * asks, and the `roster.*` abilities Keystone's `Abilities` knows are
+     * answered through the bound `Permissions`, in the scope the arguments
+     * name or else the user's current team or organization. Super-admins and
+     * everything else are the bound implementation's and the app's to decide.
+     */
+    private function registerGate(): void
+    {
+        $this->app->make(GateContract::class)->before(function (mixed $user, string $ability, array $arguments): ?bool {
+            if (! $user instanceof Model || ! $user instanceof Authenticatable) {
+                return null;
+            }
+
+            // Refused while impersonating, whoever is really at the keyboard.
+            if ($this->app->make(ImpersonationContext::class)->isBlocked($ability)) {
+                return false;
+            }
+
+            if (! str_starts_with($ability, 'roster.') || ! $this->app->make(Abilities::class)->has($ability)) {
+                return null;
+            }
+
+            $scope = $this->scopeFrom($arguments) ?? $this->contextScope($user);
+
+            // Null rather than false: the app's own gates and policies still
+            // get their say when the user lacks the ability.
+            return $this->app->make(Permissions::class)->allows($user, $ability, $scope) ? true : null;
+        });
+    }
+
+    /**
+     * The scope a Gate check without an explicit organization or team uses:
+     * the user's current team, else their current organization.
+     */
+    private function contextScope(Model $user): OrganizationModel|TeamModel|null
+    {
+        $roster = $this->app->make(Roster::class);
+
+        return $roster->team($user) ?? $roster->organization($user);
+    }
+
+    /**
+     * The organization or team a Gate check is about.
+     *
+     * @param  array<int|string, mixed>  $arguments
+     */
+    private function scopeFrom(array $arguments): OrganizationModel|TeamModel|null
+    {
+        foreach ($arguments as $argument) {
+            if ($argument instanceof OrganizationModel || $argument instanceof TeamModel) {
+                return $argument;
+            }
+
+            if ($argument instanceof Model && method_exists($argument, 'organization')) {
+                $organization = $this->app->make(Authorizer::class)->parentOf($argument, 'organization');
+
+                if ($organization instanceof OrganizationModel) {
+                    return $organization;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

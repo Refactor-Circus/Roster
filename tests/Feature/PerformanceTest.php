@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use RefactorCircus\Keystone\Testing\FakeRoles;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
-use RefactorCircus\Roster\Domains\Organization\Actions\RemoveMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SyncOrganizationsAction;
 use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
@@ -13,9 +12,6 @@ use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\Organization\Data\SyncOrganizationsData;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
-use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
@@ -92,6 +88,8 @@ it('resolves Gate checks without a scope once per request', function (): void {
 
 it('answers every permission in every organization from one load per user', function (int $organizations): void {
     config()->set('roster.authorization', true);
+    // An in-memory role store: its own reads are its cost, not Roster's.
+    withRoleStore();
     $admin = user();
 
     foreach (range(1, $organizations) as $i) {
@@ -103,7 +101,7 @@ it('answers every permission in every organization from one load per user', func
     $count = queries(function () use ($admin, $scopes): void {
         $authorizer = app(Authorizer::class);
 
-        foreach (['roster.members.view', 'roster.teams.manage', 'roster.roles.view', 'roster.invitations.manage'] as $permission) {
+        foreach (['roster.members.view', 'roster.teams.manage', 'roster.teams.view', 'roster.invitations.manage'] as $permission) {
             $authorizer->organizationsWith($admin, $permission);
 
             foreach ($scopes as $scope) {
@@ -112,7 +110,7 @@ it('answers every permission in every organization from one load per user', func
         }
     });
 
-    // Permission names, the user's assignments, super-admin and owned organizations.
+    // The organizations the user owns, once, however many checks.
     expect($count)->toBeLessThanOrEqual(4);
 })->with([2, 10]);
 
@@ -188,38 +186,6 @@ it('finds a user by email with one indexed lookup, and by other casing after it'
         ->and($users->findByEmail('a_a@example.com'))->toBeNull()
         ->and(array_keys($users->findManyByEmail(['ADA@example.com', 'grace@example.com', 'nobody@example.com'])))->toEqualCanonicalizing(['ada@example.com', 'grace@example.com'])
         ->and(queries(fn () => $users->findManyByEmail(array_map(fn (int $i): string => "u{$i}@example.com", range(1, 50)))))->toBe(2);
-});
-
-it('remembers permissions between requests when the permission cache is on', function (): void {
-    config()->set('roster.permission_cache.ttl', 60);
-    crowd(1);
-    $member = User::query()->where('email', 'm1@acme.test')->firstOrFail();
-    $check = fn (): int => queries(fn () => $member->fresh()->can('roster.members.view'));
-
-    $cold = $check();
-    $warm = $check();
-
-    expect($warm)->toBeLessThan($cold);
-
-    // A role change reaches the next request at once.
-    $role = roleWith(['roster.users.view']);
-    app(AssignRoleAction::class)->execute($member, new AssignRoleData(role: (string) $role->id));
-    app()->forgetScopedInstances();
-
-    expect($member->fresh()->can('roster.users.view'))->toBeTrue();
-});
-
-it('keeps the permission names when one user\'s access changes', function (): void {
-    [$owner, $acme] = crowd(2);
-    $member = User::query()->where('email', 'm1@acme.test')->firstOrFail();
-    app()->forgetScopedInstances();
-    $permissions = app(Permissions::class);
-    $permissions->for($owner, $acme);
-
-    app(RemoveMemberAction::class)->execute($acme, $member);
-
-    // The owner's answers and the permission names survive; only the member's go.
-    expect(queries(fn () => $permissions->for($owner, $acme)))->toBe(0);
 });
 
 it('answers a repeated authorization check from memory', function (): void {

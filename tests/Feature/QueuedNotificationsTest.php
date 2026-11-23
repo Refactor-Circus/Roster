@@ -15,6 +15,7 @@ use RefactorCircus\Roster\Domains\User\Enums\UserStatus;
 use RefactorCircus\Roster\Domains\User\Notifications\UserAwaitingApprovalNotification;
 
 beforeEach(function (): void {
+    withRoleStore();
     grant(user(['email' => 'approver@example.com']), 'super-admin');
 });
 

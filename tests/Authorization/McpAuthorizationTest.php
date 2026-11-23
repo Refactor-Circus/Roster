@@ -24,8 +24,6 @@ function toolArguments(): array
         // Answering an invitation needs no permission; the history tool is not
         // offered without an audit log (tests/Modes/Keen covers it).
         ->reject(fn (string $tool): bool => in_array($tool, [AcceptInvitationTool::class, DeclineInvitationTool::class, ListRosterHistoryTool::class], true))
-        // The role and permission tools are covered in tests/Authorization/Legacy.
-        ->reject(fn (string $tool): bool => isRoleApiTool($tool))
         ->mapWithKeys(fn (string $tool): array => [$tool => match (class_basename($tool)) {
             'ShowUserTool', 'UpdateUserTool', 'DeleteUserTool', 'UpdateProfileTool', 'SuspendUserTool', 'DeactivateUserTool',
             'ReactivateUserTool', 'ApproveUserTool', 'RejectUserTool', 'RestoreUserTool', 'PurgeUserTool', 'SwitchContextTool', 'JoinByDomainTool' => $user,

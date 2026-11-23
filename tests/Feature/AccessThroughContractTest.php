@@ -111,7 +111,6 @@ it('asks the contract with the organization scope type', function (): void {
 
 it('blocks abilities on any bound implementation while impersonating, including one bound after boot', function (): void {
     $admin = user(['name' => 'Admin']);
-    grant($admin, 'super-admin');
     $ada = user(['name' => 'Ada']);
     $acme = organization(attributes: ['name' => 'Acme']);
 

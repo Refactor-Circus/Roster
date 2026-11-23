@@ -139,11 +139,11 @@ depends on: 12
 files: src/Domains/Role/** (delete), src/Domains/Permission/** (delete), src/Domains/DomainServiceProvider.php, src/Mcp/RosterServer.php, src/Support/Audit.php, src/Support/Tables.php, config/roster.php, database/migrations/2026_01_01_000003_create_roster_role_tables.php (delete), database/migrations/2026_01_01_000010_add_roster_lookup_indexes.php, database/migrations/2026_10_12_000001_add_roster_performance_indexes.php, tests/Feature/Permission/** (delete), tests/Authorization/Legacy/** (delete), tests/Feature/Http/*Role*, tests/Feature/Mcp/*Role*, tests/Feature/Mcp/*Permission*, tests/Feature/MigrationsRoleTablesTest.php, tests/ArchTest.php, tests/Feature/ComposerTest.php, tests/Pest.php
 criteria: 28, 29, 30, 33, 41
 
-- [ ] 13.1 Write tests: routes and MCP tools absent (criterion 28); commands absent; a fresh migrate creates no role tables; with pre-created `roster_*` role tables holding rows, migrate and rollback leave them and their rows; config keys gone (criterion 30); arch: nothing uses `Domains\Role` or `Domains\Permission`; no `guardian` string in `src/`, `config/` or `database/`; `composer.json` names no guardian package
+- [x] 13.1 Write tests: routes and MCP tools absent (criterion 28); commands absent; a fresh migrate creates no role tables; with pre-created `roster_*` role tables holding rows, migrate and rollback leave them and their rows; config keys gone (criterion 30); arch: nothing uses `Domains\Role` or `Domains\Permission`; no `guardian` string in `src/`, `config/` or `database/`; `composer.json` names no guardian package
 - [x] 13.2 Delete both domains (including the interim adapter and group 1's role-assignments endpoint), and remove them from `DomainServiceProvider`, `RosterServer::TOOLS`, `Support/Audit` and the parity exemptions
 - [x] 13.3 Delete the role-tables migration and remove `roles`/`role_assignments` from the two index migrations; remove `permission_cache`, `super_admins`, the role policies and table keys from `config/roster.php` and `Support/Tables`
 - [x] 13.4 Delete the tests of removed code (`tests/Feature/Permission/`, `tests/Authorization/Legacy/`, role/permission HTTP and MCP tests) and update the parity list in `tests/Pest.php`
-- [ ] 13.5 Run composer analyse and vendor/bin/pest; all green
+- [x] 13.5 Run composer analyse and vendor/bin/pest; all green
 
 ## Group 14: Gate fallback coverage
 depends on: 13

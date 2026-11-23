@@ -591,3 +591,8 @@ Only the group's listed paths, plus this note and the ticked tasks (13.2, 13.3, 
 - 13.1 stays unticked: the criterion 28 and 30 tests are in the out-of-list `RoleDomainsRemovedTest.php`.
 - 13.5 stays unticked until the suite is green. `OutputSchemaTest` (48) and `PaginationTest` (7) need their counts updated. `DocsTest` and `OpenApiTest` belong to groups 16 and 15, unless the user wants group 13 to fix them now.
 
+
+## Group 13 follow-up (direct build)
+
+- Committed the out-of-list group 13 work (D-034). `OutputSchemaTest` expects 48, `PaginationTest` 7; both counts checked against what `RosterServer::TOOLS` and `src/Domains/*/Data/List*Data.php` hold now.
+- Checks: `composer analyse` and `lint:check` pass; `vendor/bin/pest --parallel`: 1056 tests, 1035 passed, 4 failed (`DocsTest` x2, group 16; `OpenApiTest` x2, group 15).

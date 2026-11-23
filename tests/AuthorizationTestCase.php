@@ -25,7 +25,7 @@ abstract class AuthorizationTestCase extends TestCase
     {
         parent::setUp();
 
-        $this->installRoleStore();
+        self::installRoleStore();
     }
 
     protected function defineEnvironment($app): void
@@ -36,13 +36,14 @@ abstract class AuthorizationTestCase extends TestCase
     }
 
     /**
-     * Bind Keystone's fakes as the role store, with the default roles.
+     * Bind Keystone's fakes as the role store, with the default roles. Also
+     * what `withRoleStore()` uses in a test outside tests/Authorization.
      */
-    protected function installRoleStore(): void
+    public static function installRoleStore(): FakeRoles
     {
         FakePermissions::install();
 
-        FakeRoles::install()
+        return FakeRoles::install()
             ->define('super-admin', [Permissions::SUPER_ADMIN])
             ->define('admin', self::grantedTo('admin'), OrganizationModel::class)
             ->define('member', self::grantedTo('member'), OrganizationModel::class);

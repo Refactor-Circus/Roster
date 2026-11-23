@@ -12,8 +12,6 @@ it('covers every roster API route', function (): void {
     $names = collect(Route::getRoutes()->getRoutesByName())
         ->keys()
         ->filter(fn (string $name): bool => str_starts_with($name, 'roster.') && ! str_starts_with($name, 'roster.invitations.') && ! str_starts_with($name, 'roster.impersonation.') && $name !== 'roster.transfers.file' && $name !== 'roster.history.index')
-        // The role and permission API is covered in tests/Authorization/Legacy.
-        ->reject(fn (string $name): bool => isRoleApiRoute($name))
         ->map(fn (string $name): string => substr($name, 7))
         ->sort()
         ->values()

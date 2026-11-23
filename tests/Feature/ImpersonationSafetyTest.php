@@ -7,15 +7,16 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
 use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
+use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateUserAction;
 use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
 use RefactorCircus\Roster\Support\Authorization\Authorizer;
 use RefactorCircus\Roster\Tests\Fixtures\Policies\OpenPolicy;
 
 beforeEach(function (): void {
+    withRoleStore();
     config()->set('roster.authorization', true);
-    config()->set('roster.impersonation.blocked', ['roster.roles.*', 'billing.*', 'roster.users.delete']);
+    config()->set('roster.impersonation.blocked', ['roster.teams.*', 'billing.*', 'roster.users.delete']);
     Gate::define('billing.refund', fn (): bool => true);
 
     $this->admin = user(['name' => 'Admin']);
@@ -31,7 +32,7 @@ beforeEach(function (): void {
 
 it('blocks listed permissions and app abilities, even for super-admins', function (): void {
     expect(Auth::id())->toBe($this->ada->getKey())
-        ->and(app(Authorizer::class)->check($this->ada, 'roster.roles.assign'))->toBeFalse()
+        ->and(app(Authorizer::class)->check($this->ada, 'roster.teams.manage'))->toBeFalse()
         ->and(app(Authorizer::class)->check($this->ada, 'roster.users.view'))->toBeTrue()
         ->and(Gate::allows('billing.refund'))->toBeFalse()
         ->and(Gate::allows('roster.users.delete'))->toBeFalse()
@@ -49,9 +50,9 @@ it('locks the impersonated account email and password', function (): void {
 });
 
 it('blocks listed permissions whatever the configured policy says', function (): void {
-    Gate::policy(RoleModel::class, OpenPolicy::class);
+    Gate::policy(TeamModel::class, OpenPolicy::class);
 
-    expect(app(Authorizer::class)->check($this->ada, 'roster.roles.assign'))->toBeFalse()
-        ->and(app(Authorizer::class)->check($this->ada, 'roster.roles.view'))->toBeFalse()
+    expect(app(Authorizer::class)->check($this->ada, 'roster.teams.manage'))->toBeFalse()
+        ->and(app(Authorizer::class)->check($this->ada, 'roster.teams.view'))->toBeFalse()
         ->and(app(Authorizer::class)->check($this->ada, 'roster.users.view'))->toBeTrue();
 });

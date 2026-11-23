@@ -61,6 +61,7 @@ it('serves tool descriptions published in Cortex, to MCP clients and agents alik
 });
 
 it('lets an agent call a tool as the signed-in user, with Roster permissions applied', function (): void {
+    withRoleStore();
     $ada = user(['name' => 'Ada']);
     $tool = app(ToolRegistry::class)->get('list-users-tool');
 

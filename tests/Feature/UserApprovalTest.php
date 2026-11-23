@@ -33,6 +33,8 @@ function pendingUser(array $attributes = []): User
 
 beforeEach(function (): void {
     Notification::fake();
+    // Approvers are the role store's holders of roster.users.approve.
+    withRoleStore();
     $this->approver = user(['email' => 'approver@example.com']);
     grant($this->approver, 'super-admin');
 });

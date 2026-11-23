@@ -17,8 +17,11 @@ use RefactorCircus\Roster\Domains\Impersonation\Events\ImpersonationStoppedActio
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
+
+// Impersonating compares what both users may do, which only a role store
+// can list: without one only a super-admin may impersonate.
+beforeEach(fn () => withRoleStore());
 
 function startImpersonating($target, $actor, array $data = []): StartedImpersonation
 {
@@ -67,11 +70,11 @@ it('refuses super-admins unless you are one', function (): void {
 
 it('refuses anyone with permissions you lack', function (): void {
     $actor = user();
-    RoleAssignmentModel::query()->create(['role_id' => roleWith(['roster.users.impersonate', 'roster.users.view'])->id, 'user_id' => $actor->getKey()]);
+    grant($actor, roleGranting(['roster.users.impersonate', 'roster.users.view']));
     $strong = user();
-    RoleAssignmentModel::query()->create(['role_id' => roleWith(['roster.users.delete'])->id, 'user_id' => $strong->getKey()]);
+    grant($strong, roleGranting(['roster.users.delete']));
     $weak = user();
-    RoleAssignmentModel::query()->create(['role_id' => roleWith(['roster.users.view'])->id, 'user_id' => $weak->getKey()]);
+    grant($weak, roleGranting(['roster.users.view']));
 
     expect(fn () => startImpersonating($strong, $actor))->toThrow(ValidationException::class)
         ->and(startImpersonating($weak, $actor)->impersonation->exists)->toBeTrue();

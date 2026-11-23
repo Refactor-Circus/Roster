@@ -13,6 +13,10 @@ use RefactorCircus\Roster\Domains\Impersonation\Data\StopImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 
 beforeEach(function (): void {
+    // Impersonating compares what both users may do, which only a role
+    // store can list: without one only a super-admin may impersonate.
+    withRoleStore();
+
     Route::middleware('web')->get('roster-test/whoami', fn (): string => (string) Auth::id().'|'.view('roster::impersonation-banner')->render());
     Route::middleware('web')->get('roster-test/banner', fn () => Blade::render("@include('roster::impersonation-banner')"));
     app('router')->getRoutes()->refreshNameLookups();

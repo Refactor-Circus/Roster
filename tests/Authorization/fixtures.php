@@ -2,19 +2,14 @@
 
 declare(strict_types=1);
 
-use Illuminate\Support\Str;
-use RefactorCircus\Keystone\Authorization\Contracts\Roles;
-use RefactorCircus\Keystone\Testing\FakeRoles;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
-use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
 use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
-use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 
 /**
@@ -51,61 +46,12 @@ function authorizationWorld(): array
 }
 
 /**
- * A new role in the bound `FakeRoles` granting exactly the given abilities,
- * held globally, in an organization or on a team. Returns its slug, for
- * `grant()`.
- *
- * @param  list<string>  $abilities
- * @param  'global'|'organization'|'team'  $scope
- */
-function roleGranting(array $abilities, string $scope = 'global'): string
-{
-    $roles = app(Roles::class);
-
-    if (! $roles instanceof FakeRoles) {
-        throw new LogicException('roleGranting() needs FakeRoles installed (AuthorizationTestCase).');
-    }
-
-    $slug = 'role-'.Str::lower(Str::random(8));
-
-    $roles->define($slug, $abilities, match ($scope) {
-        'organization' => OrganizationModel::class,
-        'team' => TeamModel::class,
-        default => null,
-    });
-
-    return $slug;
-}
-
-/**
  * Routes and tools any signed-in user may use: import templates hold no data.
  */
 const OPEN_TO_SIGNED_IN = ['imports.templates.show', 'ShowImportTemplateTool', 'transfers.template'];
 
 /**
- * The routes of Roster's own role and permission API, covered by
- * tests/Authorization/Legacy until they are deleted with the Role and
- * Permission domains.
- */
-const ROLE_API_ROUTES = ['roster.roles.*', 'roster.permissions.*', 'roster.users.roles.*', 'roster.users.permissions', 'roster.organizations.role-assignments.index'];
-
-function isRoleApiRoute(string $name): bool
-{
-    return Str::is(ROLE_API_ROUTES, $name);
-}
-
-/**
- * Whether a tool belongs to Roster's own role and permission API, covered by
- * tests/Authorization/Legacy.
- */
-function isRoleApiTool(string $tool): bool
-{
-    return Str::startsWith($tool, ['RefactorCircus\\Roster\\Domains\\Role\\', 'RefactorCircus\\Roster\\Domains\\Permission\\']);
-}
-
-/**
- * Every JSON API route outside the role and permission API: [method, name,
- * parameters, body].
+ * Every JSON API route: [method, name, parameters, body].
  *
  * @return array<string, array{0: string, 1: string, 2: Closure(array<string, mixed>): array<int, mixed>, 3: array<string, mixed>}>
  */

@@ -40,7 +40,6 @@
     },
     "suggest": {
         "refactor-circus/cortex": "Lets Cortex agents use the Roster tools (dev-main).",
-        "refactor-circus/guardian": "Single sign-on (OIDC, SAML, Entra ID) and SCIM provisioning for Roster's organizations (dev-main).",
         "refactor-circus/impex": "Required for CSV import and export (dev-main).",
         "refactor-circus/keen": "Records Roster's changes in the suite-wide audit log (dev-main)."
     },
