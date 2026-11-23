@@ -28,6 +28,7 @@ use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\ListOrganizationsTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\PurgeOrganizationTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\RemoveMemberTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\RestoreOrganizationTool;
+use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\ShowOrganizationStatsTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\ShowOrganizationTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\SwitchContextTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\SyncOrganizationsTool;
@@ -140,6 +141,7 @@ final class RosterServer extends Server
         DeleteOrganizationTool::class,
         RestoreOrganizationTool::class,
         PurgeOrganizationTool::class,
+        ShowOrganizationStatsTool::class,
         TransferOwnershipTool::class,
         SyncOrganizationTool::class,
         SyncOrganizationsTool::class,

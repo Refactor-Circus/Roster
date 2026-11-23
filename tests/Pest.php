@@ -173,6 +173,15 @@ const PARITY_EXCEPTIONS = [
     // widget reads them through RosterPlugin, which is no request or
     // controller. (`ui` until the Atrium surface goes.)
     'ShowUserStatsAction' => ['ui'],
+    // A typeahead for UIs, as SearchUsersAction is. Agents find
+    // organizations with list-organizations-tool, whose `search` matches
+    // anywhere in the name or slug and pages through all of them. (`ui`
+    // until the Atrium surface goes: Atrium v2 calls it over HTTP.)
+    'SearchOrganizationsAction' => ['mcp', 'ui'],
+    // The counts behind a dashboard widget, on HTTP and MCP; the Atrium v1
+    // widget counts them itself in RosterPlugin, which is no request or
+    // controller. (`ui` until the Atrium surface goes.)
+    'ShowOrganizationStatsAction' => ['ui'],
 ];
 
 function parityGaps(): array

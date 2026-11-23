@@ -96,3 +96,38 @@ Five files outside the list are modified in the tree. Every hunk in them is this
 
 - Commit the five files above with this group.
 - 3.5: run `vendor/bin/pest` (the gate).
+
+## Group 4
+
+Organization stats and organization search (AC 8, 10, 11, 12, 13).
+
+### Files
+
+- `src/Domains/Organization/Actions/ShowOrganizationStatsAction.php` (new): the organizations widget's single query of three `count(*)` subqueries (organizations without the deleted, teams, `InvitationModel::pending()`), run on the organizations' connection (`getQuery()->newQuery()`), answered as `{organizations, teams, pending_invitations}` ints. Starting and finished events, no transaction (a read).
+- `src/Domains/Organization/Actions/SearchOrganizationsAction.php` (new): `execute(SearchOrganizationsData $data, ?array $within = null)`; name or slug `like '<q>%' escape '!'` (`%`, `_` and `!` escaped, as `SearchUsersAction` does), deleted left out, `whereIn('id', $within)` when limited, ordered by name then id, `limit`, `links` and `owner` eager-loaded for `OrganizationResource`.
+- `src/Domains/Organization/Data/SearchOrganizationsData.php` (new): `q` required 1-100, `limit` 1-25 default 5.
+- `src/Domains/Organization/Events/OrganizationStatsShowingActionEvent.php`, `OrganizationStatsShownActionEvent.php` (carries the counts), `OrganizationsSearchingActionEvent.php`, `OrganizationsSearchedActionEvent.php` (carry the Data), all `ReadActionEvent`.
+- `src/Domains/Organization/Http/Resources/OrganizationStatsResource.php` (new): final, `schema()` with the three counts required integers.
+- `src/Domains/Organization/Http/Requests/ShowOrganizationStatsRequest.php` (global `roster.organizations.view`) and `SearchOrganizationsRequest.php` (`acrossOrganizations()`, `organizations()` passed as `$within`, answers `OrganizationResource::collection`).
+- `src/Domains/Organization/Http/Controllers/OrganizationDirectoryController.php` (new): `stats`, `search`.
+- `src/Domains/Organization/routes.php`: `GET stats/organizations` (`stats.organizations`) and `GET search/organizations` (`search.organizations`).
+- `src/Domains/Organization/Mcp/Requests/ShowOrganizationStatsMcpRequest.php` and `Mcp/Tools/ShowOrganizationStatsTool.php` (new, `outputSchema()` = `OrganizationStatsResource::structuredSchema()`); `src/Mcp/RosterServer.php` lists the tool.
+- `tests/Pest.php`: `PARITY_EXCEPTIONS` gains `SearchOrganizationsAction => ['mcp', 'ui']` and `ShowOrganizationStatsAction => ['ui']`, with reasons.
+- Tests (new): `tests/Feature/Http/OrganizationStatsAndSearchHttpTest.php` (counts with deleted organization, deleted team, expired/revoked/accepted/declined invitations; zeroes; one count query; events; prefix on name or slug ordered by name; items equal the `organizations.show` fields; deleted left out; limit default 5 up to 25; `q`/`limit` validation; `%`, `_`, `\`, `!` literal, also in a slug; `$within`; Data default), `tests/Feature/Mcp/OrganizationStatsToolTest.php` (tool name, structured content equals the HTTP payload, also empty, output schema), `tests/Authorization/OrganizationStatsAndSearchAuthorizationTest.php` (401 guest and 403 without the permission on both routes; organization-level permission 403 on stats; search limited to the organizations where the caller holds the permission, another permission there opens nothing; global sees all; the tool needs the global permission).
+
+Outside the group's file list (needed to keep existing suite tests green, as D-018 settled for group 3):
+
+- `tests/Authorization/fixtures.php`: the two routes in `apiRoutes()` (`HttpAuthorizationTest` covers every `roster.*` API route).
+- `tests/Feature/Mcp/OutputSchemaTest.php`: 58 structured tools, up from 57.
+- `README.md`: the two routes in the HTTP API table (`DocsTest`) and `show-organization-stats-tool` in the MCP tools table. Group 8 rewrites the README.
+
+### Tests
+
+Not run here; the gate runs `vendor/bin/pest`. `vendor/bin/pint --test` passes on the changed files and `phpstan` passes on `src/Domains/Organization` and `src/Mcp/RosterServer.php`.
+
+### Deviations
+
+- `PARITY_EXCEPTIONS` lists `SearchOrganizationsAction => ['mcp', 'ui']` and `ShowOrganizationStatsAction => ['ui']`, for the same reason as group 3: `parityGaps()` still checks the Atrium `ui` surface. Group 5 should drop `'ui'` from the first and remove the second.
+- The stats count is the widget's query as it was: teams are not soft-deleted, so a team of a deleted (soft-deleted, restorable) organization still counts, as does a pending invitation into one. AC 8 holds as written (records that are not deleted; invitations in `pending()`).
+- `RosterPlugin`'s organizations widget keeps its own copy of the query rather than calling the action (it is deleted in group 5 and is outside the list).
+- The LIKE helpers (`startsWith()`, `escape()`) repeat `SearchUsersAction`'s; sharing them would need a new `Support` class outside both groups' lists.

@@ -625,6 +625,8 @@ enum CustomerStatus: string implements Status
 | PUT | `/roster/organizations/external/{source}/{externalId}` | `roster.organizations.sync` (upsert; 201 when created) |
 | POST | `/roster/organizations/sync` | `roster.organizations.sync-many` (`{records: [...]}`) |
 | PUT, DELETE | `/roster/organizations/{organization}/links/{source}` | `roster.organizations.links.update`, `.destroy` |
+| GET | `/roster/stats/organizations` | `roster.stats.organizations` (`organizations`, `teams` and `pending_invitations`, deleted organizations left out; global `roster.organizations.view`) |
+| GET | `/roster/search/organizations?q=&limit=` | `roster.search.organizations` (organizations whose name or slug starts with `q`, by name, deleted ones left out; same `q` and `limit` rules as `search/users`; limited to the organizations where the caller holds `roster.organizations.view`) |
 | GET, POST | `/roster/organizations/{organization}/members` | `roster.organizations.members.index`, `.store` |
 | DELETE | `/roster/organizations/{organization}/members/{user}` | `roster.organizations.members.destroy` |
 | GET, POST | `/roster/organizations/{organization}/teams` | `roster.organizations.teams.index`, `.store` |
@@ -666,7 +668,7 @@ MCP tools (all behind Laravel MCP's tool search):
 | Area | Tools |
 |---|---|
 | Users | `list-users-tool`, `show-user-tool`, `create-user-tool`, `update-user-tool`, `delete-user-tool`, `update-profile-tool`, `suspend-user-tool`, `deactivate-user-tool`, `reactivate-user-tool`, `approve-user-tool`, `reject-user-tool`, `restore-user-tool`, `purge-user-tool`, `show-user-stats-tool`, `switch-context-tool`, `join-by-domain-tool` |
-| Organizations | `list-organizations-tool`, `show-organization-tool`, `create-organization-tool`, `update-organization-tool`, `delete-organization-tool`, `restore-organization-tool`, `purge-organization-tool`, `transfer-ownership-tool`, `list-members-tool`, `add-member-tool`, `remove-member-tool`, `sync-organization-tool`, `sync-organizations-tool`, `link-organization-tool`, `unlink-organization-tool` |
+| Organizations | `list-organizations-tool`, `show-organization-tool`, `create-organization-tool`, `update-organization-tool`, `delete-organization-tool`, `restore-organization-tool`, `purge-organization-tool`, `show-organization-stats-tool`, `transfer-ownership-tool`, `list-members-tool`, `add-member-tool`, `remove-member-tool`, `sync-organization-tool`, `sync-organizations-tool`, `link-organization-tool`, `unlink-organization-tool` |
 | Teams | `list-teams-tool`, `show-team-tool`, `create-team-tool`, `update-team-tool`, `delete-team-tool`, `add-team-member-tool`, `remove-team-member-tool` |
 | Invitations | `list-invitations-tool`, `create-invitation-tool`, `revoke-invitation-tool`, `accept-invitation-tool`, `decline-invitation-tool` |
 | Impersonation | `start-impersonation-tool`, `list-impersonations-tool`, `stop-impersonation-tool` |

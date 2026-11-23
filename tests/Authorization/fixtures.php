@@ -96,6 +96,8 @@ function apiRoutes(): array
         'organizations.sync-many' => ['POST', 'roster.organizations.sync-many', $none, ['records' => [['source' => 'erp', 'external_id' => 'C-3', 'name' => 'Globex']]]],
         'organizations.links.update' => ['PUT', 'roster.organizations.links.update', fn (): array => ['acme', 'crm'], ['external_id' => 'X-1']],
         'organizations.links.destroy' => ['DELETE', 'roster.organizations.links.destroy', fn (): array => ['acme', 'erp'], []],
+        'stats.organizations' => ['GET', 'roster.stats.organizations', $none, []],
+        'search.organizations' => ['GET', 'roster.search.organizations', $none, ['q' => 'acme']],
         'members.index' => ['GET', 'roster.organizations.members.index', $org, []],
         'members.store' => ['POST', 'roster.organizations.members.store', $org, ['user' => 1]],
         'members.destroy' => ['DELETE', 'roster.organizations.members.destroy', fn (array $w): array => ['acme', $w['target']->getRouteKey()], []],
