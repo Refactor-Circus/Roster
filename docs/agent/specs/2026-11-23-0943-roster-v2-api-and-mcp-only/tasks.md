@@ -54,7 +54,7 @@ criteria: 15, 20
 - [x] 5.2 Delete the plugin, UI controllers (keep `Http/Controllers/Concerns/AuthorizesScreens.php` until group 6), `ScreenAccess`, `Badges`, `RosterSupportFeature`, the `roster.atrium` config section, the screen views under `resources/views/ui`, and the Atrium-only tests listed above; remove `atrium.plugins` from `WorkbenchServiceProvider` and `TestCase`; remove `ResetsScreenExtensions` and the `ui` surface (and `SyncOrganization*` exceptions) from `tests/Pest.php`
 - [x] 5.3 Edit the mixed tests (`OrganizationScopedListsTest`, `SoftDeleteTest`, `TemplateTest`, `RemovedSsoScimTest`, `PerformanceTest`) to keep their API/MCP/action assertions and drop screen assertions
 - [x] 5.4 Remove browser tooling: `Browser` testsuite, `test:browser`, `--exclude-testsuite=Browser`, pest-plugin-browser, root `package.json`/`package-lock.json`, `browser-tests.yml`, `browser_test` in `ring-master.yml`; drop pennantplus from `require-dev`/`suggest` and the pennant migrations from `testbench.yaml`
-- [ ] 5.5 Run vendor/bin/pest; all green
+- [x] 5.5 Run vendor/bin/pest; all green
 
 ## Group 6: Remove the Atrium seam and every remaining reference
 depends on: 5

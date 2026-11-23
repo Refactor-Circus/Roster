@@ -107,3 +107,9 @@
 - Rationale: Recommended option.
 - Date: 2026-11-23
 - Raised by: factory build; default chosen because the user asked to proceed without stopping
+
+## D-019: Twelve out-of-list paths hold the rest of group 5's work; when are they committed?
+- Choice: Committed now as a group 5 follow-up, as D-018 did for group 3.
+- Rationale: Recommended option.
+- Date: 2026-11-23
+- Raised by: factory build; default chosen because the user asked to proceed without stopping
