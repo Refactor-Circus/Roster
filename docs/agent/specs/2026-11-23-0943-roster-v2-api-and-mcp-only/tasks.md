@@ -112,7 +112,7 @@ criteria: 33, 34, 38
 - [x] 10.2 Move `Authorizer` and `Resources` to `src/Support/Authorization/` (drop the `roles` core resource); `permits()` and `organizationsWith()` use the contract as criterion 33; update every import (Policy, AuthorizesWithRoster, Transfer classes, providers)
 - [x] 10.3 Add `ImpersonationAwarePermissions` and register it with `$this->app->extend(Permissions::class, ...)` in `RosterServiceProvider::register()`
 - [x] 10.4 Add the interim `RosterRolesPermissions` (Roster's current `Permissions` service behind Keystone's `Permissions` and `Roles`) and bind it in `PermissionServiceProvider` with `scoped()`; rewrite the `Gate::before` as criterion 38
-- [ ] 10.5 Run vendor/bin/pest; all green (the existing role-based tests pass through the adapter)
+- [x] 10.5 Run vendor/bin/pest; all green (the existing role-based tests pass through the adapter)
 
 ## Group 11: Authorization suite on Keystone's fakes
 depends on: 10
