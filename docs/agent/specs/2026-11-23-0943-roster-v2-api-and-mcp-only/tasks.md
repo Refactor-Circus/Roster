@@ -109,7 +109,7 @@ files: src/Support/Authorization/Authorizer.php, src/Support/Authorization/Resou
 criteria: 33, 34, 38
 
 - [x] 10.1 Write tests in `AccessThroughContractTest`: with Keystone's `FakePermissions` installed, `Authorizer::permits()` and `check()` follow the fake (grant in an organization, parent organization for a team scope, the owner rule through `Scope`); `organizationsWith()` combines `scopesWith()` with owned organizations, keeps a null from `scopesWith()`, and drops owned organizations for a global-only ability; while impersonating, `allows('acme.roles.manage')` on a fake bound after boot is false; `Gate::before` answers true or null for `roster.*` abilities with the context scope and leaves super-admin passing to the implementation
-- [ ] 10.2 Move `Authorizer` and `Resources` to `src/Support/Authorization/` (drop the `roles` core resource); `permits()` and `organizationsWith()` use the contract as criterion 33; update every import (Policy, AuthorizesWithRoster, Transfer classes, providers)
+- [x] 10.2 Move `Authorizer` and `Resources` to `src/Support/Authorization/` (drop the `roles` core resource); `permits()` and `organizationsWith()` use the contract as criterion 33; update every import (Policy, AuthorizesWithRoster, Transfer classes, providers)
 - [x] 10.3 Add `ImpersonationAwarePermissions` and register it with `$this->app->extend(Permissions::class, ...)` in `RosterServiceProvider::register()`
 - [x] 10.4 Add the interim `RosterRolesPermissions` (Roster's current `Permissions` service behind Keystone's `Permissions` and `Roles`) and bind it in `PermissionServiceProvider` with `scoped()`; rewrite the `Gate::before` as criterion 38
 - [ ] 10.5 Run vendor/bin/pest; all green (the existing role-based tests pass through the adapter)

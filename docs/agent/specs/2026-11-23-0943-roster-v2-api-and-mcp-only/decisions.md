@@ -185,3 +185,9 @@
 - Rationale: The spec names `extend()`; wrapping `instance()` bindings would need a rebinding hook that resolves the binding early and hides the fake from `FakeRoles::holders()`. Only test code binds with `instance()`.
 - Date: 2026-11-23
 - Raised by: factory build (group 10); conservative default per the addendum's builder note
+
+## D-032: How do group 10's out-of-list changes get onto the job branch?
+- Choice: Committed as a group 10 follow-up salvage commit; 10.2 and 10.5 ticked.
+- Rationale: Recommended option.
+- Date: 2026-11-23
+- Raised by: factory build; default chosen because the user asked to proceed without stopping
