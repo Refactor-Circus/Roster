@@ -167,3 +167,9 @@
 - Rationale: Guardian's v2 requires Roster `^2.0`, and Roster's `2.0.x-dev` alias only exists once this job merges. Guardian's current main stays on `^0.1` tags meanwhile.
 - Date: 2026-11-23
 - Raised by: user (pace, review); order defaulted by the spec writer
+
+## D-029: Keystone's addendum is not on Keystone dev-main, so composer update refactor-circus/keystone (task 9.2) cannot resolve ^2.0. How to proceed?
+- Choice: Keep building against the vendor copy of the approved Keystone branch (installed with git archive, identical src). composer.lock is refreshed at release, after Keystone v2.0.0 is tagged; no merge or push now (user: do not push). Any later task that runs composer update/require for suite packages is likewise deferred to release.
+- Rationale: Recommended option.
+- Date: 2026-11-23
+- Raised by: factory build; default chosen because the user asked to proceed without stopping
