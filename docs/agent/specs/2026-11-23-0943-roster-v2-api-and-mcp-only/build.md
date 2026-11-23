@@ -298,3 +298,10 @@ OpenAPI export and TypeScript client (AC 21–24). Tasks 7.1–7.5 are ticked; t
 
 - `client:generate` runs `npm --prefix client ci` before `generate`. Without it, a fresh checkout has no `openapi-typescript` to run. Cortex's script does the same. No standard is affected.
 - The export goes through the workbench command `workbench:openapi` instead of a bare `scramble:export`. Scramble cannot sort keys or pin the database, and the spec requires a key-sorted, deterministic `openapi.json`. The command is a closure in `WorkbenchServiceProvider`, so no file outside the group's list was added.
+
+### Retry check
+
+The retry found every group 7 task already committed (a279bf0), so it changed no code. It checked that work again:
+- `tests/Feature/OpenApiTest.php` run alone: 12 passed, 59 assertions.
+- `npm --prefix client run generate` left no diff, and `npm --prefix client run typecheck` passes.
+- Pint passes on `OpenApiTest.php` and `WorkbenchServiceProvider.php`.
