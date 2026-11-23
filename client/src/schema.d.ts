@@ -1,4 +1,4 @@
-// openapi.json sha256: b78336e5371bcb44b63201acd01f0823b9b56004fa6ebca0c19b6a670f505e63
+// openapi.json sha256: 0355e4d1cc6d4a02ab4cac13d9ea01c1985babe300ee6db6d61e9f470b36f91e
 // Generated from openapi.json; do not edit. Regenerate with: composer client:generate
 export interface paths {
     "/exports": {
@@ -337,22 +337,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/organizations/{organization}/role-assignments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["roster.organizations.role-assignments.index"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/organizations/{organization}/teams": {
         parameters: {
             query?: never;
@@ -431,70 +415,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/permissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["roster.permissions.index"];
-        put?: never;
-        post: operations["roster.permissions.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/permissions/{permission}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["roster.permissions.destroy"];
-        options?: never;
-        head?: never;
-        patch: operations["roster.permissions.update"];
-        trace?: never;
-    };
-    "/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["roster.roles.index"];
-        put?: never;
-        post: operations["roster.roles.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/roles/{role}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["roster.roles.show"];
-        put?: never;
-        post?: never;
-        delete: operations["roster.roles.destroy"];
-        options?: never;
-        head?: never;
-        patch: operations["roster.roles.update"];
         trace?: never;
     };
     "/search/organizations": {
@@ -721,22 +641,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/{user}/permissions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["roster.users.permissions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/users/{user}/profile": {
         parameters: {
             query?: never;
@@ -817,38 +721,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/users/{user}/roles": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["roster.users.roles.index"];
-        put?: never;
-        post: operations["roster.users.roles.store"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/users/{user}/roles/{assignment}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: operations["roster.users.roles.destroy"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/users/{user}/suspend": {
         parameters: {
             query?: never;
@@ -872,12 +744,6 @@ export interface components {
         /** AcceptInvitationRequest */
         AcceptInvitationRequest: {
             token: string;
-        };
-        /** AssignRoleRequest */
-        AssignRoleRequest: {
-            organization?: string | null;
-            role: string;
-            team?: string | null;
         };
         /** DeactivateUserRequest */
         DeactivateUserRequest: {
@@ -983,50 +849,10 @@ export interface components {
          * @enum {string}
          */
         OrganizationStatus: "active" | "inactive";
-        /** PermissionResource */
-        PermissionResource: {
-            description: string | null;
-            name: string;
-            system: boolean;
-        };
         /** RejectUserRequest */
         RejectUserRequest: {
             reason?: string | null;
         };
-        /** RoleAssignmentResource */
-        RoleAssignmentResource: {
-            assigned_at: string | null;
-            id: string;
-            organization: string | null;
-            role: {
-                id: string;
-                name: string;
-                /** @enum {string} */
-                scope: "global" | "organization" | "team";
-                slug: string;
-            } | null;
-            team: string | null;
-            user: unknown[] | null;
-        };
-        /** RoleResource */
-        RoleResource: {
-            description: string | null;
-            id: string;
-            name: string;
-            organization: string | null;
-            permissions?: string[];
-            /** @enum {string} */
-            scope: "global" | "organization" | "team";
-            slug: string;
-            super: boolean;
-            system: boolean;
-        };
-        /**
-         * RoleScope
-         * @description Where a role applies: everywhere, within one organization, or within one team.
-         * @enum {string}
-         */
-        RoleScope: "global" | "organization" | "team";
         /** StartExportRequest */
         StartExportRequest: {
             filters?: {
@@ -1074,20 +900,6 @@ export interface components {
             slug?: string | null;
             status?: components["schemas"]["OrganizationStatus"];
             status_reason?: string | null;
-        };
-        /** StorePermissionRequest */
-        StorePermissionRequest: {
-            description?: string | null;
-            name: string;
-        };
-        /** StoreRoleRequest */
-        StoreRoleRequest: {
-            description?: string | null;
-            name: string;
-            organization?: string | null;
-            permissions?: string[];
-            scope: components["schemas"]["RoleScope"];
-            slug?: string | null;
         };
         /** StoreTeamMemberRequest */
         StoreTeamMemberRequest: {
@@ -1207,10 +1019,6 @@ export interface components {
          * @enum {string}
          */
         TransferType: "import_members" | "import_users" | "import_teams" | "import_organizations" | "export_members" | "export_users" | "export_organizations";
-        /** UpdatePermissionRequest */
-        UpdatePermissionRequest: {
-            description: string | null;
-        };
         /** UpdateProfileRequest */
         UpdateProfileRequest: {
             /** Format: uri */
@@ -1220,12 +1028,6 @@ export interface components {
             locale?: string | null;
             meta?: string[] | null;
             timezone?: string | null;
-        };
-        /** UpdateRoleRequest */
-        UpdateRoleRequest: {
-            description?: string | null;
-            name?: string;
-            permissions?: string[];
         };
         /** UserResource */
         UserResource: {
@@ -2391,49 +2193,6 @@ export interface operations {
             };
         };
     };
-    "roster.organizations.role-assignments.index": {
-        parameters: {
-            query?: {
-                user?: string | null;
-                organization?: string | null;
-                per_page?: number | null;
-                page?: number | null;
-            };
-            header?: never;
-            path: {
-                organization: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Array of `RoleAssignmentResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["RoleAssignmentResource"][];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
     "roster.organizations.teams.index": {
         parameters: {
             query?: {
@@ -2729,357 +2488,6 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["OrganizationResource"];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.permissions.index": {
-        parameters: {
-            query?: {
-                search?: string | null;
-                per_page?: number | null;
-                page?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Array of `PermissionResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["PermissionResource"][];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.permissions.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StorePermissionRequest"];
-            };
-        };
-        responses: {
-            /** @description `PermissionResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["PermissionResource"];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.permissions.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                permission: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.permissions.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                permission: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdatePermissionRequest"];
-            };
-        };
-        responses: {
-            /** @description `PermissionResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["PermissionResource"];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.roles.index": {
-        parameters: {
-            query?: {
-                scope?: components["schemas"]["RoleScope"] | null;
-                organization?: string | null;
-                per_page?: number | null;
-                page?: number | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Array of `RoleResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["RoleResource"][];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.roles.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["StoreRoleRequest"];
-            };
-        };
-        responses: {
-            /** @description `RoleResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["RoleResource"];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.roles.show": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                role: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description `RoleResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["RoleResource"];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.roles.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                role: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.roles.update": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                role: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["UpdateRoleRequest"];
-            };
-        };
-        responses: {
-            /** @description `RoleResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["RoleResource"];
                     };
                 };
             };
@@ -3799,46 +3207,6 @@ export interface operations {
             };
         };
     };
-    "roster.users.permissions": {
-        parameters: {
-            query?: {
-                organization?: string | null;
-                team?: string | null;
-            };
-            header?: never;
-            path: {
-                user: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: string;
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
     "roster.users.profile.update": {
         parameters: {
             query?: never;
@@ -4016,126 +3384,6 @@ export interface operations {
                         data: components["schemas"]["UserResource"];
                     };
                 };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.users.roles.index": {
-        parameters: {
-            query?: {
-                user?: string | null;
-                organization?: string | null;
-                per_page?: number | null;
-                page?: number | null;
-            };
-            header?: never;
-            path: {
-                user: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Array of `RoleAssignmentResource` */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["RoleAssignmentResource"][];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.users.roles.store": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AssignRoleRequest"];
-            };
-        };
-        responses: {
-            /** @description `RoleAssignmentResource` */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        data: components["schemas"]["RoleAssignmentResource"];
-                    };
-                };
-            };
-            403: components["responses"]["AuthorizationException"];
-            422: components["responses"]["ValidationException"];
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Error overview. */
-                        message: string;
-                    };
-                };
-            };
-        };
-    };
-    "roster.users.roles.destroy": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                user: string;
-                assignment: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description No content */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
             403: components["responses"]["AuthorizationException"];
             422: components["responses"]["ValidationException"];

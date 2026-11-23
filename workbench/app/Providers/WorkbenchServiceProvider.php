@@ -77,7 +77,7 @@ class WorkbenchServiceProvider extends ServiceProvider
                 'api_path' => $prefix,
                 'info' => [
                     'version' => '2.0.0',
-                    'description' => 'The Roster JSON API: users, organizations, teams, invitations, roles, permissions, impersonation and transfers. Paths are relative to the `roster.routes.prefix` of the host application.',
+                    'description' => 'The Roster JSON API: users, organizations, teams, invitations, impersonation and transfers. Paths are relative to the `roster.routes.prefix` of the host application.',
                 ],
                 'ui' => ['title' => 'Roster API'],
             ]))

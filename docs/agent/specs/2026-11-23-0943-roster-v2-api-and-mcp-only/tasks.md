@@ -159,9 +159,9 @@ depends on: 14
 files: openapi.json, client/src/schema.d.ts, client/dist/*, tests/Feature/OpenApiTest.php
 criteria: 42
 
-- [ ] 15.1 Update `OpenApiTest`'s expected operations: drop every route removed in criterion 28, and assert none of them is in the document
-- [ ] 15.2 Run `composer client:generate` and commit `openapi.json` and the regenerated client
-- [ ] 15.3 Run vendor/bin/pest; all green
+- [x] 15.1 Update `OpenApiTest`'s expected operations: drop every route removed in criterion 28, and assert none of them is in the document
+- [x] 15.2 Run `composer client:generate` and commit `openapi.json` and the regenerated client
+- [x] 15.3 Run vendor/bin/pest; all green
 
 ## Group 16: Docs, changelog and standards for the move
 depends on: 15

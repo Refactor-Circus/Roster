@@ -103,7 +103,6 @@ it('documents every roster API route once, under its route name', function (): v
     $routes = rosterApiOperations();
 
     expect($routes)->toContain(
-        'roster.organizations.role-assignments.index GET /organizations/{organization}/role-assignments',
         'roster.invitations.lookup GET /invitations/{token}',
         'roster.stats.users GET /stats/users',
         'roster.stats.organizations GET /stats/organizations',
@@ -111,6 +110,15 @@ it('documents every roster API route once, under its route name', function (): v
         'roster.search.organizations GET /search/organizations',
         'roster.history.index GET /history',
     )->and(rosterDocumentedOperations())->toBe($routes);
+});
+
+it('documents none of the role and permission routes removed in v2', function (): void {
+    $removed = '/^roster\.(roles\.|permissions\.|users\.roles\.|users\.permissions$|organizations\.role-assignments\.)/';
+    $operationIds = array_map(fn (string $operation): string => explode(' ', $operation)[0], rosterDocumentedOperations());
+
+    expect(preg_grep($removed, $operationIds))->toBe([])
+        ->and(preg_grep($removed, array_keys(rosterNamedRoutes())))->toBe([])
+        ->and(array_keys(rosterJsonFile('openapi.json')['paths']))->not->toContain('/roles', '/permissions', '/users/{user}/roles', '/users/{user}/permissions', '/organizations/{organization}/role-assignments');
 });
 
 it('documents no web route', function (): void {
