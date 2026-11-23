@@ -363,3 +363,27 @@ This retry finishes task 8.4. Tasks 8.1 to 8.3 were already committed in d638374
 - **Duplicated LIKE escaping (minor):** the new `src/Support/PrefixSearch.php` now holds the `!` escape character, the `column like ? escape '!'` condition and the escaping. Its `apply($query, $columns, $value)` adds the OR-group of starts-with conditions, and `pattern()` returns the escaped value with a trailing `%`. `SearchUsersAction` and `SearchOrganizationsAction` call it and no longer keep a copy. `tests/Feature/PrefixSearchTest.php` covers the escaping and literal matching of `%`, `_` and `!`. The HTTP search tests pass unchanged.
 - **Status-count listener stated the rule twice (minor):** `UsersListingActionEvent`, `UsersListedActionEvent`, `UserShowingActionEvent` and `UserShownActionEvent` now implement `ReadActionEvent`, like the search and stats events already did. The listener in `RosterServiceProvider` checks only `ReadActionEvent`; the `ListedActionEvent`/`ShownActionEvent` suffix checks are gone. Keen already skipped these events by name, so audit behaviour stays the same. `UserStatsAndSearchHttpTest` now lists and shows a user in the "keeps the cached counts" test. A dataset test also checks that every User read event is a `ReadActionEvent`. Read events in other domains were left alone because the listener only looks at User events.
 - **Checks:** `composer test:unit`, `composer lint:check` and `composer analyse` all pass.
+
+## Group 9
+
+Criteria 30 (the `impersonation.blocked` part), 31 and 32.
+
+### Files
+
+- `src/Domains/Organization/Models/OrganizationModel.php`: implements Keystone's `Scope`. It adds `GLOBAL_ONLY_ABILITIES = ['roster.users.*', 'roster.organizations.create']` (the old prefixes as `Str::is` patterns), `parentScope()` (null) and `grantsByItself()` (the owner rule, false for a global-only ability).
+- `src/Domains/Team/Models/TeamModel.php`: implements `Scope`. `parentScope()` is its organization and `grantsByItself()` is false.
+- `src/Support/Authorization/RosterAbilities.php` (new, final): `ABILITIES` holds the former `BuiltInRoles::PERMISSIONS` without `roster.roles.*`, with the same descriptions. `grantTo($ability)` gives `admin` everything except `roster.users.*`, `roster.organizations.create`, `roster.organizations.sync` and `roster.organizations.purge`, and gives `member` the three view abilities. `define(Abilities)` writes them into Keystone's registry.
+- `src/RosterServiceProvider.php`: `boot()` calls `RosterAbilities::define()` with Keystone's `Abilities` singleton.
+- `config/roster.php`: `impersonation.blocked` lists `'*.roles.manage'` and `'*.roles.assign'` in place of the two `roster.roles.*` entries, and the banner explains the patterns.
+- Outside the list, needed for 9.3: `src/Domains/Permission/Services/Permissions.php`. `GLOBAL_ONLY_PREFIXES` now equals `OrganizationModel::GLOBAL_ONLY_ABILITIES`, and `isGlobalOnly()` matches with `Str::is`. `tests/Authorization/GateTest.php` expects the new pattern values. Group 13 deletes both.
+
+### Tests
+
+- `tests/Feature/ScopeModelsTest.php`: both models are `Scope`s. A team's parent is its organization, and an organization has no parent. The owner is granted `roster.teams.manage`, `roster.members.manage` and a host ability, but not `roster.users.view`, `roster.users.impersonate` or `roster.organizations.create`. A non-owner gets nothing, and a team grants nothing, even to the owner.
+- `tests/Feature/RosterAbilitiesTest.php`: after boot, the `roster.*` abilities in Keystone's `Abilities` are exactly the former permissions without `roster.roles.*`, with their descriptions. The `admin` and `member` grants match criterion 31, no other default role is granted, and the `impersonation.blocked` default is as criterion 30 states.
+- `composer test:unit` (1127 passed), `composer analyse`, `composer lint:check` and `composer test:types` (100%) all pass.
+
+### Deviations
+
+- **`ScopeModelsTest` lives in `tests/Feature/`, not `tests/Unit/`.** `phpunit.xml.dist` has no `Unit` testsuite and `tests/Pest.php` binds no TestCase to `tests/Unit`, so nothing there runs in `composer test:unit`. Run on their own (`vendor/bin/pest tests/Unit`), several of the existing Unit tests fail for lack of an application. The new test needs the application and the database, so it went where it runs.
+- **9.2 is not done.** `composer update refactor-circus/keystone` fails. Keystone's `dev-main` is still aliased `0.1.x-dev` and does not hold the authorization addendum, which is only on the approved, unmerged `ring-master/2026-11-23-0943-drop-the-atrium-plugin-hook` branch. `composer.lock` still pins Keystone v0.1.1. The installed `vendor/refactor-circus/keystone/src` is byte-identical to that branch's `src/`, so this group was built and tested against it. `composer.json` and `composer.lock` are unchanged.

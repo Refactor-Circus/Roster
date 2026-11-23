@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Organization\Models;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+use RefactorCircus\Keystone\Authorization\Contracts\Scope;
 use RefactorCircus\Keystone\Models\Concerns\DispatchesModelEvents;
 use RefactorCircus\Roster\Contracts\Status;
 use RefactorCircus\Roster\Database\Factories\OrganizationFactory;
@@ -23,6 +26,10 @@ use RefactorCircus\Roster\Support\Users;
 
 /**
  * The tenant: owns teams, memberships and invitations.
+ *
+ * A Keystone authorization scope at the top of its chain: its owner may use
+ * every ability within it except the global-only ones, whatever role store
+ * is bound.
  *
  * @property string $id
  * @property string $name
@@ -38,7 +45,7 @@ use RefactorCircus\Roster\Support\Users;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-final class OrganizationModel extends Model
+final class OrganizationModel extends Model implements Scope
 {
     use DispatchesModelEvents;
 
@@ -47,6 +54,14 @@ final class OrganizationModel extends Model
 
     use HasUlids;
     use SoftDeletes;
+
+    /**
+     * Abilities that only make sense globally, as `Str::is` patterns: an
+     * organization's owner does not get them by owning it.
+     *
+     * @var array<int, string>
+     */
+    public const array GLOBAL_ONLY_ABILITIES = ['roster.users.*', 'roster.organizations.create'];
 
     protected $fillable = ['name', 'slug', 'owner_id', 'personal', 'auto_join', 'provisioned_status', 'status', 'status_reason', 'status_changed_at'];
 
@@ -130,6 +145,25 @@ final class OrganizationModel extends Model
     public function membershipFor(Model $user): ?MembershipModel
     {
         return $this->memberships()->where('user_id', $user->getKey())->first();
+    }
+
+    /**
+     * Organizations sit at the top: nothing above them grants here.
+     */
+    public function parentScope(): ?Scope
+    {
+        return null;
+    }
+
+    /**
+     * The owner rule: an organization's owner may use any ability in it that
+     * is not global-only.
+     */
+    public function grantsByItself(Authenticatable $user, string $ability): bool
+    {
+        return $user instanceof Model
+            && $this->isOwnedBy($user)
+            && ! Str::is(self::GLOBAL_ONLY_ABILITIES, $ability);
     }
 
     /**

@@ -6,6 +6,7 @@ namespace RefactorCircus\Roster\Domains\Permission\Services;
 
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
@@ -28,11 +29,12 @@ final class Permissions
 {
     /**
      * Permissions that only make sense globally: an organization owner does
-     * not get them by owning an organization.
+     * not get them by owning an organization. `Str::is` patterns, kept here
+     * until this service goes; the list lives on the organization scope.
      *
      * @var array<int, string>
      */
-    public const array GLOBAL_ONLY_PREFIXES = ['roster.users.', 'roster.organizations.create'];
+    public const array GLOBAL_ONLY_PREFIXES = OrganizationModel::GLOBAL_ONLY_ABILITIES;
 
     /** @var array<string, array<int, string>> */
     private array $resolved = [];
@@ -343,12 +345,6 @@ final class Permissions
 
     private function isGlobalOnly(string $permission): bool
     {
-        foreach (self::GLOBAL_ONLY_PREFIXES as $prefix) {
-            if (str_starts_with($permission, $prefix)) {
-                return true;
-            }
-        }
-
-        return false;
+        return Str::is(self::GLOBAL_ONLY_PREFIXES, $permission);
     }
 }

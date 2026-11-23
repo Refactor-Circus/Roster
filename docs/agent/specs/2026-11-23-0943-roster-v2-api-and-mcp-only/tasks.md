@@ -97,11 +97,11 @@ depends on: 8
 files: src/Domains/Organization/Models/OrganizationModel.php, src/Domains/Team/Models/TeamModel.php, src/Support/Authorization/RosterAbilities.php, src/RosterServiceProvider.php, config/roster.php, composer.json, tests/Unit/ScopeModelsTest.php, tests/Feature/RosterAbilitiesTest.php
 criteria: 30, 31, 32
 
-- [ ] 9.1 Write tests: `ScopeModelsTest` (team's `parentScope()` is its organization; organization's is null; owner `grantsByItself` true for `roster.teams.manage`, false for `roster.users.view` and `roster.organizations.create`; non-owner false; team false); `RosterAbilitiesTest` (after boot Keystone `Abilities` has every former permission except `roster.roles.*` with its description; `grantTo` for `admin` and `member` as criterion 31); `roster.impersonation.blocked` default contains `*.roles.manage` and `*.roles.assign` and no `roster.roles.*`
+- [x] 9.1 Write tests: `ScopeModelsTest` (team's `parentScope()` is its organization; organization's is null; owner `grantsByItself` true for `roster.teams.manage`, false for `roster.users.view` and `roster.organizations.create`; non-owner false; team false); `RosterAbilitiesTest` (after boot Keystone `Abilities` has every former permission except `roster.roles.*` with its description; `grantTo` for `admin` and `member` as criterion 31); `roster.impersonation.blocked` default contains `*.roles.manage` and `*.roles.assign` and no `roster.roles.*`
 - [ ] 9.2 Run `composer update refactor-circus/keystone` so the Keystone authorization addendum is installed (stop and report if it is not on Keystone `dev-main` yet)
-- [ ] 9.3 Implement `Scope` on both models and move the global-only list to `OrganizationModel::GLOBAL_ONLY_ABILITIES` (keep `Permissions::GLOBAL_ONLY_PREFIXES` delegating to it until group 13)
-- [ ] 9.4 Add `RosterAbilities` and define them from `RosterServiceProvider::boot()`; change the blocked defaults in `config/roster.php`
-- [ ] 9.5 Run vendor/bin/pest; all green
+- [x] 9.3 Implement `Scope` on both models and move the global-only list to `OrganizationModel::GLOBAL_ONLY_ABILITIES` (keep `Permissions::GLOBAL_ONLY_PREFIXES` delegating to it until group 13)
+- [x] 9.4 Add `RosterAbilities` and define them from `RosterServiceProvider::boot()`; change the blocked defaults in `config/roster.php`
+- [x] 9.5 Run vendor/bin/pest; all green
 
 ## Group 10: Access checks through Keystone's contract
 depends on: 9

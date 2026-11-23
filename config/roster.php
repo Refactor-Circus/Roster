@@ -187,7 +187,9 @@ return [
     | link_minutes:     How long the one-time link stays valid.
     | blocked:          Permissions (and app abilities) refused while
     |                   impersonating, even to super-admins. `*` matches any
-    |                   suffix, e.g. 'billing.*'. SECURITY: keep account- and
+    |                   text, e.g. 'billing.*'; '*.roles.manage' and
+    |                   '*.roles.assign' block role management in whichever
+    |                   role store is installed. SECURITY: keep account- and
     |                   access-changing abilities here.
     | redirect:         Where entering impersonation lands.
     | return_to:        Where "return to my account" lands; null for `/`.
@@ -203,8 +205,8 @@ return [
         'blocked' => [
             'roster.users.impersonate',
             'roster.users.delete',
-            'roster.roles.manage',
-            'roster.roles.assign',
+            '*.roles.manage',
+            '*.roles.assign',
         ],
         'redirect' => '/',
         'return_to' => null,

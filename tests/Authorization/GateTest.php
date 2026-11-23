@@ -88,7 +88,7 @@ it('no longer treats a stored atrium.view as global-only', function (): void {
     app(Permissions::class)->flush();
 
     // An owner holds every permission that is not global-only in their organization.
-    expect(Permissions::GLOBAL_ONLY_PREFIXES)->toBe(['roster.users.', 'roster.organizations.create'])
+    expect(Permissions::GLOBAL_ONLY_PREFIXES)->toBe(['roster.users.*', 'roster.organizations.create'])
         ->and(app(Permissions::class)->for($owner, $acme))->toContain('atrium.view')
         ->and(app(Permissions::class)->for($owner, $acme))->not->toContain('roster.users.view');
 });

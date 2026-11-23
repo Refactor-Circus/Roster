@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use RefactorCircus\Keystone\Audit\AuditHooks;
 use RefactorCircus\Keystone\Audit\History;
+use RefactorCircus\Keystone\Authorization\Abilities;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
 use RefactorCircus\Keystone\Contracts\ReadActionEvent;
 use RefactorCircus\Keystone\Packages\Package;
@@ -25,6 +26,7 @@ use RefactorCircus\Roster\Domains\DomainServiceProvider;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Mcp\RosterServer;
 use RefactorCircus\Roster\Support\Audit;
+use RefactorCircus\Roster\Support\Authorization\RosterAbilities;
 use RefactorCircus\Roster\Support\SignInRequirements;
 use RefactorCircus\Roster\Support\Users;
 
@@ -85,6 +87,10 @@ class RosterServiceProvider extends PackageServiceProvider
         // Core models' policies, from `roster.policies`: Roster's own checks ask
         // them. Package resources register their own policies.
         $this->registerPolicies();
+
+        // The abilities Roster checks, for a role store to list and grant.
+        RosterAbilities::define($this->app->make(Abilities::class));
+
         $this->registerRateLimiter();
         $this->registerNotFoundResponses();
 
