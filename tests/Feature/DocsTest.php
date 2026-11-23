@@ -596,7 +596,7 @@ it('finds the code blocks and the class names in them', function (): void {
         Outside `RefactorCircus\Roster\Outside`.
         ```php
         use RefactorCircus\Roster\Support\{Users, Slugs as RosterSlugs};
-        app(\RefactorCircus\Roster\Domains\Permission\Services\Resources::class);
+        app(\RefactorCircus\Roster\Support\Authorization\Resources::class);
         ```
         MD;
 
@@ -606,7 +606,7 @@ it('finds the code blocks and the class names in them', function (): void {
         ->and(refactorCircusNames($blocks[0]))->toBe([
             'RefactorCircus\Roster\Support\Users',
             'RefactorCircus\Roster\Support\Slugs',
-            'RefactorCircus\Roster\Domains\Permission\Services\Resources',
+            'RefactorCircus\Roster\Support\Authorization\Resources',
         ]);
 });
 
@@ -646,7 +646,7 @@ it('names only classes that exist in the Extending Roster examples', function (s
     ));
 
     expect($names)->toContain(
-        'RefactorCircus\Roster\Domains\Permission\Services\Resources',
+        'RefactorCircus\Roster\Support\Authorization\Resources',
         'RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue',
         'RefactorCircus\Roster\Domains\Organization\Services\MembershipSources',
         'RefactorCircus\Roster\Contracts\SignInRequirement',

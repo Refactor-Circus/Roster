@@ -136,7 +136,7 @@ php artisan migrate
 ```php
 use Illuminate\Support\Facades\Gate;
 use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
-use RefactorCircus\Roster\Domains\Permission\Services\Resources;
+use RefactorCircus\Roster\Support\Authorization\Resources;
 
 app(Resources::class)->resource('acme.widgets', WidgetModel::class);
 Gate::policy(WidgetModel::class, WidgetPolicy::class); // WidgetPolicy::approve() answers acme.widgets.approve

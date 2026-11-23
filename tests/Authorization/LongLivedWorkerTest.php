@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 
 it('never carries resolved permissions from one request into the next', function (): void {
     $admin = user();

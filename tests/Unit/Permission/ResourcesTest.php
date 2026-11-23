@@ -5,24 +5,22 @@ declare(strict_types=1);
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
-use RefactorCircus\Roster\Domains\Permission\Services\Resources;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Models\UserModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
+use RefactorCircus\Roster\Support\Authorization\Resources;
 
 it('is bound as a singleton', function (): void {
     expect(app(Resources::class))->toBe(app(Resources::class));
 });
 
-it('registers the six core resources under roster.*, before any boot()', function (): void {
+it('registers the five core resources under roster.*, before any boot()', function (): void {
     expect(Authorizer::RESOURCES)->toBe([
         'users' => UserModel::class,
         'organizations' => OrganizationModel::class,
         'members' => MembershipModel::class,
         'teams' => TeamModel::class,
         'invitations' => InvitationModel::class,
-        'roles' => RoleModel::class,
     ]);
 
     $resources = app(Resources::class);
@@ -30,6 +28,9 @@ it('registers the six core resources under roster.*, before any boot()', functio
     foreach (Authorizer::RESOURCES as $resource => $model) {
         expect($resources->model('roster.'.$resource))->toBe($model);
     }
+
+    // Role management is the role store's own.
+    expect($resources->model('roster.roles'))->toBeNull();
 });
 
 it('registers a model for a prefix and returns itself', function (): void {

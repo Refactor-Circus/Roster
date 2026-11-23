@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
 use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateUserAction;
 use RefactorCircus\Roster\Domains\User\Data\UpdateUserData;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 use RefactorCircus\Roster\Tests\Fixtures\Policies\OpenPolicy;
 
 beforeEach(function (): void {

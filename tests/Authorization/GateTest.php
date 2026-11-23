@@ -16,9 +16,8 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 
-it('answers can() for roster permissions in the given scope', function (): void {
-    app(CreatePermissionAction::class)->execute(new CreatePermissionData(name: 'invoices.edit'));
-    $role = roleWith(['invoices.edit'], 'organization');
+it('answers can() for roster abilities in the given scope', function (): void {
+    $role = roleWith(['roster.teams.manage'], 'organization');
 
     $acme = organization();
     $globex = organization(attributes: ['name' => 'Globex']);
@@ -26,10 +25,26 @@ it('answers can() for roster permissions in the given scope', function (): void 
     app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
     RoleAssignmentModel::query()->create(['role_id' => $role->id, 'user_id' => $ada->getKey(), 'organization_id' => $acme->id]);
 
-    expect($ada->can('invoices.edit', $acme))->toBeTrue()
-        ->and($ada->can('invoices.edit', $globex))->toBeFalse()
+    expect($ada->can('roster.teams.manage', $acme))->toBeTrue()
+        ->and($ada->can('roster.teams.manage', $globex))->toBeFalse()
         // A team argument checks within its organization.
-        ->and($ada->can('invoices.edit', app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'))))->toBeTrue();
+        ->and($ada->can('roster.teams.manage', app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'))))->toBeTrue();
+});
+
+it('leaves abilities Roster does not declare to the app, even when a role grants them', function (): void {
+    app(CreatePermissionAction::class)->execute(new CreatePermissionData(name: 'invoices.edit'));
+    $role = roleWith(['invoices.edit'], 'organization');
+
+    $acme = organization();
+    $ada = user();
+    app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $ada->getRouteKey()));
+    RoleAssignmentModel::query()->create(['role_id' => $role->id, 'user_id' => $ada->getKey(), 'organization_id' => $acme->id]);
+
+    expect($ada->can('invoices.edit', $acme))->toBeFalse();
+
+    Gate::define('invoices.edit', fn (): bool => true);
+
+    expect($ada->can('invoices.edit', $acme))->toBeTrue();
 });
 
 it('uses the current context when no scope is given', function (): void {
@@ -51,12 +66,13 @@ it('leaves unknown abilities to the app', function (): void {
         ->and($ada->can('something-undefined'))->toBeFalse();
 });
 
-it('lets super-admins pass every gate', function (): void {
+it('leaves super-admins to the bound implementation, and other gates to the app', function (): void {
     Gate::define('publish-post', fn (): bool => false);
     $ada = user();
     grant($ada, 'super-admin');
 
-    expect($ada->can('publish-post'))->toBeTrue();
+    expect($ada->can('roster.users.view'))->toBeTrue()
+        ->and($ada->can('publish-post'))->toBeFalse();
 });
 
 it('works in blade', function (): void {

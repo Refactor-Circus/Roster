@@ -7,13 +7,13 @@ namespace RefactorCircus\Roster\Domains\Role\Actions;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Concerns\GuardsEscalation;
 use RefactorCircus\Roster\Domains\Role\Events\RoleRevokedActionEvent;
 use RefactorCircus\Roster\Domains\Role\Events\RoleRevokingActionEvent;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 
 final class RevokeRoleAction
 {

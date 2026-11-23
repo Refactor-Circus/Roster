@@ -173,3 +173,15 @@
 - Rationale: Recommended option.
 - Date: 2026-11-23
 - Raised by: factory build; default chosen because the user asked to proceed without stopping
+
+## D-030: How does the moved Authorizer stay correct without the old `Permissions::generation()`?
+- Choice: `Authorizer::check()` no longer remembers its answers; it asks the bound contract every time, and the implementation remembers what it likes (the interim adapter keeps the old service's per-request memo). The Authorizer still remembers the resolved policy per ability (until `Resources::generation()` changes), and, per request, the organizations each actor owns and the parents found for records; an `@internal` `Authorizer::forget()` drops those two, called from `RosterServiceProvider` on every organization model write (saved, deleted, restored, force-deleted). The Authorizer resolves `Permissions` from the container on each call, so an implementation bound later answers.
+- Rationale: Keystone's contract has no generation counter, so a remembered answer would outlive a role store's `forget()`. Refusing to cache answers is the conservative option; the owned-organizations memo keeps `PerformanceTest`'s query bound, and ownership changes only through organization writes.
+- Date: 2026-11-23
+- Raised by: factory build (group 10); conservative default per the addendum's builder note
+
+## D-031: What does "a fake bound after Roster boots" (criterion 34) bind with?
+- Choice: `app()->singleton(Permissions::class, ...)`, as a role store binds (`singleton()`/`scoped()` in `register()`, per Keystone's contract docs). `ImpersonationAwarePermissions` reaches it through `$app->extend()`, which Laravel keeps across rebinds. `FakePermissions::install()` uses `instance()`, which Laravel's container never passes through extenders, so an installed fake is not decorated; Roster's own checks (`Authorizer`, `Gate::before`) still refuse blocked abilities themselves.
+- Rationale: The spec names `extend()`; wrapping `instance()` bindings would need a rebinding hook that resolves the binding early and hides the fake from `FakeRoles::holders()`. Only test code binds with `instance()`.
+- Date: 2026-11-23
+- Raised by: factory build (group 10); conservative default per the addendum's builder note

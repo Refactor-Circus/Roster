@@ -7,12 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Gate;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Permission\Services\Resources;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
+use RefactorCircus\Roster\Support\Authorization\Resources;
 use RefactorCircus\Roster\Support\Policies\Policy;
 use Workbench\App\Models\User;
 

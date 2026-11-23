@@ -16,7 +16,6 @@ use RefactorCircus\Roster\Domains\Organization\Events\MemberAddedActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\MemberAddingActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
 use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
@@ -31,6 +30,7 @@ use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\UpdateProfileAction;
 use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Domains\User\Data\UpdateProfileData;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 use RefactorCircus\Roster\Support\Users;
 use RuntimeException;
 

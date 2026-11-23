@@ -7,10 +7,10 @@ use Illuminate\Support\Facades\Route;
 use RefactorCircus\Keystone\Support\Surface;
 use RefactorCircus\Roster\Domains\DomainServiceProvider;
 use RefactorCircus\Roster\Domains\Organization\Services\MembershipSources;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
-use RefactorCircus\Roster\Domains\Permission\Services\Resources;
 use RefactorCircus\Roster\Mcp\RosterServer;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
+use RefactorCircus\Roster\Support\Authorization\Resources;
 use RefactorCircus\Roster\Support\Tables;
 
 /**

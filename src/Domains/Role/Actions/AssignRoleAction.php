@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Concerns\GuardsEscalation;
 use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
@@ -18,6 +17,7 @@ use RefactorCircus\Roster\Domains\Role\Events\RoleAssigningActionEvent;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 use RefactorCircus\Roster\Support\Concerns\ResolvesScopes;
 
 final class AssignRoleAction

@@ -752,7 +752,7 @@ A resource lets your model's Gate policy answer the permissions named after it i
 use Acme\Widgets\Models\WidgetModel;
 use Acme\Widgets\Policies\WidgetPolicy;
 use Illuminate\Support\Facades\Gate;
-use RefactorCircus\Roster\Domains\Permission\Services\Resources;
+use RefactorCircus\Roster\Support\Authorization\Resources;
 
 public function boot(): void
 {

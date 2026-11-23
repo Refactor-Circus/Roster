@@ -20,7 +20,7 @@ const ROSTER_ACTIONS = [ROSTER_DOMAINS.'/*/Actions/*.php', __DIR__.'/../src/Tran
  * only through the registration seams.
  */
 const ROSTER_CORE = [
-    'RefactorCircus\Roster\Domains\Permission\Services\Authorizer' => 'src/Domains/Permission/Services/Authorizer.php',
+    'RefactorCircus\Roster\Support\Authorization\Authorizer' => 'src/Support/Authorization/Authorizer.php',
     'RefactorCircus\Roster\Domains\Role\Support\BuiltInRoles' => 'src/Domains/Role/Support/BuiltInRoles.php',
     'RefactorCircus\Roster\Roster' => 'src/Roster.php',
     'RefactorCircus\Roster\Domains\Organization\Concerns\ManagesMemberships' => 'src/Domains/Organization/Concerns/ManagesMemberships.php',
@@ -451,7 +451,7 @@ it('has no MembershipSource::Scim, and nothing uses it', function (): void {
 });
 
 it('spells out no SSO or SCIM name in core', function (): void {
-    expect(linesMatching([...array_values(ROSTER_CORE), 'src/Domains/Permission/Services/Resources.php'], SSO_SCIM_PATTERNS))->toBe([]);
+    expect(linesMatching([...array_values(ROSTER_CORE), 'src/Support/Authorization/Resources.php'], SSO_SCIM_PATTERNS))->toBe([]);
 });
 
 it('catches each SSO and SCIM name it looks for', function (string $line, bool $caught): void {

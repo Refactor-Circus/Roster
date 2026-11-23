@@ -7,9 +7,9 @@ namespace RefactorCircus\Roster\Domains\Role\Concerns;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 
 /**
  * Stops anyone handing out more than they hold: an actor may only grant
