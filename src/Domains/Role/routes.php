@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use RefactorCircus\Roster\Domains\Role\Http\Controllers\OrganizationRoleAssignmentController;
 use RefactorCircus\Roster\Domains\Role\Http\Controllers\RoleController;
 use RefactorCircus\Roster\Domains\Role\Http\Controllers\UserRoleController;
 
@@ -16,3 +17,5 @@ Route::get('users/{user}/roles', [UserRoleController::class, 'index'])->name('us
 Route::post('users/{user}/roles', [UserRoleController::class, 'store'])->name('users.roles.store');
 Route::delete('users/{user}/roles/{assignment}', [UserRoleController::class, 'destroy'])->name('users.roles.destroy');
 Route::get('users/{user}/permissions', [UserRoleController::class, 'permissions'])->name('users.permissions');
+
+Route::get('organizations/{organization}/role-assignments', [OrganizationRoleAssignmentController::class, 'index'])->name('organizations.role-assignments.index');
