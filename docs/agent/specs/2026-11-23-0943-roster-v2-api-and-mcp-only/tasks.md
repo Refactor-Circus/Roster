@@ -168,7 +168,7 @@ depends on: 15
 files: README.md, CHANGELOG.md, resources/boost/skills/roster-development/SKILL.md, CLAUDE.md, AGENTS.md, docs/agent/standards/**, docs/agent/standards-feedback.md, tests/Feature/DocsTest.php
 criteria: 43, 44, 45, 46
 
-- [ ] 16.1 Update `DocsTest`: the README "Roles and permissions" section names Keystone's authorization contract, the Gate fallback with a `Gate::define` example and `super-admin`, and the owner rule. None of README, Boost skill, `CLAUDE.md`, `AGENTS.md` or `docs/agent/standards/` contains `PermissionCatalogue`, `roster:sync-permissions`, `permission_cache` or `rosterRoleAssignments`. CHANGELOG v2.0.0 Breaking names the removed routes, tools, commands and config, and its upgrade note names `refactor-circus/guardian` `^2.0` and dropping the `roster_*` role tables by hand.
-- [ ] 16.2 Rewrite the README section (drop the built-in roles table, `permission_cache` and the "Extending Roster" permission registration, and fix the global-only list per D-022), and extend the CHANGELOG
-- [ ] 16.3 Update the Boost skill, `CLAUDE.md`, `AGENTS.md` and the local standards that describe roles or permissions. Add a `standards-feedback.md` row if any standard still assumes Roster owns permissions.
-- [ ] 16.4 Run composer test; all green
+- [x] 16.1 Update `DocsTest`: the README "Roles and permissions" section names Keystone's authorization contract, the Gate fallback with a `Gate::define` example and `super-admin`, and the owner rule. None of README, Boost skill, `CLAUDE.md`, `AGENTS.md` or `docs/agent/standards/` contains `PermissionCatalogue`, `roster:sync-permissions`, `permission_cache` or `rosterRoleAssignments`. CHANGELOG v2.0.0 Breaking names the removed routes, tools, commands and config, and its upgrade note names `refactor-circus/guardian` `^2.0` and dropping the `roster_*` role tables by hand.
+- [x] 16.2 Rewrite the README section (drop the built-in roles table, `permission_cache` and the "Extending Roster" permission registration, and fix the global-only list per D-022), and extend the CHANGELOG
+- [x] 16.3 Update the Boost skill, `CLAUDE.md`, `AGENTS.md` and the local standards that describe roles or permissions. Add a `standards-feedback.md` row if any standard still assumes Roster owns permissions.
+- [x] 16.4 Run composer test; all green

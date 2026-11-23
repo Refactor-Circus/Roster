@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use Illuminate\Routing\Route as RegisteredRoute;
 use Illuminate\Support\Facades\Route;
+use RefactorCircus\Keystone\Authorization\Abilities;
 use RefactorCircus\Keystone\Support\Surface;
 use RefactorCircus\Roster\Domains\DomainServiceProvider;
 use RefactorCircus\Roster\Domains\Organization\Services\MembershipSources;
-use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
 use RefactorCircus\Roster\Mcp\RosterServer;
 use RefactorCircus\Roster\Support\Authorization\Authorizer;
 use RefactorCircus\Roster\Support\Authorization\Resources;
@@ -102,8 +102,8 @@ it('registers no roster.sso or roster.scim resource', function (): void {
         ->and(app(Resources::class)->model('roster.organizations'))->not->toBeNull();
 });
 
-it('catalogues no roster.sso. or roster.scim. permission', function (): void {
-    $names = array_keys(app(PermissionCatalogue::class)->all());
+it('defines no roster.sso. or roster.scim. ability', function (): void {
+    $names = array_keys(app(Abilities::class)->all());
 
     expect(array_values(array_filter(
         $names,
@@ -113,6 +113,7 @@ it('catalogues no roster.sso. or roster.scim. permission', function (): void {
 
 it('denies roster.sso.view to an organization admin who is not a super-admin', function (): void {
     config()->set('roster.authorization', true);
+    withRoleStore();
     $admin = user();
     $acme = organization(attributes: ['name' => 'Acme']);
     grant($admin, 'admin', $acme);

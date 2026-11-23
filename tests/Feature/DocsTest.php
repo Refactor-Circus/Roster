@@ -110,11 +110,12 @@ function linesWith(string $text, array $needles): array
 }
 
 /**
- * The six endpoints Roster v2 added for the UI Atrium v2 builds on them:
- * URI as the README's HTTP API table writes it => route name.
+ * The endpoints Roster v2 added for the UI Atrium v2 builds on them: URI as
+ * the README's HTTP API table writes it => route name. (The organization's
+ * role assignments went with the Role domain: listing them is the role
+ * store's.)
  */
 const V2_ENDPOINTS = [
-    '/roster/organizations/{organization}/role-assignments' => 'roster.organizations.role-assignments.index',
     '/roster/invitations/{token}' => 'roster.invitations.lookup',
     '/roster/stats/users' => 'roster.stats.users',
     '/roster/stats/organizations' => 'roster.stats.organizations',
@@ -191,7 +192,7 @@ it('drops the Atrium dashboard from the README and the Boost skill', function (s
     'Boost skill' => BOOST_SKILL,
 ]);
 
-it('documents the six v2 endpoints in the README HTTP API table', function (): void {
+it('documents the v2 endpoints in the README HTTP API table', function (): void {
     $section = (string) markdownSection(readme(), 'HTTP API and MCP');
 
     foreach (V2_ENDPOINTS as $uri => $name) {
@@ -499,7 +500,6 @@ it('replaces the README single sign-on and SCIM sections with one Guardian secti
         ->and($section)->toContain('https://github.com/Refactor-Circus/Guardian')
         ->toContain('guardian:upgrade-from-roster')
         ->toContain('create_roster_sso_tables')
-        ->toContain('roster:sync-permissions')
         ->toContain('NoExternalSignIn')
         ->and(markdownSection($readme, 'Single sign-on'))->toBeNull('the README still has a Single sign-on heading')
         ->and(markdownSection($readme, 'Requiring SSO'))->toBeNull('the README still has a Requiring SSO heading')
@@ -551,11 +551,6 @@ it('keeps the agent guides free of SSO and SCIM', function (string $file): void 
     expect(array_values(preg_grep(DOCS_SSO_SCIM, preg_split('/\R/', $guide) ?: []) ?: []))->toBe([])
         ->and($guide)->not->toContain('scim.php');
 })->with(['CLAUDE.md', 'AGENTS.md']);
-
-/**
- * The README's promise about built-in roles and registered permissions.
- */
-const ROLE_GRANT_SENTENCE = 'Existing built-in roles never gain a newly registered permission automatically';
 
 /**
  * The fenced code blocks of a markdown text.
@@ -615,7 +610,7 @@ it('documents every extension seam in the README and the Boost skill', function 
 
     expect($section)->not->toBeNull("{$file} has no Extending Roster heading")
         ->and($section)->toContain('Resources::class')
-        ->toContain('PermissionCatalogue::class')
+        ->toContain('Abilities::class')
         ->toContain('MembershipSources::class')
         ->toContain('SignInRequirement')
         ->toContain('requireSignIn(')
@@ -628,9 +623,7 @@ it('documents every extension seam in the README and the Boost skill', function 
         ->toContain('catch (Throwable $e)')
         ->toContain('report($e)')
         ->toContain('`roster.*`')
-        ->toContain('roster.impersonation.blocked')
-        ->toContain('roster:sync-permissions')
-        ->toContain(ROLE_GRANT_SENTENCE);
+        ->toContain('roster.impersonation.blocked');
 })->with([
     'README' => 'README.md',
     'Boost skill' => 'resources/boost/skills/roster-development/SKILL.md',
@@ -647,7 +640,7 @@ it('names only classes that exist in the Extending Roster examples', function (s
 
     expect($names)->toContain(
         'RefactorCircus\Roster\Support\Authorization\Resources',
-        'RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue',
+        'RefactorCircus\Keystone\Authorization\Abilities',
         'RefactorCircus\Roster\Domains\Organization\Services\MembershipSources',
         'RefactorCircus\Roster\Contracts\SignInRequirement',
         'RefactorCircus\Roster\Data\ExternalSignIn',
@@ -695,4 +688,75 @@ it('documents every MCP tool in the README', function (): void {
         ->all();
 
     expect($missing)->toBe([]);
+});
+
+/**
+ * What Roster v2 no longer has, which no current doc may name (criterion 45).
+ */
+const REMOVED_AUTHORIZATION_TERMS = ['PermissionCatalogue', 'roster:sync-permissions', 'permission_cache', 'rosterRoleAssignments'];
+
+it('documents authorization through Keystone\'s contract in the README Roles and permissions section', function (): void {
+    $section = markdownSection(readme(), 'Roles and permissions');
+
+    expect($section)->not->toBeNull('the README has no Roles and permissions heading');
+
+    foreach ([
+        // The contract and the declared abilities.
+        'refactor-circus/keystone', '`Permissions`', '`Roles`', 'Abilities::define()',
+        // The Gate fallback.
+        'GatePermissions', "Gate::define('roster.users.view'", '`super-admin`',
+        // A role store brings roles back.
+        'refactor-circus/guardian',
+        // The owner rule and the global-only abilities (D-022: not `roster.organizations.sync`).
+        'owner', 'OrganizationModel::GLOBAL_ONLY_ABILITIES', '`roster.users.*`', '`roster.organizations.create`',
+    ] as $needle) {
+        expect($section)->toContain($needle);
+    }
+
+    expect($section)->not->toContain('roster:grant-super-admin')
+        ->not->toContain('roster.super_admins')
+        ->not->toContain('| `lead` |')
+        ->and(linesWith((string) $section, ['global-only', 'roster.organizations.sync']))->toBe([]);
+});
+
+it('names nothing removed with the Role and Permission domains in the docs and guides', function (string $file): void {
+    foreach (REMOVED_AUTHORIZATION_TERMS as $term) {
+        expect(packageFile($file))->not->toContain($term);
+    }
+})->with(function (): array {
+    $root = dirname(__DIR__, 2);
+    $files = ['README.md', BOOST_SKILL, 'CLAUDE.md', 'AGENTS.md'];
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.'/docs/agent/standards', FilesystemIterator::SKIP_DOTS)) as $file) {
+        if ($file instanceof SplFileInfo && $file->isFile()) {
+            $files[] = substr($file->getPathname(), strlen($root) + 1);
+        }
+    }
+
+    sort($files);
+
+    return array_combine($files, array_map(fn (string $file): array => [$file], $files));
+});
+
+it('names what v2.0.0 removed with the Role and Permission domains in the CHANGELOG, with the Guardian upgrade note', function (): void {
+    $breaking = (string) markdownSection(changelogVersion('v2.0.0'), 'Breaking');
+
+    foreach ([
+        // Routes.
+        'roster.roles.*', 'roster.permissions.*', 'roster.users.roles.*', 'roster.users.permissions', 'roster.organizations.role-assignments.index',
+        // MCP tools.
+        'list-permissions-tool', 'create-permission-tool', 'update-permission-tool', 'delete-permission-tool',
+        'list-roles-tool', 'show-role-tool', 'create-role-tool', 'update-role-tool', 'delete-role-tool',
+        'list-role-assignments-tool', 'assign-role-tool', 'revoke-role-tool', 'list-user-permissions-tool',
+        // Commands.
+        'roster:sync-permissions', 'roster:grant-super-admin',
+        // Models, config and classes.
+        'RoleModel', 'PermissionModel', 'RoleAssignmentModel', '`roster.permission_cache`', '`roster.super_admins`',
+        'PermissionCatalogue', 'BuiltInRoles', 'Permissions::GLOBAL_ONLY_PREFIXES', 'OrganizationModel::GLOBAL_ONLY_ABILITIES',
+        'rosterRoleAssignments()', 'RefactorCircus\Roster\Support\Authorization\Authorizer', 'RefactorCircus\Roster\Support\Authorization\Resources',
+        // The upgrade note.
+        '`refactor-circus/guardian` `^2.0`', 'migrations', 'roster_roles', 'roster_role_assignments', 'drop', 'Gate::define(',
+    ] as $needle) {
+        expect($breaking)->toContain($needle);
+    }
 });

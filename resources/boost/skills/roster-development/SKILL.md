@@ -3,11 +3,11 @@ name: roster-development
 description: >
   Configure and apply the Roster package in Laravel applications: user CRUD,
   profiles, suspend/deactivate/reactivate, organizations, teams, invitations,
-  domain auto-join, current org/team context, roles and permissions through
-  Laravel's Gate, audit history (through refactor-circus/keen), impersonation, CSV import/export,
+  domain auto-join, current org/team context, authorization through
+  Keystone's contract and Laravel's Gate, audit history (through refactor-circus/keen), impersonation, CSV import/export,
   the roster.active and roster.organization middleware, Roster's HTTP
   API (with its OpenAPI document and TypeScript client) and MCP server, and
-  extending Roster from another package (resources, permissions, membership
+  extending Roster from another package (resources, abilities, membership
   sources, sign-in requirements).
 license: MIT
 metadata:
@@ -40,7 +40,7 @@ php artisan migrate
 - Roster has no admin screens. Its optional UI is Atrium v2, which calls Roster's HTTP API through the committed `openapi.json` and `@refactor-circus/roster-client`; enable the API (section 11) for it, or for any frontend of the app's own.
 - Set `roster.users.key_type` (`int` | `ulid` | `uuid`) **before** migrating; it decides the type of the `roster_profiles.user_id` column.
 - If the users table uses other column names, set `roster.users.columns` (`name`, `email`, `password`; set `name` to `null` if there is none).
-- Rename any table under `roster.tables` (`organizations`, `memberships`, `team_members`, `permission_role`, ...) **before** migrating; migrations, models, rules and queries read the same keys. Never hard-code `roster_*` names: use the models, or `RefactorCircus\Roster\Support\Tables::name('memberships')`.
+- Rename any table under `roster.tables` (`organizations`, `memberships`, `team_members`, `invitations`, ...) **before** migrating; migrations, models, rules and queries read the same keys. Never hard-code `roster_*` names: use the models, or `RefactorCircus\Roster\Support\Tables::name('memberships')`.
 - Pick a user mode:
   - Add `use RefactorCircus\Roster\Domains\User\Concerns\HasRoster;` to the user model (recommended). It provides `roster()`, `rosterStatus()`, `isRosterActive()` and the `rosterProfile` relation.
   - Or leave the model untouched. Roster registers `rosterProfile` dynamically; use `app(RefactorCircus\Roster\Support\Users::class)->profile($user)` / `->status($user)`.
@@ -49,7 +49,7 @@ php artisan migrate
 ### 3. Apply the Actions
 
 - Resolve with `app(Action::class)->execute(...)`. Input is never an array: each Action takes its Data object, `{Action}Data` in the domain's `Data` namespace (`SuspendUserAction` → `Domains\User\Data\SuspendUserData`). Build it with `new XData(named: args)` from your own values, or `XData::from($request->all())` from untrusted input, which validates against `XData::rules()` and throws `ValidationException`. Some rules take context: `UpdateUserData::from($input, $user)` lets the user keep their own email.
-- Enum-valued fields take the enum (`RoleScope::Organization`, `TransferType::ImportMembers`, `UserStatus::Pending`). Update Data defaults fields to `RefactorCircus\Keystone\Data\Missing`: leave a field out to keep it, pass `null` to clear it; check with `$data->has('field')`.
+- Enum-valued fields take the enum (`TransferType::ImportMembers`, `UserStatus::Pending`). Update Data defaults fields to `RefactorCircus\Keystone\Data\Missing`: leave a field out to keep it, pass `null` to clear it; check with `$data->has('field')`.
 - Pass the acting user as `actor`. Status changes and deletes then refuse to act on yourself.
 - Business-rule failures throw `ValidationException`; let Laravel render them.
 
@@ -64,17 +64,19 @@ php artisan migrate
 
 ### 5. Roles and permissions
 
-- Declare app permissions with `CreatePermissionAction(new CreatePermissionData(name: 'invoices.edit'))`, bundle them with `CreateRoleAction(new CreateRoleData(name: ..., scope: RoleScope::Organization, permissions: [...]))` (`scope`: Global | Organization | Team; `organization` for an organization's own role), and assign with `AssignRoleAction($user, new AssignRoleData(role: $id, organization: slug, team: slug))`.
-- Check with Laravel's Gate: `$user->can('invoices.edit', $organization)`, `@can`, `Gate::allows()`. Without an organization or team argument, the user's current context is used.
-- Bootstrap: `php artisan roster:grant-super-admin {email}`. Run `php artisan roster:sync-permissions` after upgrading.
-- Roster's own API routes and MCP tools require the `roster.*` permissions (`roster.authorization`, on by default). Roster defines no UI gate; Atrium v2 owns its own.
-- Permissions and role assignments are remembered per request and forgotten by Roster's own Actions. Opt in to keeping them in the cache store with `roster.permission_cache.ttl` (seconds) / `.store`; after writing roles, assignments or permissions without Roster's Actions or models, call `Permissions::forgetCache()`. Eager-load `organization` / `team` on records you check one by one with `$user->can($ability, $record)`.
+- Roster stores no roles. It checks named `roster.*` abilities through refactor-circus/keystone's authorization contract (`RefactorCircus\Keystone\Authorization\Contracts\Permissions` and `Roles`) and declares them in Keystone's `Abilities` registry during boot.
+- Without a role store, Keystone's `GatePermissions` and `NullRoles` are bound: the app's Gate decides. Grant abilities with `Gate::define('roster.users.view', fn ($user) => ...)` (an ability asked in an organization or team gets it as the argument), and name super-admins with `Gate::define('super-admin', ...)`: only a super-admin may impersonate then, and super-admins skip external sign-in requirements. Joining assigns no role, approvers are nobody, and an import `role` is an unknown role.
+- With a role store such as refactor-circus/guardian, roles (global, organization, team) are assigned and managed through it; Roster assigns `roster.roles.default_member` (`member`) to new members and revokes roles when members leave or users are deleted for good.
+- An organization's owner holds every ability in it and its teams, except `OrganizationModel::GLOBAL_ONLY_ABILITIES` (`roster.users.*`, `roster.organizations.create`), whichever implementation is bound.
+- Check with Laravel's Gate: `$user->can('roster.teams.manage', $organization)`, `@can`, `Gate::allows()`, or `$user->hasRosterPermission($ability, $scope)`. Without an organization or team argument, the user's current context is used.
+- Roster's own API routes and MCP tools require the `roster.*` abilities (`roster.authorization`, on by default). Roster defines no UI gate; Atrium v2 owns its own.
+- Roster asks the bound `Permissions` on every check and calls `Permissions::forget($user)` after changing a user's memberships or ownership; the implementation decides what it remembers. Eager-load `organization` / `team` on records you check one by one with `$user->can($ability, $record)`.
 - With `refactor-circus/cortex` installed, every Roster tool is available to Cortex agents automatically. Agents act as the signed-in user; limit them with `roster.cortex.tools`.
 - The API and MCP are throttled by `throttle:roster` (`roster.rate_limit.per_minute`). Keep it in custom `middleware` lists.
 
 ### 6. Auditing
 
-- Roster has no audit log or audit code of its own. Install refactor-circus/keen (`composer require refactor-circus/keen`, `php artisan migrate`) and Keen records every Roster change, labelled, diffed (profile fields, role permissions, organization domains), scoped to its organization, and with the impersonator or import in its context. Without Keen there is no history anywhere in Roster.
+- Roster has no audit log or audit code of its own. Install refactor-circus/keen (`composer require refactor-circus/keen`, `php artisan migrate`) and Keen records every Roster change, labelled, diffed (profile fields, organization domains), scoped to its organization, and with the impersonator or import in its context. Without Keen there is no history anywhere in Roster.
 - Turn it off with `roster.audit.enabled => false` (Keen then records nothing of Roster's). `Roster::auditing()` says whether Roster audits now.
 - While it does, read history in Keen (Roster renders none itself), or through `GET /roster/history` and `list-roster-history-tool` (global `roster.audit.view`). Roster defines the `viewAuditLog` Gate ability as global `roster.audit.view` unless the app defines it.
 - Record the app's own events with Keen: `Keen::record('invoice.paid')->on($model)->in($organization)->with([...])->save();`. Add app secrets to `keen.redact`.
@@ -90,7 +92,7 @@ php artisan migrate
 
 - Roster ships neither: install refactor-circus/guardian (`composer require refactor-circus/guardian`), which adds OpenID Connect, SAML 2.0 and Entra ID sign-in, its enforcement and provisioning to Roster's organizations through Roster's seams.
 - **Without Guardian, organizations that enforce single sign-on accept password sign-in.** Roster adds no guard of its own, so install Guardian in the same deploy as the Roster upgrade that dropped them.
-- Upgrading from a Roster that still had them: before any migrate command, delete the app's published copies of Roster's old sign-on and provisioning table migrations (never roll them back: their `down()` drops the tables) and strip those keys from published copies of the two index migrations; then publish and run Guardian's migrations before `php artisan roster:sync-permissions`. If Guardian was installed before that Roster upgrade, run `php artisan guardian:upgrade-from-roster` after it to finish moving the tables and role grants. Roster's CHANGELOG has every step.
+- Upgrading from a Roster that still had them: before any migrate command, delete the app's published copies of Roster's old sign-on and provisioning table migrations (never roll them back: their `down()` drops the tables) and strip those keys from published copies of the two index migrations; then publish and run Guardian's migrations. If Guardian was installed before that Roster upgrade, run `php artisan guardian:upgrade-from-roster` after it to finish moving the tables and role grants. Roster's CHANGELOG has every step.
 - Add `new \RefactorCircus\Roster\Support\Rules\NoExternalSignIn` to the app's password login validation: it fails for any email a registered sign-in requirement claims (Guardian's, or your own registered with `Roster::requireSignIn()`).
 
 ### 9. Impersonation
@@ -104,7 +106,7 @@ php artisan migrate
 
 - Requires `refactor-circus/impex`: `composer require refactor-circus/impex`, `php artisan vendor:publish --tag="impex-migrations"`, migrate, and run a queue worker and the scheduler. Schedule `roster:prune-transfers`.
 - Start with `StartImportAction(new StartImportData(type: TransferType::ImportMembers /* ImportUsers, ImportTeams, ImportOrganizations */, organization: slug, file: $upload /* or content: $csv */), $user)`. It only previews: read `$transfer->rows()` (`action` is create/link/invite/update/skip/error).
-- Apply with `ConfirmImportAction($transfer, $user)`. Rows run as that user, with their permissions checked again. Cancel with `CancelTransferAction`.
+- Apply with `ConfirmImportAction($transfer, $user)`. Rows run as that user, with their abilities checked again. A `role` needs a role store, and while authorization is on only a super-admin, the owner or a holder of that role may hand it out. Cancel with `CancelTransferAction`.
 - Export with `StartExportAction(new StartExportData(type: TransferType::ExportMembers /* ExportUsers, ExportOrganizations */, organization: slug, filters: new ExportFiltersData(externalSource: 'erp')), $user)`, then serve the file through `route('roster.transfers.download', $transfer->id)`.
 - Get a starting file with `ShowImportTemplateAction(TransferType::ImportMembers)` (or `GET /roster/imports/templates/{type}`); rows starting with `#` are ignored. Customize with `php artisan vendor:publish --tag="roster-import-templates"`.
 - Columns: members `email,name,display_name,teams,role`; users `email,name,display_name`; teams `name,slug,members`; organizations `source,external_id,name,account_number,slug,domains,owner`.
@@ -113,12 +115,11 @@ php artisan migrate
 ### 11. Guard routes and surfaces
 
 - Add `roster.active` middleware to routes only active users may use, and `roster.organization` to routes that need a tenant.
-- The HTTP API (`roster.routes.enabled`, default `false`) and MCP (`roster.mcp.web.enabled`, `roster.mcp.local.enabled`) are off by default and do **no authentication** themselves: each route and tool checks the caller's Roster permissions, which needs a signed-in user. Only enable them with auth middleware (e.g. `auth:sanctum`) in the `middleware` config.
+- The HTTP API (`roster.routes.enabled`, default `false`) and MCP (`roster.mcp.web.enabled`, `roster.mcp.local.enabled`) are off by default and do **no authentication** themselves: each route and tool checks the caller's Roster abilities, which needs a signed-in user. Only enable them with auth middleware (e.g. `auth:sanctum`) in the `middleware` config.
 
 ### 12. The HTTP API for a UI, OpenAPI and the client
 
 - Besides one route per Action, the API (prefix `roster.routes.prefix`, default `roster`) has the read-only routes a UI needs:
-  - `GET organizations/{organization}/role-assignments` (`roster.organizations.role-assignments.index`): every assignment in the organization and its teams, paginated, items as `users/{user}/roles` answers; `roster.roles.view` in the organization.
   - `GET stats/users` (`roster.stats.users`): `total` and `by_status` (every configured status), cached a minute; global `roster.users.view`. MCP: `show-user-stats-tool`.
   - `GET stats/organizations` (`roster.stats.organizations`): `organizations`, `teams`, `pending_invitations`; global `roster.organizations.view`. MCP: `show-organization-stats-tool`.
   - `GET search/users?q=&limit=` (`roster.search.users`) and `GET search/organizations?q=&limit=` (`roster.search.organizations`): prefix typeahead on name/email or name/slug, `q` 1-100 characters matched literally, `limit` 1-25 (default 5). Users need global `roster.users.view`; organizations are limited to those where the caller holds `roster.organizations.view`. No MCP tools: agents use the list tools' `search`.
@@ -130,25 +131,25 @@ php artisan migrate
 ### 13. Extending Roster
 
 - Packages and apps add to Roster through registration points, always from a service provider's `boot()` (each registry is a process-wide singleton, and registering the same thing twice throws).
-- `roster.*` is reserved for Roster's own domains: `resource()` and `permission()` throw `InvalidArgumentException` for any `roster.*` prefix or name. Use your package's prefix (`acme.widgets`).
-- Resources and permissions:
+- `roster.*` is reserved for Roster's own domains: `resource()` throws `InvalidArgumentException` for any `roster.*` prefix; keep ability names out of it too. Use your package's prefix (`acme.widgets`).
+- Resources and abilities:
 
 ```php
 use Illuminate\Support\Facades\Gate;
-use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
+use RefactorCircus\Keystone\Authorization\Abilities;
 use RefactorCircus\Roster\Support\Authorization\Resources;
 
 app(Resources::class)->resource('acme.widgets', WidgetModel::class);
 Gate::policy(WidgetModel::class, WidgetPolicy::class); // WidgetPolicy::approve() answers acme.widgets.approve
 
-app(PermissionCatalogue::class)
-    ->permission('acme.widgets.view', 'See widgets.', ['admin', 'member'])
-    ->permission('acme.widgets.approve', 'Approve widgets.', ['admin']);
+app(Abilities::class)
+    ->define('acme.widgets.view', 'See widgets.', ['admin', 'member'])
+    ->define('acme.widgets.approve', 'Approve widgets.', ['admin']);
 ```
 
 - `{prefix}.{verb}` asks the registered model's policy by the camel-cased verb, in `Authorizer::check()` and API/MCP requests. Extend `RefactorCircus\Roster\Support\Policies\Policy` and answer with `$this->permits(...)`. A prefix is two lower-case segments (`^[a-z0-9-]+\.[a-z0-9-]+$`); an unregistered prefix is refused; a registered model with no policy throws `InvalidArgumentException` naming the resource on first use. Records find their organization/team through `organization_id`/`team_id` or `organization()`/`team()`.
-- Catalogued permissions are created as system permissions by the role migration, `BuiltInRoles::sync()` and `php artisan roster:sync-permissions`. Run `roster:sync-permissions` when a package registers after the migration ran. Existing built-in roles never gain a newly registered permission automatically: grants apply only to built-in roles the sync creates, so grant it to existing roles by hand.
-- The impersonation-blocked list stays core-only: registered permissions are never added to `roster.impersonation.blocked`; add your own patterns there if they must not run while impersonating.
+- Defined abilities are what a role store lists and grants; `grantTo` names the default roles (`admin`, `member`) it may seed them into. Without a role store the Gate decides, and the grants are unused.
+- The impersonation-blocked list stays core-only: defined abilities are never added to `roster.impersonation.blocked`; add your own patterns there if they must not run while impersonating.
 - Membership sources:
 
 ```php
@@ -210,7 +211,7 @@ $this->app->booted(function (): void {
 
 ## Rules, References, and Templates
 
-- Config: `config/roster.php` (users, authorization, super_admins, roles, impersonation, transfers, organizations, statuses, invitations, routes, mcp).
+- Config: `config/roster.php` (users, authorization, roles, impersonation, transfers, organizations, statuses, invitations, routes, mcp).
 - Statuses: `roster.statuses` names a string-backed enum per record. Users default to `RefactorCircus\Roster\Domains\User\Enums\UserStatus` (`Active`, `Pending`, `Suspended`, `Deactivated`), implementing `Contracts\AccountStatus` (`active()`, `pending()`, `suspended()`, `deactivated()`, `allowsAccess()`); a user with no profile row has the `active()` status. Organizations and teams default to `OrganizationStatus` / `TeamStatus` (`Active`, `Inactive`), implementing `Contracts\Status`; set them with `status` / `status_reason` on the create, update and sync Data, filter lists by `status`. They are data only: Roster refuses nothing by them. Read the configured enum with `RefactorCircus\Roster\Support\Statuses` (`Statuses::users()::pending()`).
 - Deletes are soft:
   - Add `SoftDeletes` (and a `deleted_at` column) to the user model so deleted users can be restored; without it, users are deleted permanently.
@@ -223,9 +224,9 @@ $this->app->booted(function (): void {
   - Accept with `ApproveUserAction`, or turn down with `RejectUserAction` (which deactivates).
 - Events: every Action fires `RefactorCircus\Roster\Domains\{Domain}\Events\*ActionEvent` before (`...ingActionEvent`) and after (`...edActionEvent`); listen to `RefactorCircus\Keystone\Contracts\ActionStartingEvent` / `ActionFinishedEvent` (shared by every Refactor Circus package; Roster's events are under `RefactorCircus\Roster\`) to see every action. Each Action makes its writes in one transaction; finished events fire after it commits, so a write that rolls back (or an outer transaction that does) fires none. CSV steps fire `ImportValidating`/`Validated`, `ImportRowApplying`/`Applied`, `ExportBuilding`/`Built` and `TransferFinishing`/`Finished` action events too.
 - Model events: every model fires `{Entity}{Hook}Event` per Eloquent hook (`TeamCreatingEvent`, `OrganizationTrashedEvent`), implementing `RefactorCircus\Keystone\Contracts\ModelLifecycleEvent`; return `false` from a `creating`/`updating`/`saving`/`deleting` listener to stop the write.
-- Policies: every core model's policy is set in `roster.policies` (package resources register theirs with the Gate themselves; a `roster.policies` entry for one of their models still wins); swap one by pointing the model at your class (extend the bundled `Domains\{Domain}\Policies\*Policy`). Roster's API and MCP checks ask the policy of the permission's resource (`roster.organizations.update` → `OrganizationModel` policy `update(?Model $user, ?Model $subject, ?Model $self)`, `roster.users.manage-status` → `UserModel` policy `manageStatus()`), so app `Gate::before` callbacks apply. Impersonation-blocked permissions are refused first.
+- Policies: every core model's policy is set in `roster.policies` (package resources register theirs with the Gate themselves; a `roster.policies` entry for one of their models still wins); swap one by pointing the model at your class (extend the bundled `Domains\{Domain}\Policies\*Policy`). Roster's API and MCP checks ask the policy of the ability's resource (`roster.organizations.update` → `OrganizationModel` policy `update(?Model $user, ?Model $subject, ?Model $self)`, `roster.users.manage-status` → `UserModel` policy `manageStatus()`), so app `Gate::before` callbacks apply. Impersonation-blocked abilities are refused first.
 - HTTP routes are named `roster.users.*`, `roster.organizations.*`, `roster.invitations.*`, `roster.stats.*`, `roster.search.*`; `{user}` is the user model's route key, organizations and teams use slugs.
-- Lists of organizations, roles, impersonations and transfers, and the organizations search, asked without an `organization`, open to users holding the permission in any organization and hold only what falls within those (`Authorizer::organizationsWith()`).
+- Lists of organizations, impersonations and transfers, and the organizations search, asked without an `organization`, open to users holding the ability in any organization and hold only what falls within those (`Authorizer::organizationsWith()`).
 - Approvals email: the approvers' email button opens `roster.users.approvals.review_url` (`{user}` replaced by the route key), a page of the app's UI; `null` (the default) sends no button.
 
 ## Examples
@@ -272,7 +273,7 @@ In app tests, assert with `expect($user->rosterStatus())->toBe(UserStatus::Suspe
 
 - Adding profile or status columns to the users table: Roster keeps them in `roster_profiles`.
 - Writing `roster_profiles` rows or status fields directly instead of calling the Actions, which skips the guards and events.
-- Enabling `roster.routes` or `roster.mcp.web` without authentication middleware; permission checks need a signed-in user.
+- Enabling `roster.routes` or `roster.mcp.web` without authentication middleware; ability checks need a signed-in user.
 - Setting `roster.authorization` to false in production.
 - Running Cortex agents with no signed-in user and expecting Roster tools to work; they are refused.
 - Expecting an audit trail without refactor-circus/keen installed; Roster records nothing on its own.
@@ -282,8 +283,8 @@ In app tests, assert with `expect($user->rosterStatus())->toBe(UserStatus::Suspe
 - Adding authentication to `roster.invitations.lookup_middleware`, or removing its `throttle:roster-invitation-lookup` limiter.
 - Logging users in as someone else with `Auth::login()` for support. Use impersonation, which is time-limited, blocked from sensitive abilities, and audited.
 - Emailing or posting impersonation links. They only work in the impersonator's own browser.
-- Checking roles by slug in app code (`hasRole('admin')`-style). Check permissions with `$user->can()` instead.
-- Writing `roster_role_assignments` rows directly, which skips the scope and escalation guards.
+- Checking roles by slug in app code (`hasRole('admin')`-style). Check abilities with `$user->can()` instead.
+- Expecting Roster to store roles or ship role and permission endpoints: install a role store (refactor-circus/guardian) for those.
 - Changing `roster.users.key_type` after `roster_profiles` has been migrated.
 - Putting a `password` column in an import CSV (it is refused), or serving `roster.transfers.disk` files publicly instead of through Roster's download route.
 - Calling a user model's `profile()` relation for Roster data: the relation is `rosterProfile` (and `rosterMemberships` / `rosterOrganizations`).

@@ -13,6 +13,7 @@ use Illuminate\Foundation\Http\Kernel;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use stdClass;
 use Workbench\App\Http\Middleware\SignInWorkbenchUser;
@@ -46,6 +47,12 @@ class WorkbenchServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // No role store is installed, so Keystone's Gate fallback decides:
+        // the demo's admin holds every ability (super-admin included), as an
+        // app without a role store would grant it. Roster's own Gate::before
+        // runs first and still refuses impersonation-blocked abilities.
+        Gate::before(fn (mixed $user): ?bool => $user instanceof User && $user->email === 'admin@example.com' ? true : null);
+
         // Keep the workbench user signed in whatever URL is opened first.
         $this->callAfterResolving(HttpKernel::class, function (HttpKernel $kernel): void {
             if ($kernel instanceof Kernel) {

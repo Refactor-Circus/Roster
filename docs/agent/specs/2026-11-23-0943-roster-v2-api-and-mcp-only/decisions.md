@@ -203,3 +203,9 @@
 - Rationale: The group 13 commit alone was not green; the follow-up is what makes it so. The stale docs and OpenAPI document belong to the later groups that rewrite them.
 - Date: 2026-11-23
 - Raised by: direct build (user instruction to finish the spec without stopping)
+
+## D-035: Stale tests of the removed domains that the suite's failure count hid
+- Choice: Fixed in the group 16 commit, outside its file list: `ExtendingRosterExamplesTest` now runs the README's `Abilities::define()` example (and checks the resource through a role store and through the host Gate), `StoredIdentifiersTest` drops the three deleted models, `RemovedSsoScimTest` checks Keystone's `Abilities` instead of `PermissionCatalogue` and binds a role store before `grant()`, `RenamedTablesTest` drops the role checks, and `KeenAuditTest` binds a role store in `beforeEach`, drops the role-assignment and role-diff cases (the role store audits its own roles) and uses `roleGranting()`.
+- Rationale: These 17 tests errored on classes deleted in group 13 (`RoleModel`, `PermissionCatalogue`, `CreateRoleAction`, `roleWith()`) or on `grant()` with no role store. Pest's JSON summary reports them under `errors`, not `failed`, so the group 13 notes and D-034 ("green except DocsTest and OpenApiTest") understated what was red; groups 13 to 15 were not fully green either. Fixing them is required by criterion 46, and each fix follows the removal the spec already made.
+- Date: 2026-11-23
+- Raised by: direct build (found at the group 16 full-suite run)
