@@ -7,8 +7,8 @@ namespace RefactorCircus\Roster\Support\Policies;
 use Illuminate\Database\Eloquent\Model;
 use RefactorCircus\Keystone\Policies\Policy as KeystonePolicy;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 
 /**
  * Shared checks for the bundled policies.

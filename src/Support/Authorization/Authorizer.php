@@ -2,19 +2,21 @@
 
 declare(strict_types=1);
 
-namespace RefactorCircus\Roster\Domains\Permission\Services;
+namespace RefactorCircus\Roster\Support\Authorization;
 
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Contracts\Container\Container;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
 use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Models\UserModel;
 
@@ -23,23 +25,26 @@ use RefactorCircus\Roster\Domains\User\Models\UserModel;
  * the caller may act.
  *
  * With `roster.authorization` on (the default), every call needs an
- * authenticated user allowed the Action's permission in the right scope.
+ * authenticated user allowed the Action's ability in the right scope.
  * Turning it off leaves the route middleware as the only check.
  *
- * A permission `{prefix}.{verb}` is answered by the Gate policy of the model
+ * An ability `{prefix}.{verb}` is answered by the Gate policy of the model
  * registered for its prefix in Resources (everything before the last dot), as
  * the camel-cased verb: `roster.users.manage-status` asks the UserModel
  * policy's `manageStatus()`, and a package's `acme.widgets.approve` asks its
- * WidgetModel policy's `approve()`. The bundled policies check the permission
- * itself, through `permits()`. Impersonation's blocked permissions are
- * refused before any policy is asked.
+ * WidgetModel policy's `approve()`. The bundled policies check the ability
+ * itself, through `permits()`, which asks Keystone's `Permissions` contract:
+ * whichever implementation is bound (a role store, or the Gate fallback)
+ * decides, and Roster's organizations and teams add their owner rule and
+ * hierarchy as `Scope`s. Impersonation's blocked abilities are refused before
+ * any policy is asked.
  */
 final class Authorizer
 {
     /**
      * Roster's core resources: the model whose policy answers each
-     * `roster.{resource}.*` permission. PermissionServiceProvider registers
-     * them with Resources; Roster's other domains register their own there.
+     * `roster.{resource}.*` ability. They are registered with Resources before
+     * any provider boots; Roster's other domains register their own there.
      *
      * @var array<string, class-string<Model>>
      */
@@ -49,27 +54,15 @@ final class Authorizer
         'members' => MembershipModel::class,
         'teams' => TeamModel::class,
         'invitations' => InvitationModel::class,
-        'roles' => RoleModel::class,
     ];
 
     /**
-     * The policy answering each permission, worked out once per request and
+     * The policy answering each ability, worked out once per request and
      * again whenever a resource is registered.
      *
      * @var array<string, array{0: class-string<Model>, 1: string}|null>
      */
     private array $policies = [];
-
-    /**
-     * Answers already given this request, by actor, permission, scope and
-     * subject; started over whenever Permissions forgets anything or a
-     * resource is registered. A check that throws remembers nothing.
-     *
-     * @var array<string, bool>
-     */
-    private array $answers = [];
-
-    private int $generation = 0;
 
     private int $resourcesGeneration = 0;
 
@@ -81,9 +74,17 @@ final class Authorizer
      */
     private array $parents = [];
 
+    /**
+     * The organizations each actor owns, by actor, until an organization is
+     * written (`forget()`).
+     *
+     * @var array<string, array<int, int|string>>
+     */
+    private array $owned = [];
+
     public function __construct(
         private readonly Repository $config,
-        private readonly Permissions $permissions,
+        private readonly Container $container,
         private readonly Gate $gate,
         private readonly Resources $resources,
     ) {}
@@ -94,8 +95,8 @@ final class Authorizer
     }
 
     /**
-     * Whether `$actor` may use a permission in a scope, as the policy for the
-     * permission's resource decides. `$self` names the user the call is about,
+     * Whether `$actor` may use an ability in a scope, as the policy for the
+     * ability's resource decides. `$self` names the user the call is about,
      * for abilities everyone has over themselves.
      *
      * @throws InvalidArgumentException when a package's registered resource has no policy
@@ -106,35 +107,10 @@ final class Authorizer
             return true;
         }
 
-        if (app(ImpersonationContext::class)->isBlocked($permission)) {
+        if ($this->blocked($permission)) {
             return false;
         }
 
-        $this->startOverIfForgotten();
-
-        // Unsaved records have no identity to remember an answer by.
-        foreach ([$actor, $scope, $self] as $model) {
-            if ($model !== null && $model->getKey() === null) {
-                return $this->answer($actor, $permission, $scope, $self);
-            }
-        }
-
-        $policy = $this->policyFor($permission);
-
-        $key = implode('|', [
-            // The policy class too, so registering another policy is seen at once.
-            $policy === null ? '' : ($this->gate->policies()[$policy[0]] ?? ''),
-            $actor === null ? '' : $actor->getMorphClass().':'.$actor->getKey(),
-            $permission,
-            $scope === null ? '' : $scope::class.':'.$scope->getKey(),
-            $self === null ? '' : $self->getMorphClass().':'.$self->getKey(),
-        ]);
-
-        return $this->answers[$key] ??= $this->answer($actor, $permission, $scope, $self);
-    }
-
-    private function answer(?Model $actor, string $permission, OrganizationModel|TeamModel|null $scope, ?Model $self): bool
-    {
         $policy = $this->policyFor($permission);
 
         if ($policy === null) {
@@ -145,8 +121,10 @@ final class Authorizer
     }
 
     /**
-     * Whether `$actor` holds a permission in a scope, by Roster's roles alone:
-     * what the bundled policies answer with.
+     * Whether `$actor` may use an ability in a scope, as the bound
+     * `Permissions` answers: what the bundled policies answer with. Refused
+     * while impersonation blocks it; everyone may act on themselves where
+     * `$self` says so.
      */
     public function permits(?Model $actor, string $permission, OrganizationModel|TeamModel|null $scope = null, ?Model $self = null): bool
     {
@@ -154,11 +132,11 @@ final class Authorizer
             return true;
         }
 
-        if ($actor === null) {
+        if (! $actor instanceof Authenticatable) {
             return false;
         }
 
-        if (app(ImpersonationContext::class)->isBlocked($permission)) {
+        if ($this->blocked($permission)) {
             return false;
         }
 
@@ -166,13 +144,15 @@ final class Authorizer
             return true;
         }
 
-        return $this->permissions->allows($actor, $permission, $scope);
+        return $this->permissions()->allows($actor, $permission, $scope);
     }
 
     /**
-     * The organizations `$actor` may use a permission in, for lists that show
-     * what falls within them. Null means no organization limits them: they
-     * hold it globally, or authorization is off.
+     * The organizations `$actor` may use an ability in, for lists that show
+     * what falls within them: the bound `Permissions`' organization scopes,
+     * plus the organizations the actor owns unless the ability is global-only.
+     * Null means no organization limits them: they hold it globally, or
+     * authorization is off.
      *
      * @return array<int, int|string>|null
      */
@@ -182,11 +162,32 @@ final class Authorizer
             return null;
         }
 
-        if ($actor === null || app(ImpersonationContext::class)->isBlocked($permission)) {
+        if (! $actor instanceof Authenticatable || $this->blocked($permission)) {
             return [];
         }
 
-        return $this->permissions->organizationsWith($actor, $permission);
+        $scopes = $this->permissions()->scopesWith($actor, $permission, (new OrganizationModel)->getMorphClass());
+
+        if ($scopes === null) {
+            return null;
+        }
+
+        $owned = Str::is(OrganizationModel::GLOBAL_ONLY_ABILITIES, $permission) ? [] : $this->ownedBy($actor);
+
+        return array_values(array_unique([...$scopes, ...$owned], SORT_REGULAR));
+    }
+
+    /**
+     * Drop the organizations and owners remembered for this request, after
+     * an organization is written.
+     *
+     * @internal RosterServiceProvider calls it from the organization model
+     *           events.
+     */
+    public function forget(): void
+    {
+        $this->owned = [];
+        $this->parents = [];
     }
 
     /**
@@ -224,8 +225,6 @@ final class Authorizer
             return null;
         }
 
-        $this->startOverIfForgotten();
-
         $key = $related->getRelated()::class.':'.$foreign;
 
         if (! array_key_exists($key, $this->parents)) {
@@ -260,8 +259,6 @@ final class Authorizer
             return null;
         }
 
-        $this->startOverIfForgotten();
-
         $key = $class.':'.$foreign;
 
         if (! array_key_exists($key, $this->parents)) {
@@ -273,32 +270,48 @@ final class Authorizer
     }
 
     /**
-     * Drop remembered answers once Permissions has forgotten anything, and
-     * the resolved policies too once a resource has been registered.
+     * The bound implementation, asked afresh each time so one bound after
+     * this Authorizer was built is the one that answers.
      */
-    private function startOverIfForgotten(): void
+    private function permissions(): Permissions
     {
-        if ($this->resourcesGeneration !== $this->resources->generation()) {
-            $this->policies = [];
-            $this->answers = [];
-            $this->resourcesGeneration = $this->resources->generation();
-        }
+        return $this->container->make(Permissions::class);
+    }
 
-        if ($this->generation !== $this->permissions->generation()) {
-            $this->answers = [];
-            $this->parents = [];
-            $this->generation = $this->permissions->generation();
-        }
+    private function blocked(string $permission): bool
+    {
+        return $this->container->make(ImpersonationContext::class)->isBlocked($permission);
     }
 
     /**
-     * The model and policy method that answer a permission, or null when no
+     * The keys of the organizations the actor owns, once per request until
+     * an organization is written.
+     *
+     * @return array<int, int|string>
+     */
+    private function ownedBy(Model $actor): array
+    {
+        return $this->owned[$actor->getMorphClass().':'.$actor->getKey()] ??= OrganizationModel::query()
+            ->where('owner_id', $actor->getKey())
+            ->pluck((new OrganizationModel)->getKeyName())
+            ->filter(fn (mixed $key): bool => is_int($key) || is_string($key))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The model and policy method that answer an ability, or null when no
      * policy is registered for its resource.
      *
      * @return array{0: class-string<Model>, 1: string}|null
      */
     private function policyFor(string $permission): ?array
     {
+        if ($this->resourcesGeneration !== $this->resources->generation()) {
+            $this->policies = [];
+            $this->resourcesGeneration = $this->resources->generation();
+        }
+
         if (array_key_exists($permission, $this->policies)) {
             return $this->policies[$permission];
         }
@@ -307,11 +320,11 @@ final class Authorizer
     }
 
     /**
-     * The registered model for the permission's prefix (everything before
-     * its last dot) and the policy method for its verb. Null when the prefix
-     * is not registered, so no policy is asked; null too for one of Roster's
-     * own resources whose policy the application removed, which is then
-     * checked by Roster's permissions alone.
+     * The registered model for the ability's prefix (everything before its
+     * last dot) and the policy method for its verb. Null when the prefix is
+     * not registered, so no policy is asked; null too for one of Roster's own
+     * resources whose policy the application removed, which is then checked
+     * by the bound `Permissions` alone.
      *
      * @return array{0: class-string<Model>, 1: string}|null
      *

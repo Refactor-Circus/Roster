@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\Permission;
 
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
+use RefactorCircus\Keystone\Authorization\Abilities;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions as PermissionsContract;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
 use RefactorCircus\Keystone\Support\ServiceProvider;
 use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
@@ -14,11 +18,10 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Console\Commands\SyncPermissionsCommand;
 use RefactorCircus\Roster\Domains\Permission\Events\PermissionDeletedEvent;
 use RefactorCircus\Roster\Domains\Permission\Events\PermissionSavedEvent;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Permission\Services\PermissionCache;
 use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Permission\Services\Resources;
+use RefactorCircus\Roster\Domains\Permission\Services\RosterRolesPermissions;
 use RefactorCircus\Roster\Domains\Role\Events\RoleAssignedActionEvent;
 use RefactorCircus\Roster\Domains\Role\Events\RoleAssignmentDeletedEvent;
 use RefactorCircus\Roster\Domains\Role\Events\RoleAssignmentSavedEvent;
@@ -27,6 +30,7 @@ use RefactorCircus\Roster\Domains\Role\Events\RoleRevokedActionEvent;
 use RefactorCircus\Roster\Domains\Role\Events\RoleSavedEvent;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Roster;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 
 /**
  * Permissions, how they are checked, and Roster's place in Laravel's Gate.
@@ -51,23 +55,16 @@ class PermissionServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        // Registries of code-defined state, filled from providers' boot().
-        // Roster's core resources are there from the start, before any boot().
-        $this->app->singleton(Resources::class, function (): Resources {
-            $resources = new Resources;
-
-            foreach (Authorizer::RESOURCES as $resource => $model) {
-                $resources->rosterResource('roster.'.$resource, $model);
-            }
-
-            return $resources;
-        });
         $this->app->singleton(PermissionCatalogue::class);
 
         $this->app->scoped(Permissions::class);
-        // Scoped like the Permissions it uses, so a long-lived worker (Octane,
-        // queues) never keeps one request's resolved permissions.
-        $this->app->scoped(Authorizer::class);
+
+        // Interim: Roster's roles answer Keystone's contracts until a role
+        // store takes over. Scoped like the Permissions it asks, so a
+        // long-lived worker (Octane, queues) never keeps one request's answers.
+        $this->app->scoped(RosterRolesPermissions::class);
+        $this->app->scoped(PermissionsContract::class, fn (): RosterRolesPermissions => $this->app->make(RosterRolesPermissions::class));
+        $this->app->scoped(Roles::class, fn (): RosterRolesPermissions => $this->app->make(RosterRolesPermissions::class));
     }
 
     public function boot(): void
@@ -90,7 +87,7 @@ class PermissionServiceProvider extends ServiceProvider
         $gate = $this->app->make(Gate::class);
 
         $gate->before(function (mixed $user, string $ability, array $arguments): ?bool {
-            if (! $user instanceof Model) {
+            if (! $user instanceof Model || ! $user instanceof Authenticatable) {
                 return null;
             }
 
@@ -99,21 +96,17 @@ class PermissionServiceProvider extends ServiceProvider
                 return false;
             }
 
-            $permissions = $this->app->make(Permissions::class);
-
-            if ($permissions->isSuperAdmin($user)) {
-                return true;
-            }
-
-            if (! $permissions->knows($ability)) {
+            // Only the abilities Roster declares; super-admins and everything
+            // else are the bound implementation's and the app's to decide.
+            if (! str_starts_with($ability, 'roster.') || ! $this->app->make(Abilities::class)->has($ability)) {
                 return null;
             }
 
-            $scope = $this->scopeFrom($arguments) ?? $permissions->contextScope($user);
+            $scope = $this->scopeFrom($arguments) ?? $this->contextScope($user);
 
             // Null rather than false: the app's own gates and policies still
-            // get their say when the user lacks the permission.
-            return $permissions->allows($user, $ability, $scope) ? true : null;
+            // get their say when the user lacks the ability.
+            return $this->app->make(PermissionsContract::class)->allows($user, $ability, $scope) ? true : null;
         });
 
         // Permissions and the current organization/team are remembered for the
@@ -192,6 +185,17 @@ class PermissionServiceProvider extends ServiceProvider
         }
 
         return true;
+    }
+
+    /**
+     * The scope a Gate check without an explicit organization or team uses:
+     * the user's current team, else their current organization.
+     */
+    private function contextScope(Model $user): OrganizationModel|TeamModel|null
+    {
+        $roster = $this->app->make(Roster::class);
+
+        return $roster->team($user) ?? $roster->organization($user);
     }
 
     /**

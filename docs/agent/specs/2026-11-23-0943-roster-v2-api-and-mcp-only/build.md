@@ -387,3 +387,65 @@ Criteria 30 (the `impersonation.blocked` part), 31 and 32.
 
 - **`ScopeModelsTest` lives in `tests/Feature/`, not `tests/Unit/`.** `phpunit.xml.dist` has no `Unit` testsuite and `tests/Pest.php` binds no TestCase to `tests/Unit`, so nothing there runs in `composer test:unit`. Run on their own (`vendor/bin/pest tests/Unit`), several of the existing Unit tests fail for lack of an application. The new test needs the application and the database, so it went where it runs.
 - **9.2 is not done.** `composer update refactor-circus/keystone` fails. Keystone's `dev-main` is still aliased `0.1.x-dev` and does not hold the authorization addendum, which is only on the approved, unmerged `ring-master/2026-11-23-0943-drop-the-atrium-plugin-hook` branch. `composer.lock` still pins Keystone v0.1.1. The installed `vendor/refactor-circus/keystone/src` is byte-identical to that branch's `src/`, so this group was built and tested against it. `composer.json` and `composer.lock` are unchanged.
+
+## Group 10
+
+Criteria 33 (apart from the arch test, which is group 13's), 34 and 38.
+
+### Files
+
+- `src/Support/Authorization/Authorizer.php` (moved from `Domains\Permission\Services`, `git mv`): `RESOURCES` drops `roles`. `permits()` applies the impersonation block, then the self rule, then Keystone's `Permissions::allows($actor, $ability, $scope)`. `organizationsWith()` returns the contract's `scopesWith($actor, $ability, (new OrganizationModel)->getMorphClass())` joined with the organizations the actor owns, unless the ability matches `OrganizationModel::GLOBAL_ONLY_ABILITIES`. A null from `scopesWith()` stays null. The contract and `ImpersonationContext` are resolved from the container on each call, so an implementation bound later is the one asked. `check()` no longer remembers answers (D-030). It still remembers the policy resolved per ability, and per request the owned organizations and record parents. The new `@internal` `forget()` drops those two. The public methods are unchanged apart from the namespace.
+- `src/Support/Authorization/Resources.php` (moved): namespace and docblock only.
+- `src/Support/Authorization/ImpersonationAwarePermissions.php` (new, `final readonly`): decorates the bound `Permissions`. While an impersonation is active, `allows()` is false and `scopesWith()` is `[]` for every ability matching `roster.impersonation.blocked`, and `abilities()` leaves those abilities out (null stays null). `isSuperAdmin()` and `forget()` pass through.
+- `src/Domains/Permission/Services/RosterRolesPermissions.php` (new, `final readonly`, `@internal`, interim): Roster's role tables behind Keystone's `Permissions` and `Roles`. `allows()` passes a super-admin, honours a `Scope` chain that grants by itself, and otherwise asks the old `Permissions` service. `scopesWith()` lists organizations only. The `Roles` methods read and write `RoleAssignmentModel` and forget the user's answers after each write. Group 13 deletes it.
+- `src/Domains/Permission/PermissionServiceProvider.php`: the `Resources`/`Authorizer` bindings moved to `RosterServiceProvider`. Keystone's `Permissions` and `Roles` are bound `scoped()` to one scoped `RosterRolesPermissions`. `Gate::before` is rewritten for criterion 38: it keeps the impersonation block, answers only `roster.*` abilities that Keystone's `Abilities` knows, and does so with `true` (else `null`) from the contract, using the scope from the arguments or the user's context scope. It no longer passes super-admins. `contextScope()` moved here from the old service's caller.
+- `src/RosterServiceProvider.php`: `registerAuthorization()` binds `Resources` (a singleton with the core resources) and `Authorizer` (scoped), and calls `$this->app->extend(Permissions::class, ...)` with `ImpersonationAwarePermissions`. `boot()` calls `Authorizer::forget()` on organization saved/deleted/restored/force-deleted events. `authorizeHistory` and the `History::ABILITY` gate use the moved Authorizer.
+- Imports updated: `Support/Policies/Policy.php`, `Support/Concerns/AuthorizesWithRoster.php`, `Transfer/Services/Transfers.php`, `ShowImportTemplateRequest`, `ShowImportTemplateMcpRequest`, `ConfirmImportAction`. Outside the list: `Transfer/Services/Planners/MembersPlanner.php`, `Role/Actions/AssignRoleAction.php`, `Role/Actions/RevokeRoleAction.php` and `Role/Concerns/GuardsEscalation.php` (imports only).
+- Docs outside the list: the `Resources` import in the README's and Boost skill's "Extending Roster" examples (`DocsTest` checks that the classes exist). In `CLAUDE.md`/`AGENTS.md`, the authorization bullet now names the new namespace, the contract, the decorator, the adapter and the new `Gate::before`. There is a new `standards-feedback.md` row for `http/authorization` ("How the Authorizer answers": namespace, five resources, no answer memo). Decisions D-030 and D-031 are in `decisions.md`.
+
+### Tests
+
+- `tests/Feature/AccessThroughContractTest.php` (10 tests):
+  - Moved classes: the old classes are gone and there is no `roles` resource.
+  - The bound `Permissions` is decorated.
+  - With `FakePermissions::install()`, `permits()` and `check()` follow the fake: a grant in an organization, its team through `parentScope()`, not in another organization or globally, the self rule, a guest.
+  - The owner rule works through `Scope`, but not for `roster.users.view`.
+  - `organizationsWith()` joins the scopes with the owned organizations, keeps null for a global grant, and drops the owned ones for `roster.users.view` and `roster.organizations.create`. It asks the contract with the organization morph class.
+  - While impersonating (default blocked list), a fake bound with `singleton()` after boot is decorated: `allows('acme.roles.manage')` and `allows('acme.roles.assign', $acme)` are false, `scopesWith()` is `[]`, and `abilities()` leaves out the blocked ones.
+  - `Gate::before` answers from the fake, both with the context scope and with an explicit scope. It answers null so a host `Gate::define()` still decides. A super-admin passes `roster.*` abilities through the fake, but not a host gate defined as false or an undeclared `roster.sso.view`.
+- Updated outside the list, because criterion 38 changes them:
+  - `tests/Authorization/GateTest.php`: "answers can() for roster permissions" now uses `roster.teams.manage`. A new test shows a role-granted non-Roster ability (`invoices.edit`) is left to the app. "lets super-admins pass every gate" became "leaves super-admins to the bound implementation, and other gates to the app" (`roster.users.view` true, a host gate defined false stays false).
+  - Namespace-only edits: `tests/ArchTest.php` (`ROSTER_CORE` and the SSO/SCIM file list), `tests/Unit/Permission/ResourcesTest.php` (five resources, no `roster.roles`; tests/Unit does not run in `test:unit`, see group 9), `RemovedSsoScimTest`, `ImpersonationSafetyTest`, `PerformanceTest`, `ExtendingRosterExamplesTest`, `DocsTest`, `Permission/RegisteredResourcesTest`, `Authorization/PoliciesTest` and `Authorization/LongLivedWorkerTest`.
+- `composer test:unit` (1138 passed), `composer analyse`, `composer lint:check` and `vendor/bin/pest --type-coverage --min=100` (100%) all pass.
+
+### Deviations
+
+- **The Authorizer keeps no answer memo** (D-030, standards-feedback row). `PerformanceTest` stays within its bounds, because the adapter remembers per request and the Authorizer remembers owned organizations.
+- **`FakePermissions::install()` is not decorated** (D-031). It binds with `instance()`, which Laravel's container never passes through `extend()`. Criterion 34's "bound after boot" test therefore binds the fake with `singleton()`, as a role store does. Group 11 should know that an installed fake is undecorated: Roster's own checks still refuse blocked abilities, but a direct `app(Permissions::class)->allows()` on an installed fake does not. Decorating also hides a fake from `FakeRoles::holders()`, which checks `app(Permissions::class) instanceof FakePermissions`.
+- **`Authorizer::forget()` is a new `@internal` public method.** Without it, the owned-organizations memo could not be dropped when an organization is written.
+
+## Group 10 (salvaged)
+
+### What I found
+
+- No `index.lock`, and no merge or rebase in progress.
+- The build agent had finished the work but not committed it. `Authorizer` and `Resources` had been moved with `git mv` (staged). Every other change was unstaged, and `RosterRolesPermissions`, `ImpersonationAwarePermissions` and `AccessThroughContractTest` were untracked. Tasks 10.1–10.5 were already ticked, and the "Group 10" section above, D-030/D-031 and the standards-feedback row were already written.
+- Every modified file in the tree is one that the section above names as group 10's, including those outside the group's file list. No other group has started: group 11 depends on 10.
+
+### Checks
+
+`composer test:unit` passed (1138 tests, 3723 assertions). `composer analyse` and `composer lint:check` passed too.
+
+### What I committed
+
+I committed only the group's listed paths, plus this note and the ticked tasks. The rest of the group 10 change set is still uncommitted in the worktree:
+
+- source: `Role/Actions/AssignRoleAction.php`, `Role/Actions/RevokeRoleAction.php`, `Role/Concerns/GuardsEscalation.php`, `Transfer/Services/Planners/MembersPlanner.php`
+- tests: `ArchTest`, `GateTest`, `LongLivedWorkerTest`, `PoliciesTest`, `DocsTest`, `ExtendingRosterExamplesTest`, `ImpersonationSafetyTest`, `PerformanceTest`, `RegisteredResourcesTest`, `RemovedSsoScimTest`, `Unit/Permission/ResourcesTest`
+- docs: `README.md`, `AGENTS.md`, the Boost skill, `decisions.md` (D-030, D-031), `standards-feedback.md`
+
+Staging them was refused because they are outside the group's file list.
+
+### What is left
+
+The suite passes on the worktree, but not on the commit alone. The out-of-list source files and tests still import the old `Domains\Permission\Services\Authorizer`/`Resources`, which the commit deletes. Those changes need committing on the job branch; that decision is returned to the user. The arch test from criterion 33 is group 13's.

@@ -7,6 +7,7 @@ namespace RefactorCircus\Roster;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use RefactorCircus\Keystone\Audit\AuditHooks;
 use RefactorCircus\Keystone\Audit\History;
 use RefactorCircus\Keystone\Authorization\Abilities;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
 use RefactorCircus\Keystone\Contracts\ReadActionEvent;
 use RefactorCircus\Keystone\Packages\Package;
@@ -23,9 +25,15 @@ use RefactorCircus\Keystone\Support\PackageServiceProvider;
 use RefactorCircus\Keystone\Support\Surface;
 use RefactorCircus\Roster\Console\Commands\PurgeDeletedCommand;
 use RefactorCircus\Roster\Domains\DomainServiceProvider;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
+use RefactorCircus\Roster\Domains\Organization\Events\OrganizationDeletedEvent;
+use RefactorCircus\Roster\Domains\Organization\Events\OrganizationForceDeletedEvent;
+use RefactorCircus\Roster\Domains\Organization\Events\OrganizationRestoredEvent;
+use RefactorCircus\Roster\Domains\Organization\Events\OrganizationSavedEvent;
 use RefactorCircus\Roster\Mcp\RosterServer;
 use RefactorCircus\Roster\Support\Audit;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
+use RefactorCircus\Roster\Support\Authorization\ImpersonationAwarePermissions;
+use RefactorCircus\Roster\Support\Authorization\Resources;
 use RefactorCircus\Roster\Support\Authorization\RosterAbilities;
 use RefactorCircus\Roster\Support\SignInRequirements;
 use RefactorCircus\Roster\Support\Users;
@@ -71,6 +79,8 @@ class RosterServiceProvider extends PackageServiceProvider
         // boot(); Roster, which takes them, is rebuilt per request.
         $this->app->singleton(SignInRequirements::class);
 
+        $this->registerAuthorization();
+
         $this->app->register(DomainServiceProvider::class);
 
         $this->registerSurfaces();
@@ -104,6 +114,17 @@ class RosterServiceProvider extends PackageServiceProvider
                 Cache::forget(Users::STATUS_COUNTS_CACHE);
             }
         });
+
+        // Ownership and the organizations the Authorizer found for records
+        // go stale with any organization write, through an Action or not.
+        Event::listen(
+            [OrganizationSavedEvent::class, OrganizationDeletedEvent::class, OrganizationRestoredEvent::class, OrganizationForceDeletedEvent::class],
+            function (): void {
+                if ($this->app->resolved(Authorizer::class)) {
+                    $this->app->make(Authorizer::class)->forget();
+                }
+            },
+        );
 
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'roster');
 
@@ -148,6 +169,34 @@ class RosterServiceProvider extends PackageServiceProvider
         $this->publishesMigrations([
             __DIR__.'/../database/migrations/email-index' => database_path('migrations'),
         ], 'roster-email-index-migration');
+    }
+
+    /**
+     * How Roster checks access: the resources whose policies answer each
+     * ability (code state, with Roster's core resources there before any
+     * boot()), the Authorizer, and the impersonation block around whichever
+     * Keystone `Permissions` is bound. `extend()` keeps the block when a role
+     * store binds its own implementation later.
+     */
+    private function registerAuthorization(): void
+    {
+        $this->app->singleton(Resources::class, function (): Resources {
+            $resources = new Resources;
+
+            foreach (Authorizer::RESOURCES as $resource => $model) {
+                $resources->rosterResource('roster.'.$resource, $model);
+            }
+
+            return $resources;
+        });
+
+        // Scoped, so a long-lived worker (Octane, queues) never keeps one
+        // request's resolved policies and parents.
+        $this->app->scoped(Authorizer::class);
+
+        $this->app->extend(Permissions::class, fn (Permissions $permissions, Application $app): Permissions => $permissions instanceof ImpersonationAwarePermissions
+            ? $permissions
+            : new ImpersonationAwarePermissions($permissions, $app));
     }
 
     /**

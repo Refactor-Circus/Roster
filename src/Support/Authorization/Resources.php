@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace RefactorCircus\Roster\Domains\Permission\Services;
+namespace RefactorCircus\Roster\Support\Authorization;
 
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
@@ -16,7 +16,7 @@ use InvalidArgumentException;
  * `acme.widgets.approve` asks `WidgetPolicy::approve()`.
  *
  * Packages register from their provider's `boot()`. `roster.*` is Roster's:
- * its core resources are registered by PermissionServiceProvider before any
+ * its core resources (`Authorizer::RESOURCES`) are registered before any
  * provider boots, and its own domains add theirs through `rosterResource()`.
  *
  * Code-defined state only, so one instance serves the whole process.

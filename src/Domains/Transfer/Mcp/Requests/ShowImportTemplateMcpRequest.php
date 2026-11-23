@@ -6,10 +6,10 @@ namespace RefactorCircus\Roster\Domains\Transfer\Mcp\Requests;
 
 use Illuminate\Validation\Rule;
 use Laravel\Mcp\Response;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ShowImportTemplateAction;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Mcp\Request;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 
 /**
  * Templates hold no data, so any signed-in user may read them.

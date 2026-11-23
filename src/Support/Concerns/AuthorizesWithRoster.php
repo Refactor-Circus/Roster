@@ -6,8 +6,8 @@ namespace RefactorCircus\Roster\Support\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 
 /**
  * How every Roster request - HTTP or MCP - is authorized: it names the
