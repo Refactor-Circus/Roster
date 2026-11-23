@@ -349,3 +349,11 @@ The group's listed paths, with `tasks.md` and this note. `CLAUDE.md` is a symlin
 ### Left
 
 - 8.4: run `vendor/bin/pest` (the gate).
+
+## Group 8
+
+This retry finishes task 8.4. Tasks 8.1 to 8.3 were already committed in d638374 (see "Group 8 (salvaged)" above), and this retry kept them unchanged.
+
+- **Files:** only `tasks.md` (8.4 ticked) and this note. No code, docs, standards or test files changed.
+- **Tests:** no new tests. `tests/Feature/DocsTest.php` from 8.1 covers AC 6, 25, 26 and 27. As instructed, this retry did not run the suite; 8.4 (`vendor/bin/pest`) is the gate that runs after the build.
+- **Deviations:** none beyond the two invitation-lookup rows already in `docs/agent/standards-feedback.md`.

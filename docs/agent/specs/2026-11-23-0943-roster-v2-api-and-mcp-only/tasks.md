@@ -86,4 +86,4 @@ criteria: 6, 25, 26, 27
 - [x] 8.1 Update `DocsTest`: README has no "Atrium dashboard"/"Screen extensions" sections, documents the six endpoints, the status-to-route mapping, the lookup security model, `roster.routes.enabled` default false and the OpenAPI/client workflow; CHANGELOG has the v2.0.0 Breaking upgrade note and Added list
 - [x] 8.2 Rewrite README (API + MCP, Atrium v2 as optional UI) and add the CHANGELOG v2.0.0 entry
 - [x] 8.3 Update the Boost skill, `CLAUDE.md` and `AGENTS.md` (remove Atrium/Screens architecture bullets and `composer test:browser`; add new endpoints, regeneration); update the local standards (delete `roster/atrium-views`, rewrite `action-surfaces`, `optional-surfaces`, `testbench-environment`, `http/authorization`); mark the 2026-10-30 plain-views feedback row resolved
-- [ ] 8.4 Run vendor/bin/pest; all green
+- [x] 8.4 Run vendor/bin/pest; all green
