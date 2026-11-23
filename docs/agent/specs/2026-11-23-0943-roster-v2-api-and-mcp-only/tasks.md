@@ -128,11 +128,11 @@ depends on: 11
 files: src/Domains/Organization/Concerns/ManagesMemberships.php, src/Domains/User/Actions/DeleteUserAction.php, src/Domains/User/Actions/PurgeUserAction.php, src/Domains/User/Services/Approvals.php, src/Domains/User/Concerns/HasRoster.php, src/Domains/User/UserServiceProvider.php, src/Domains/Transfer/Services/Exporters/MembersExporter.php, src/Domains/Transfer/Services/Planners/MembersPlanner.php, src/Domains/Impersonation/Actions/StartImpersonationAction.php, src/Roster.php, tests/Feature/RolesThroughContractTest.php
 criteria: 35, 36, 37
 
-- [ ] 12.1 Write tests in `RolesThroughContractTest` with `FakeRoles`/`FakePermissions`: joining assigns `default_member` in the organization scope (none when null or unknown); leaving an organization revokes in it and its teams; leaving a team revokes in the team; delete and purge call `revokeEverywhere`; `forget()` is called after each change; approvers come from `holders('roster.users.approve')`; the export role column and the import's unknown-role error and assignment; the impersonation super-admin and escalation rules, including null `abilities()`; `externalSignInFor()` with a super-admin; `hasRosterPermission()` asks the contract; no `rosterRoleAssignments` relation
-- [ ] 12.2 Switch `ManagesMemberships`, `DeleteUserAction`, `PurgeUserAction` and ownership transfer to `Roles`/`Permissions::forget()`
-- [ ] 12.3 Switch `Approvals`, `MembersExporter`, `MembersPlanner` (drop `AssignRoleAction`), `StartImpersonationAction` and `Roster::externalSignInFor()`
-- [ ] 12.4 Remove `rosterRoleAssignments()` from `HasRoster` and its relation from `UserServiceProvider`; `hasRosterPermission()` asks the contract
-- [ ] 12.5 Run vendor/bin/pest; all green
+- [x] 12.1 Write tests in `RolesThroughContractTest` with `FakeRoles`/`FakePermissions`: joining assigns `default_member` in the organization scope (none when null or unknown); leaving an organization revokes in it and its teams; leaving a team revokes in the team; delete and purge call `revokeEverywhere`; `forget()` is called after each change; approvers come from `holders('roster.users.approve')`; the export role column and the import's unknown-role error and assignment; the impersonation super-admin and escalation rules, including null `abilities()`; `externalSignInFor()` with a super-admin; `hasRosterPermission()` asks the contract; no `rosterRoleAssignments` relation
+- [x] 12.2 Switch `ManagesMemberships`, `DeleteUserAction`, `PurgeUserAction` and ownership transfer to `Roles`/`Permissions::forget()`
+- [x] 12.3 Switch `Approvals`, `MembersExporter`, `MembersPlanner` (drop `AssignRoleAction`), `StartImpersonationAction` and `Roster::externalSignInFor()`
+- [x] 12.4 Remove `rosterRoleAssignments()` from `HasRoster` and its relation from `UserServiceProvider`; `hasRosterPermission()` asks the contract
+- [x] 12.5 Run vendor/bin/pest; all green
 
 ## Group 13: Delete the Role and Permission domains
 depends on: 12

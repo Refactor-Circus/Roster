@@ -117,6 +117,7 @@ it('blocks abilities on any bound implementation while impersonating, including 
 
     // Bound after Roster booted, as a role store's binding would be.
     $fake = (new FakePermissions)
+        ->superAdmin($admin)
         ->grant($ada, 'acme.roles.manage')
         ->grant($ada, 'acme.widgets.view')
         ->grant($ada, 'acme.roles.assign', $acme);

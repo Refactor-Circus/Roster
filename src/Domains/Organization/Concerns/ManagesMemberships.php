@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Organization\Concerns;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
 use RefactorCircus\Roster\Domains\Organization\Enums\MembershipSource;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Organization\Services\MembershipSources;
-use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
@@ -51,50 +50,56 @@ trait ManagesMemberships
         return $membership;
     }
 
+    /**
+     * Give a new member `roster.roles.default_member` in the organization,
+     * through the bound role store. Skipped when the setting is empty or the
+     * store does not know the role (none is bound, or it has no such role).
+     */
     private function assignDefaultRole(OrganizationModel $organization, Model $user): void
     {
         $slug = config('roster.roles.default_member');
 
-        if (! is_string($slug) || $slug === '') {
+        if (! is_string($slug) || $slug === '' || ! $user instanceof Authenticatable) {
             return;
         }
 
-        $role = RoleModel::query()
-            ->where('scope', RoleScope::Organization)
-            ->where('slug', $slug)
-            ->where(fn (Builder $query): Builder => $query->whereNull('organization_id')->orWhere('organization_id', $organization->getKey()))
-            ->orderByRaw('organization_id is null')
-            ->first();
+        $roles = app(Roles::class);
 
-        if ($role !== null) {
-            RoleAssignmentModel::query()->firstOrCreate([
-                'role_id' => $role->getKey(),
-                'user_id' => $user->getKey(),
-                'organization_id' => $organization->getKey(),
-                'team_id' => null,
-            ]);
-
-            app(Permissions::class)->flushUser($user);
+        if (! $roles->exists($slug, $organization)) {
+            return;
         }
+
+        $roles->assign($user, $slug, $organization);
+
+        app(Permissions::class)->forget($user);
     }
 
     /**
-     * Drop the roles a user held in an organization (and its teams), or on
-     * one team.
+     * Take away the roles a user held on a team, or in an organization and
+     * on each of its teams they sit on. Call it for an organization before
+     * the user's seats are removed.
      */
     private function revokeRoles(Model $user, ?OrganizationModel $organization = null, ?TeamModel $team = null): void
     {
-        $query = RoleAssignmentModel::query()->where('user_id', $user->getKey());
-
-        if ($team !== null) {
-            $query->where('team_id', $team->getKey());
-        } elseif ($organization !== null) {
-            $query->where('organization_id', $organization->getKey());
+        if (! $user instanceof Authenticatable) {
+            return;
         }
 
-        $query->delete();
+        $roles = app(Roles::class);
 
-        app(Permissions::class)->flushUser($user);
+        if ($team !== null) {
+            $roles->revoke($user, $team);
+        } elseif ($organization !== null) {
+            $roles->revoke($user, $organization);
+
+            TeamModel::query()
+                ->where('organization_id', $organization->getKey())
+                ->whereHas('memberships', fn (Builder $query): Builder => $query->where('user_id', $user->getKey()))
+                ->get()
+                ->each(fn (TeamModel $seated) => $roles->revoke($user, $seated));
+        }
+
+        app(Permissions::class)->forget($user);
     }
 
     private function seat(TeamModel $team, MembershipModel $membership): void

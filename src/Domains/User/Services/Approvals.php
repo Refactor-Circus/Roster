@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\User\Services;
 
 use Illuminate\Contracts\Config\Repository;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
 use RefactorCircus\Roster\Domains\User\Notifications\UserApprovedNotification;
 use RefactorCircus\Roster\Domains\User\Notifications\UserAwaitingApprovalNotification;
 use RefactorCircus\Roster\Domains\User\Notifications\UserRejectedNotification;
@@ -24,35 +23,20 @@ final class Approvals
     public function __construct(
         private readonly Users $users,
         private readonly Repository $config,
+        private readonly Roles $roles,
     ) {}
 
     /**
-     * Holders of `roster.users.approve` across the whole site: a global role
-     * granting it or a super role, plus verified configured super-admins.
+     * The users the bound role store says hold `roster.users.approve`
+     * globally, super-admins included. None without a role store.
      *
      * @return Collection<int, Model>
      */
     public function approvers(): Collection
     {
-        $ids = RoleAssignmentModel::query()
-            ->whereNull('organization_id')
-            ->whereNull('team_id')
-            ->whereHas('role', fn (Builder $role): Builder => $role
-                ->where('super', true)
-                ->orWhereHas('permissions', fn (Builder $permission): Builder => $permission->where('name', 'roster.users.approve')))
-            ->pluck('user_id');
+        $keys = $this->roles->holders('roster.users.approve');
 
-        $approvers = $this->users->query()->whereKey($ids->all())->get();
-
-        foreach ((array) $this->config->get('roster.super_admins', []) as $email) {
-            $user = is_string($email) ? $this->users->findByEmail($email) : null;
-
-            if ($user !== null && $this->users->emailVerified($user) && ! $approvers->contains($user)) {
-                $approvers->push($user);
-            }
-        }
-
-        return $approvers;
+        return $keys === [] ? new Collection : $this->users->query()->whereKey($keys)->get();
     }
 
     /**

@@ -508,3 +508,51 @@ Criterion 40: `tests/Authorization` passes with a role store bound, which is Key
 - I found the work for 11.1–11.3 already in commit `075a36f`, with a clean tree and the tasks ticked. Nothing needed changing.
 - Outside `tests/Authorization/Legacy/`, no file in `tests/Authorization/` or `tests/AuthorizationTestCase.php` uses `RoleModel`, `RoleAssignmentModel`, `PermissionModel`, `roleWith()` or Roster's `Permissions` service.
 - `composer test:unit` (1145 passed, 3744 assertions), `composer lint:check` and `composer analyse` all pass.
+
+## Group 12
+
+### Files
+
+- `src/Domains/Organization/Concerns/ManagesMemberships.php`
+  - Joining assigns `roster.roles.default_member` in the organization with `Roles::assign()`. It is skipped when the setting is empty or `Roles::exists()` is false, and it raises no error.
+  - `revokeRoles()` calls `Roles::revoke()` for a team, or for an organization and each of its teams the user sits on.
+  - Every change is followed by `Permissions::forget($user)`.
+- `src/Domains/User/Actions/DeleteUserAction.php` and `PurgeUserAction.php`: these call `Roles::revokeEverywhere()` and then `forget()`. `RoleAssignmentModel` is no longer used.
+- `src/Domains/User/Services/Approvals.php`
+  - `approvers()` returns the users whose keys `Roles::holders('roster.users.approve')` lists. An empty list gives an empty collection.
+  - The `roster.super_admins` loop is gone. The interim adapter's `holders()` still includes those users until group 13.
+- `src/Domains/Transfer/Services/Exporters/MembersExporter.php`: the roles column is `implode(';', Roles::of($user, $organization))`.
+- `src/Domains/Transfer/Services/Planners/MembersPlanner.php`
+  - Role values are checked with `Roles::exists($slug, $organization)`. This is remembered per slug and import, and an unknown slug is a row error as before.
+  - "Already holds it" is checked with `Roles::of()`.
+  - The import assigns with `Roles::assign()` and then calls `forget()`.
+  - `AssignRoleAction`, `RoleModel`, `RoleAssignmentModel` and the role prefetch are gone.
+- `src/Domains/Impersonation/Actions/StartImpersonationAction.php`
+  - Uses Keystone's `Permissions::isSuperAdmin()`.
+  - The escalation guard compares `abilities()` for both users. When either list is null, only a super-admin may impersonate (`impersonate_escalation`).
+- `src/Roster.php`: `externalSignInFor()` asks Keystone's `Permissions::isSuperAdmin()`.
+- `src/Domains/User/Concerns/HasRoster.php` and `src/Domains/User/UserServiceProvider.php`
+  - `rosterRoleAssignments()` and its dynamic relation are removed.
+  - `hasRosterPermission()` asks `Permissions::allows()` and keeps its signature.
+- `tests/Feature/RolesThroughContractTest.php` (new, 21 tests)
+  - It uses `FakeRoles` and a recording wrapper around `FakePermissions`, which logs `forget()` calls and can answer null from `abilities()`.
+  - It covers every case in task 12.1, plus soft delete keeping roles and the interim import-grant rule.
+
+### Outside the group's file list (needed by the group)
+
+- `src/Domains/Organization/Actions/RemoveMemberAction.php`: revokes roles before the seats are detached, so that `revokeRoles()` can find the teams the user sat on.
+- `src/Domains/Organization/Actions/TransferOwnershipAction.php`: calls `Permissions::forget()` for the previous owner and the new owner after the transfer (criterion 35, task 12.2).
+- `tests/Feature/AccessThroughContractTest.php`: the impersonation case now makes the admin a super-admin in the fake bound after boot. `StartImpersonationAction` now asks the bound contract rather than Roster's role tables.
+- `tests/Feature/PerformanceTest.php`: the export budget installs `FakeRoles` inside the measured callback. Keystone's `Roles` has no batch read, so the roles column costs one role-store call per member, and that cost belongs to the store. With the interim adapter it was 2 queries per member: 103 queries against a budget of 55 at 30 members.
+
+### Tests
+
+- `composer test:unit`: 1166 passed (3799 assertions).
+- `composer lint:check` and `composer analyse` pass.
+
+### Deviations
+
+- **Soft delete keeps roles.** `DeleteUserAction` calls `revokeEverywhere()` only on a hard delete. A soft-deleted user keeps their roles, as they kept their role rows before, so a restore brings everything back. Purge always revokes.
+- **The import's grant rule is an interim. It needs a decision (returned to the user).** Keystone's `Roles` cannot say what a role grants, so the old "nobody hands out more than they hold" check cannot run role by role. Until the user decides, `MembersPlanner::mayGrant()` lets only a super-admin import role values while authorization is on. Without an actor, or with authorization off, any role is allowed, as before. This is stricter than before: an organization owner or admin gets `import_role_not_grantable`.
+- The `revokeRoles()` call with neither scope (never used) now only forgets the user. It used to delete every assignment.
+

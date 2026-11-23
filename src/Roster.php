@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
 use RefactorCircus\Keystone\Packages\PackageRegistry;
 use RefactorCircus\Roster\Contracts\AccountStatus;
 use RefactorCircus\Roster\Contracts\SignInRequirement;
 use RefactorCircus\Roster\Data\ExternalSignIn;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Support\ProvisionedStatus;
@@ -128,7 +129,7 @@ class Roster
 
         $user = $this->users->findByEmail($email);
 
-        if ($user !== null && app(Permissions::class)->isSuperAdmin($user)) {
+        if ($user instanceof Authenticatable && app(Permissions::class)->isSuperAdmin($user)) {
             return null;
         }
 

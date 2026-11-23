@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\User\Concerns;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
 use RefactorCircus\Roster\Contracts\AccountStatus;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 use RefactorCircus\Roster\Roster;
@@ -23,8 +23,7 @@ use RefactorCircus\Roster\Support\Users;
  * Typed Roster helpers for the host user model.
  *
  * Optional: without the trait Roster registers the same `rosterProfile`,
- * `rosterMemberships`, `rosterOrganizations` and `rosterRoleAssignments`
- * relations on the configured
+ * `rosterMemberships` and `rosterOrganizations` relations on the configured
  * model dynamically.
  *
  * @phpstan-require-extends Model
@@ -56,21 +55,14 @@ trait HasRoster
     }
 
     /**
-     * @return HasMany<RoleAssignmentModel, $this>
-     */
-    public function rosterRoleAssignments(): HasMany
-    {
-        return $this->hasMany(RoleAssignmentModel::class, 'user_id');
-    }
-
-    /**
-     * Whether the user holds a Roster permission: globally, or in the given
-     * organization or team. Prefer `$user->can()`, which also consults the
-     * app's own gates and policies.
+     * Whether the user may use a Roster ability: globally, or in the given
+     * organization or team, as the bound Keystone `Permissions` answers.
+     * Prefer `$user->can()`, which also consults the app's own gates and
+     * policies.
      */
     public function hasRosterPermission(string $permission, OrganizationModel|TeamModel|null $scope = null): bool
     {
-        return app(Permissions::class)->allows($this, $permission, $scope);
+        return app(Permissions::class)->allows($this instanceof Authenticatable ? $this : null, $permission, $scope);
     }
 
     /**

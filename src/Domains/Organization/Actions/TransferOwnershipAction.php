@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Organization\Actions;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
 use RefactorCircus\Roster\Domains\Organization\Data\TransferOwnershipData;
 use RefactorCircus\Roster\Domains\Organization\Events\OwnershipTransferredActionEvent;
 use RefactorCircus\Roster\Domains\Organization\Events\OwnershipTransferringActionEvent;
@@ -26,9 +28,18 @@ final class TransferOwnershipAction
 
         $this->guard($organization, $user);
 
+        $previous = $organization->owner;
+
         OwnershipTransferringActionEvent::dispatch($organization, $user);
 
         DB::transaction(fn () => $organization->update(['owner_id' => $user->getKey()]));
+
+        // The owner rule moved with the organization: both users' access changed.
+        foreach ([$previous, $user] as $changed) {
+            if ($changed instanceof Authenticatable) {
+                app(Permissions::class)->forget($changed);
+            }
+        }
 
         $organization = $organization->refresh()->load(['domains', 'links'])->loadCount(['memberships', 'teams']);
 
