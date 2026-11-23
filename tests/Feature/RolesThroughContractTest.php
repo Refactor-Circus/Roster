@@ -287,19 +287,29 @@ describe('transfers', function (): void {
         expect($transfer->rows()[0]['action'])->toBe('skip');
     });
 
-    it('lets only a super-admin hand out import roles while authorization is on', function (): void {
+    it('lets a super-admin, the owner, or a holder of the role hand out import roles while authorization is on', function (): void {
         config()->set('roster.authorization', true);
         joinAcme($this->ada);
         $boss = user();
-        $this->permissions->fake->superAdmin($boss)->grant($this->acme->owner, 'roster.members.manage', $this->acme);
+        $manager = user(['name' => 'Manager']);
+        $holder = user(['name' => 'Holder']);
+        joinAcme($manager);
+        joinAcme($holder);
+        $this->permissions->fake->superAdmin($boss);
+        foreach ([$manager, $holder] as $actor) {
+            $this->permissions->fake->grant($actor, 'roster.members.manage', $this->acme);
+        }
+        $this->roles->assign($holder, 'admin', $this->acme);
         $import = fn (User $actor): TransferModel => app(StartImportAction::class)->execute(new StartImportData(
             type: TransferType::ImportMembers,
             organization: 'acme',
             content: "email,name,teams,role\nada@example.com,Ada,,admin",
         ), $actor);
 
-        expect($import($this->acme->owner)->rows()[0]['reasons'])->toBe([__('roster::roster.import_role_not_grantable', ['role' => 'admin'])])
-            ->and($import($boss)->rows()[0]['action'])->toBe('update');
+        expect($import($boss)->rows()[0]['action'])->toBe('update')
+            ->and($import($this->acme->owner)->rows()[0]['action'])->toBe('update')
+            ->and($import($holder)->rows()[0]['action'])->toBe('update')
+            ->and($import($manager)->rows()[0]['reasons'])->toBe([__('roster::roster.import_role_not_grantable', ['role' => 'admin'])]);
     });
 });
 

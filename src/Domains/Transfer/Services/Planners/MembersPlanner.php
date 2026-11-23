@@ -119,7 +119,7 @@ final class MembersPlanner extends Planner
                 return $this->outcome(self::ERROR, __('roster::roster.import_unknown_role', ['role' => $role]));
             }
 
-            if (! $this->mayGrant($transfer, $actor)) {
+            if (! $this->mayGrant($transfer, $actor, $role)) {
                 return $this->outcome(self::ERROR, __('roster::roster.import_role_not_grantable', ['role' => $role]));
             }
         }
@@ -269,18 +269,27 @@ final class MembersPlanner extends Planner
     }
 
     /**
-     * Who may hand out roles in an import. The role store does not say what a
-     * role grants, so "nobody hands out more than they hold" cannot be checked
-     * role by role: only a super-admin may, unless the import runs without an
-     * actor or with authorization off.
+     * Who may hand out a role in an import. The role store does not say what a
+     * role grants, so "nobody hands out more than they hold" is kept with the
+     * contract alone (D-033): a super-admin, the organization's owner, or an
+     * actor who already holds that same role in the organization. Imports
+     * without an actor or with authorization off allow any role, as before.
      */
-    private function mayGrant(TransferModel $transfer, ?Model $actor): bool
+    private function mayGrant(TransferModel $transfer, ?Model $actor, string $role): bool
     {
         if ($actor === null || ! app(Authorizer::class)->enabled()) {
             return true;
         }
 
-        return $this->remember($transfer, 'actor-super-admin', fn (): bool => $actor instanceof Authenticatable && app(Permissions::class)->isSuperAdmin($actor));
+        if (! $actor instanceof Authenticatable) {
+            return false;
+        }
+
+        $organization = $this->organization($transfer);
+
+        return $this->remember($transfer, 'actor-super-admin', fn (): bool => app(Permissions::class)->isSuperAdmin($actor))
+            || $organization->isOwnedBy($actor)
+            || in_array($role, $this->remember($transfer, 'actor-roles', fn (): array => $this->roles->of($actor, $organization)), true);
     }
 
     /**
