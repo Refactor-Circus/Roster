@@ -119,9 +119,9 @@ depends on: 10
 files: tests/AuthorizationTestCase.php, tests/Authorization/fixtures.php, tests/Authorization/*.php, tests/Pest.php
 criteria: 40
 
-- [ ] 11.1 Rewrite `tests/Authorization/fixtures.php` and `AuthorizationTestCase` to install `FakePermissions` and `FakeRoles`, define `super-admin`, `admin` and `member` from `RosterAbilities`'s `grantTo`, and grant through `FakeRoles::assign()` in place of `RoleModel`/`RoleAssignmentModel` rows
-- [ ] 11.2 Port each file in `tests/Authorization/` to those fixtures with unchanged expectations, and mark the cases that test Roster's role API itself (`RoleActionsTest`, `PermissionsTest`, `OrganizationRoleAssignmentsAuthorizationTest`, role/permission routes in `HttpAuthorizationTest` and `McpAuthorizationTest`) for deletion in group 13 by moving them to `tests/Authorization/Legacy/`
-- [ ] 11.3 Run vendor/bin/pest; all green
+- [x] 11.1 Rewrite `tests/Authorization/fixtures.php` and `AuthorizationTestCase` to install `FakePermissions` and `FakeRoles`, define `super-admin`, `admin` and `member` from `RosterAbilities`'s `grantTo`, and grant through `FakeRoles::assign()` in place of `RoleModel`/`RoleAssignmentModel` rows
+- [x] 11.2 Port each file in `tests/Authorization/` to those fixtures with unchanged expectations, and mark the cases that test Roster's role API itself (`RoleActionsTest`, `PermissionsTest`, `OrganizationRoleAssignmentsAuthorizationTest`, role/permission routes in `HttpAuthorizationTest` and `McpAuthorizationTest`) for deletion in group 13 by moving them to `tests/Authorization/Legacy/`
+- [x] 11.3 Run vendor/bin/pest; all green
 
 ## Group 12: Role writes and reads through Keystone's Roles
 depends on: 11

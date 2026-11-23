@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__.'/fixtures.php';
+
 use RefactorCircus\Roster\Domains\User\Mcp\Tools\ShowUserStatsTool;
 
 /**
@@ -28,14 +30,14 @@ it('rejects a signed-in user without roster.users.view with 403', function (stri
 it('rejects roster.users.view held only in an organization with 403', function (string $name, array $query): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $viewer = user();
-    grant($viewer, roleWith(['roster.users.view'], 'organization')->slug, $acme);
+    grant($viewer, roleGranting(['roster.users.view'], 'organization'), $acme);
 
     $this->actingAs($viewer)->getJson(route($name, $query))->assertForbidden();
 })->with(userDirectoryRoutes());
 
 it('answers a user holding global roster.users.view', function (string $name, array $query): void {
     $viewer = user(['name' => 'Ada Lovelace']);
-    grant($viewer, roleWith(['roster.users.view'])->slug);
+    grant($viewer, roleGranting(['roster.users.view']));
 
     $this->actingAs($viewer)->getJson(route($name, $query))->assertOk()->assertJsonStructure(['data']);
 })->with(userDirectoryRoutes());
@@ -47,7 +49,7 @@ it('needs global roster.users.view for show-user-stats-tool', function (): void 
     mcpTool(ShowUserStatsTool::class)->assertHasErrors(['Unauthorized.']);
 
     $viewer = user();
-    grant($viewer, roleWith(['roster.users.view'])->slug);
+    grant($viewer, roleGranting(['roster.users.view']));
     $this->actingAs($viewer);
 
     mcpTool(ShowUserStatsTool::class)->assertOk()->assertSee('by_status');

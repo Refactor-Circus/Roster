@@ -449,3 +449,56 @@ Staging them was refused because they are outside the group's file list.
 ### What is left
 
 The suite passes on the worktree, but not on the commit alone. The out-of-list source files and tests still import the old `Domains\Permission\Services\Authorizer`/`Resources`, which the commit deletes. Those changes need committing on the job branch; that decision is returned to the user. Until they are committed, 10.2 (every import updated) and 10.5 (suite green) stay unticked. 10.1, 10.3 and 10.4 are done. The arch test from criterion 33 is group 13's.
+
+## Group 11
+
+Criterion 40: `tests/Authorization` passes with a role store bound, which is Keystone's `FakePermissions` and `FakeRoles`.
+
+### Files
+
+- `tests/AuthorizationTestCase.php`
+  - `setUp()` calls `installRoleStore()`, which runs `FakePermissions::install()` and `FakeRoles::install()`.
+  - It defines a global `super-admin` (`Permissions::SUPER_ADMIN`), plus `admin` and `member` held in an `OrganizationModel`. Each gets the abilities that `RosterAbilities::grantTo()` gives it.
+- `tests/Pest.php`
+  - `grant()` assigns through `FakeRoles::assign()` when `FakeRoles` is bound, then calls `Permissions::forget($user)`. It throws when the role is not defined for that scope. Without `FakeRoles`, it still writes a role-table row, because `tests/Feature` runs on the interim adapter until group 14.
+  - `uses(KeepsRosterRoles::class)->in('Authorization/Legacy')`.
+- `tests/Authorization/fixtures.php`
+  - `authorizationWorld()` creates no `RoleModel`, `PermissionModel` or `RoleAssignmentModel` rows. The target gets `member` in `acme` through `grant()`.
+  - New `roleGranting(array $abilities, 'global'|'organization'|'team')` defines a one-off `FakeRoles` role and returns its slug. It replaces `roleWith()` in this suite.
+  - `ROLE_API_ROUTES` with `isRoleApiRoute()`, and `isRoleApiTool()` (anything in `Domains\Role` or `Domains\Permission`).
+  - `apiRoutes()` no longer lists the role and permission routes.
+- Ported to the fakes, with the same expectations:
+  - `HttpAuthorizationTest`: the coverage test skips role-API routes. The self test drops `users.permissions`, which moved to Legacy. The team-lead test uses a `roleGranting(..., 'team')` role, because `lead` is no longer a default role (D-027).
+  - `McpAuthorizationTest`: role and permission tools are skipped.
+  - `GateTest`
+    - Role-table rows became `roleGranting()` grants.
+    - The context test grants `member` explicitly.
+    - The `atrium.view` test grants it through a fake role.
+    - The global-only test now checks `OrganizationModel::GLOBAL_ONLY_ABILITIES` and `Permissions::allows()` on the contract. It used to check `Permissions::GLOBAL_ONLY_PREFIXES` and `for()`.
+  - `LongLivedWorkerTest`: revokes with `Roles::revoke()`.
+  - `OrganizationScopedListsTest`: `organizationsWith()` is asked through `Authorizer`. The two `roster.roles.index` cases moved to Legacy.
+  - `TransferAuthorizationTest`: grants come from `roleGranting()`, and the confirm re-check revokes with `Roles::revoke()`. The importer role-escalation case moved to Legacy.
+  - `PoliciesTest`: the member gets `member` explicitly.
+  - `UserStatsAndSearchAuthorizationTest`, `OrganizationStatsAndSearchAuthorizationTest`: `roleGranting()` replaces `roleWith()`.
+- New `tests/Authorization/RoleStoreTest.php`. It checks that the fakes are bound, that the three roles are defined as `grantTo` says (admin never holds a global-only ability, and admin and member exist only in an organization), and that `grant()` assigns through `FakeRoles`.
+- `tests/Authorization/Legacy/` holds the tests of Roster's own role and permission API. Group 13 deletes it with the domains.
+  - Moved with `git mv`: `RoleActionsTest`, `PermissionsTest`, `OrganizationRoleAssignmentsAuthorizationTest` and `CommandsTest`. `CommandsTest` covers `roster:grant-super-admin` and `roster:sync-permissions`, which criterion 28 removes.
+  - New:
+    - `RoleApiHttpAuthorizationTest`: every role-API route gets 401, 403 and a super-admin pass, and the user can see their own `users.permissions`.
+    - `RoleApiMcpAuthorizationTest`: the same for the role and permission tools.
+    - `OrganizationScopedRolesTest`: Roster's `Permissions::organizationsWith()` and the two `roles.index` cases.
+    - `ImportRolesAuthorizationTest`: `MembersPlanner`'s "cannot assign the auditor role", which still reads the role tables until group 12.
+  - New `fixtures.php`: `roleApiWorld()` and `roleApiRoutes()`.
+  - `KeepsRosterRoles` is a trait that overrides `installRoleStore()` so it does nothing, which keeps the interim adapter bound. Pest allows only one test-case class per path, so the Legacy files get this trait rather than a second class.
+
+### Tests
+
+- `composer test:unit`: 1145 passed (3744 assertions).
+- `vendor/bin/pest --testsuite=Authorization`: 421 passed.
+- `composer analyse` and `composer lint:check` pass.
+
+### Deviations
+
+- **Joining does not yet give a role in `FakeRoles`.** `ManagesMemberships` still writes the default member role to Roster's tables until group 12. Tests that relied on that role (`PoliciesTest`, the `GateTest` context case and `authorizationWorld()`) now grant `member` explicitly. After group 12 the explicit grant is redundant but harmless, because `assign()` is idempotent.
+- **`grant()` in `tests/Pest.php` has two paths.** The role-table path stays for `tests/Feature` and Legacy. Group 13 removes it along with `roleWith()`, `ROLE_API_ROUTES`, `isRoleApiRoute()`/`isRoleApiTool()` and the `KeepsRosterRoles` line.
+- `docs/agent/standards/roster/testbench-environment.md` and `http/authorization.md` still say only that `AuthorizationTestCase` turns authorization on. That is still true. Mentioning the fakes is left to group 16.

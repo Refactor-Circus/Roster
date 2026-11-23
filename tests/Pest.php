@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Laravel\Mcp\Server\Tool;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions as PermissionsContract;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
+use RefactorCircus\Keystone\Testing\FakeRoles;
 use RefactorCircus\Keystone\Testing\McpTools;
 use RefactorCircus\Keystone\Testing\Parity;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
@@ -17,6 +20,7 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\RosterServer;
+use RefactorCircus\Roster\Tests\Authorization\Legacy\KeepsRosterRoles;
 use RefactorCircus\Roster\Tests\AuthorizationTestCase;
 use RefactorCircus\Roster\Tests\CortexTestCase;
 use RefactorCircus\Roster\Tests\DefaultsTestCase;
@@ -31,6 +35,9 @@ use Workbench\Database\Factories\UserFactory;
 
 uses(TestCase::class)->in('Feature');
 uses(AuthorizationTestCase::class)->in('Authorization');
+// Tests of Roster's own role and permission API, on its role tables until
+// group 13 deletes them with the two domains.
+uses(KeepsRosterRoles::class)->in('Authorization/Legacy');
 uses(CortexTestCase::class)->in('Cortex');
 uses(DefaultsTestCase::class)->in('Defaults');
 uses(TraitlessTestCase::class)->in('Modes/Traitless');
@@ -60,9 +67,24 @@ function user(array $attributes = []): User
 
 /**
  * Give a user a role by slug: global, in an organization, or on a team.
+ *
+ * Through the role store when one is bound (tests/Authorization installs
+ * Keystone's `FakeRoles`), otherwise as a row in Roster's role tables.
  */
 function grant(User $user, string $slug, ?OrganizationModel $organization = null, ?TeamModel $team = null): void
 {
+    $roles = app(Roles::class);
+
+    if ($roles instanceof FakeRoles) {
+        if (! $roles->assign($user, $slug, $team ?? $organization)) {
+            throw new LogicException("The role [{$slug}] is not defined for that scope.");
+        }
+
+        app(PermissionsContract::class)->forget($user);
+
+        return;
+    }
+
     $role = RoleModel::query()->where('slug', $slug)->firstOrFail();
 
     RoleAssignmentModel::query()->create([

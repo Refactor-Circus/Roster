@@ -2,23 +2,26 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
+use RefactorCircus\Keystone\Testing\FakeRoles;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
-use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
+use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
 use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
+use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 
 /**
  * One of everything, for exercising every route and tool: an organization
- * `acme` with team `ops`, a member `target`, a pending invitation, an app
- * permission `invoices.edit`, and a custom role assigned to the target.
+ * `acme` with team `ops`, a member `target` holding the `member` role there,
+ * a pending invitation, an impersonation, a link and an import awaiting
+ * confirmation.
  *
  * @return array<string, mixed>
  */
@@ -27,13 +30,11 @@ function authorizationWorld(): array
     $acme = organization(attributes: ['name' => 'Acme']);
     $target = user(['email' => 'target@example.com']);
     app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $target->getRouteKey()));
+    grant($target, 'member', $acme);
     $ops = app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'));
     app(AddTeamMemberAction::class)->execute($ops, new AddTeamMemberData(user: $target->getRouteKey()));
 
     $invitation = InvitationModel::factory()->create(['organization_id' => $acme->id, 'email' => 'new@example.com']);
-    PermissionModel::query()->create(['name' => 'invoices.edit']);
-    $role = RoleModel::factory()->create(['scope' => 'global', 'slug' => 'custom']);
-    $assignment = RoleAssignmentModel::query()->create(['role_id' => $role->id, 'user_id' => $target->getKey()]);
 
     $impersonation = ImpersonationModel::factory()->create(['impersonator_id' => user()->getKey(), 'user_id' => $target->getKey()]);
 
@@ -46,7 +47,34 @@ function authorizationWorld(): array
         'requested_by' => user()->getKey(),
     ]);
 
-    return compact('acme', 'target', 'ops', 'invitation', 'role', 'assignment', 'impersonation', 'transfer');
+    return compact('acme', 'target', 'ops', 'invitation', 'impersonation', 'transfer');
+}
+
+/**
+ * A new role in the bound `FakeRoles` granting exactly the given abilities,
+ * held globally, in an organization or on a team. Returns its slug, for
+ * `grant()`.
+ *
+ * @param  list<string>  $abilities
+ * @param  'global'|'organization'|'team'  $scope
+ */
+function roleGranting(array $abilities, string $scope = 'global'): string
+{
+    $roles = app(Roles::class);
+
+    if (! $roles instanceof FakeRoles) {
+        throw new LogicException('roleGranting() needs FakeRoles installed (AuthorizationTestCase).');
+    }
+
+    $slug = 'role-'.Str::lower(Str::random(8));
+
+    $roles->define($slug, $abilities, match ($scope) {
+        'organization' => OrganizationModel::class,
+        'team' => TeamModel::class,
+        default => null,
+    });
+
+    return $slug;
 }
 
 /**
@@ -55,7 +83,29 @@ function authorizationWorld(): array
 const OPEN_TO_SIGNED_IN = ['imports.templates.show', 'ShowImportTemplateTool', 'transfers.template'];
 
 /**
- * Every JSON API route: [method, name, parameters, body].
+ * The routes of Roster's own role and permission API, covered by
+ * tests/Authorization/Legacy until they are deleted with the Role and
+ * Permission domains.
+ */
+const ROLE_API_ROUTES = ['roster.roles.*', 'roster.permissions.*', 'roster.users.roles.*', 'roster.users.permissions', 'roster.organizations.role-assignments.index'];
+
+function isRoleApiRoute(string $name): bool
+{
+    return Str::is(ROLE_API_ROUTES, $name);
+}
+
+/**
+ * Whether a tool belongs to Roster's own role and permission API, covered by
+ * tests/Authorization/Legacy.
+ */
+function isRoleApiTool(string $tool): bool
+{
+    return Str::startsWith($tool, ['RefactorCircus\\Roster\\Domains\\Role\\', 'RefactorCircus\\Roster\\Domains\\Permission\\']);
+}
+
+/**
+ * Every JSON API route outside the role and permission API: [method, name,
+ * parameters, body].
  *
  * @return array<string, array{0: string, 1: string, 2: Closure(array<string, mixed>): array<int, mixed>, 3: array<string, mixed>}>
  */
@@ -111,20 +161,6 @@ function apiRoutes(): array
         'invitations.index' => ['GET', 'roster.organizations.invitations.index', $org, []],
         'invitations.store' => ['POST', 'roster.organizations.invitations.store', $org, ['email' => 'x@example.com']],
         'invitations.revoke' => ['DELETE', 'roster.organizations.invitations.revoke', fn (array $w): array => ['acme', $w['invitation']->id], []],
-        'permissions.index' => ['GET', 'roster.permissions.index', $none, []],
-        'permissions.store' => ['POST', 'roster.permissions.store', $none, ['name' => 'reports.view']],
-        'permissions.update' => ['PATCH', 'roster.permissions.update', fn (): array => ['invoices.edit'], ['description' => 'x']],
-        'permissions.destroy' => ['DELETE', 'roster.permissions.destroy', fn (): array => ['invoices.edit'], []],
-        'roles.index' => ['GET', 'roster.roles.index', $none, []],
-        'roles.store' => ['POST', 'roster.roles.store', $none, ['name' => 'R', 'scope' => 'global']],
-        'roles.show' => ['GET', 'roster.roles.show', fn (array $w): array => [$w['role']->id], []],
-        'roles.update' => ['PATCH', 'roster.roles.update', fn (array $w): array => [$w['role']->id], ['name' => 'R2']],
-        'roles.destroy' => ['DELETE', 'roster.roles.destroy', fn (array $w): array => [$w['role']->id], []],
-        'users.roles.index' => ['GET', 'roster.users.roles.index', $user, []],
-        'users.roles.store' => ['POST', 'roster.users.roles.store', $user, ['role' => 'x']],
-        'users.roles.destroy' => ['DELETE', 'roster.users.roles.destroy', fn (array $w): array => [$w['target']->getRouteKey(), $w['assignment']->id], []],
-        'users.permissions' => ['GET', 'roster.users.permissions', $user, []],
-        'organizations.role-assignments.index' => ['GET', 'roster.organizations.role-assignments.index', $org, []],
         'users.impersonate' => ['POST', 'roster.users.impersonate', $user, ['reason' => 'Ticket 1']],
         'impersonations.index' => ['GET', 'roster.impersonations.index', $none, []],
         'impersonations.destroy' => ['DELETE', 'roster.impersonations.destroy', fn (array $w): array => [$w['impersonation']->id], []],

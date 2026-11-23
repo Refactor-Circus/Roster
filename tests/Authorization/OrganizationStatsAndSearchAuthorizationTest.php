@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__.'/fixtures.php';
+
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\ShowOrganizationStatsTool;
 
 /**
@@ -30,7 +32,7 @@ it('rejects a signed-in user without roster.organizations.view with 403', functi
 it('answers a user holding global roster.organizations.view', function (string $name, array $query): void {
     organization(attributes: ['name' => 'Acme']);
     $viewer = user();
-    grant($viewer, roleWith(['roster.organizations.view'])->slug);
+    grant($viewer, roleGranting(['roster.organizations.view']));
 
     $this->actingAs($viewer)->getJson(route($name, $query))->assertOk()->assertJsonStructure(['data']);
 })->with(organizationDirectoryRoutes());
@@ -38,7 +40,7 @@ it('answers a user holding global roster.organizations.view', function (string $
 it('needs global roster.organizations.view for the stats', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $viewer = user();
-    grant($viewer, roleWith(['roster.organizations.view'], 'organization')->slug, $acme);
+    grant($viewer, roleGranting(['roster.organizations.view'], 'organization'), $acme);
 
     $this->actingAs($viewer)->getJson(route('roster.stats.organizations'))->assertForbidden();
 });
@@ -48,9 +50,9 @@ it('searches only the organizations the caller may view there', function (): voi
     $acorn = organization(attributes: ['name' => 'Acorn']);
     organization(attributes: ['name' => 'Acropolis']);
     $viewer = user();
-    $role = roleWith(['roster.organizations.view'], 'organization');
-    grant($viewer, $role->slug, $acme);
-    grant($viewer, $role->slug, $acorn);
+    $role = roleGranting(['roster.organizations.view'], 'organization');
+    grant($viewer, $role, $acme);
+    grant($viewer, $role, $acorn);
 
     $this->actingAs($viewer);
 
@@ -59,7 +61,7 @@ it('searches only the organizations the caller may view there', function (): voi
 
     // A permission held in one organization opens no other.
     $other = user();
-    grant($other, roleWith(['roster.teams.view'], 'organization')->slug, $acme);
+    grant($other, roleGranting(['roster.teams.view'], 'organization'), $acme);
 
     $this->actingAs($other)->getJson(route('roster.search.organizations', ['q' => 'Ac']))->assertForbidden();
 });
@@ -68,7 +70,7 @@ it('searches every organization for a caller holding the permission globally', f
     organization(attributes: ['name' => 'Acme']);
     organization(attributes: ['name' => 'Acorn']);
     $viewer = user();
-    grant($viewer, roleWith(['roster.organizations.view'])->slug);
+    grant($viewer, roleGranting(['roster.organizations.view']));
 
     expect(collect($this->actingAs($viewer)->getJson(route('roster.search.organizations', ['q' => 'Ac']))->assertOk()->json('data'))->pluck('slug')->all())
         ->toBe(['acme', 'acorn']);
@@ -83,12 +85,12 @@ it('needs global roster.organizations.view for show-organization-stats-tool', fu
     mcpTool(ShowOrganizationStatsTool::class)->assertHasErrors(['Unauthorized.']);
 
     $local = user();
-    grant($local, roleWith(['roster.organizations.view'], 'organization')->slug, $acme);
+    grant($local, roleGranting(['roster.organizations.view'], 'organization'), $acme);
     $this->actingAs($local);
     mcpTool(ShowOrganizationStatsTool::class)->assertHasErrors(['Unauthorized.']);
 
     $viewer = user();
-    grant($viewer, roleWith(['roster.organizations.view'])->slug);
+    grant($viewer, roleGranting(['roster.organizations.view']));
     $this->actingAs($viewer);
 
     mcpTool(ShowOrganizationStatsTool::class)->assertOk()->assertSee('pending_invitations');
