@@ -120,6 +120,7 @@ function apiRoutes(): array
         'users.roles.store' => ['POST', 'roster.users.roles.store', $user, ['role' => 'x']],
         'users.roles.destroy' => ['DELETE', 'roster.users.roles.destroy', fn (array $w): array => [$w['target']->getRouteKey(), $w['assignment']->id], []],
         'users.permissions' => ['GET', 'roster.users.permissions', $user, []],
+        'organizations.role-assignments.index' => ['GET', 'roster.organizations.role-assignments.index', $org, []],
         'users.impersonate' => ['POST', 'roster.users.impersonate', $user, ['reason' => 'Ticket 1']],
         'impersonations.index' => ['GET', 'roster.impersonations.index', $none, []],
         'impersonations.destroy' => ['DELETE', 'roster.impersonations.destroy', fn (array $w): array => [$w['impersonation']->id], []],

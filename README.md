@@ -640,6 +640,7 @@ enum CustomerStatus: string implements Status
 | GET, POST | `/roster/users/{user}/roles` | `roster.users.roles.index`, `.store` |
 | DELETE | `/roster/users/{user}/roles/{assignment}` | `roster.users.roles.destroy` |
 | GET | `/roster/users/{user}/permissions` | `roster.users.permissions` |
+| GET | `/roster/organizations/{organization}/role-assignments` | `roster.organizations.role-assignments.index` |
 | POST | `/roster/users/{user}/impersonate` | `roster.users.impersonate` |
 | GET | `/roster/impersonations` | `roster.impersonations.index` |
 | DELETE | `/roster/impersonations/{impersonation}` | `roster.impersonations.destroy` |
