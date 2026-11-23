@@ -65,7 +65,7 @@ criteria: 14, 15, 16, 17, 18, 19
 - [x] 6.2 Delete the remaining `src/Atrium` files and `resources/views/ui`; remove the seam, `$withoutAtrium` and docblocks from `RosterServiceProvider`; point `impersonation-banner` at the plain partial; strip Atrium wording from the listed domain/support files
 - [x] 6.3 Remove the `viewAtrium` gate, `atrium.view` from `BuiltInRoles`, `'atrium.'` from `GLOBAL_ONLY_PREFIXES`; add `roster.users.approvals.review_url` (banner) and use it in the notification; drop the Atrium fallback from `ImpersonationWebController`; rewrite config banners mentioning Atrium and add the `routes.enabled` note about the lookup; remove Atrium strings from `lang/`
 - [x] 6.4 Composer and workbench: drop `refactor-circus/atrium` from `require-dev`/`suggest`/`conflict` (and the VCS repository unless `composer update` needs it, D-016); `testbench.yaml` without the Atrium provider and `atrium-assets`, start `/`; remove the `without-atrium` CI job, `AtriumUnavailable` mode, `AtriumSeamTest`, the Atrium bits of `TestCase`/`AuthorizationTestCase` and the listed mixed tests
-- [ ] 6.5 Run vendor/bin/pest; all green
+- [x] 6.5 Run vendor/bin/pest; all green
 
 ## Group 7: OpenAPI export and TypeScript client
 depends on: 6

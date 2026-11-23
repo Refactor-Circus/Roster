@@ -221,3 +221,29 @@ Not run here; the gate runs `vendor/bin/pest`. `php -l` passes on the edited tes
 ### Left
 
 - 6.5: run `vendor/bin/pest` (the gate).
+
+## Group 6
+
+This retry finishes 6.5. Tasks 6.1–6.4 are in the salvaged commit above and are kept as they are.
+
+### Files
+
+- `tasks.md`: 6.5 ticked.
+- No code or test files changed in this retry.
+
+### Checks before handing to the gate (the suite was not run)
+
+- No file in `src/`, `config/`, `database/`, `lang/`, `resources/views/`, `workbench/`, `testbench.yaml` or `composer.json` mentions `atrium` (case-insensitive grep). This is what the AC 14 ArchTest guard requires.
+- No test still uses `$withoutAtrium`, `$openAtrium`, the `AtriumUnavailable` mode or a deleted `RefactorCircus\Roster\Atrium` class. The remaining hits are deliberate:
+  - absence assertions in `AtriumScreensRemovedTest`, `RemovedSsoScimTest`, `GateTest` and `ImpersonationFlowTest`;
+  - the string-only parser self-test in `DocsTest`.
+- `DocsTest` still asserts README text that mentions Atrium: `ScreenAccess::allowsOn` and `tests/Modes/AtriumUnavailable` under "Testing". README still contains that text, so these pass until group 8 rewrites README and `DocsTest` together.
+- The class-existence check in `DocsTest` covers only "Extending Roster". README's `RosterSupportFeature` example is under "Atrium dashboard", so the check doesn't reach it.
+
+### Tests
+
+The gate runs `vendor/bin/pest`.
+
+### Deviations
+
+None.
