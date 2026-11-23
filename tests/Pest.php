@@ -7,6 +7,8 @@ use Laravel\Mcp\Server\Tool;
 use RefactorCircus\Atrium\Testing\ResetsScreenExtensions;
 use RefactorCircus\Keystone\Testing\McpTools;
 use RefactorCircus\Keystone\Testing\Parity;
+use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
+use RefactorCircus\Roster\Domains\Invitation\Services\InvitationTokens;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
@@ -117,6 +119,27 @@ function organization(?User $owner = null, array $attributes = []): Organization
 }
 
 /**
+ * A pending invitation into the organization, onto the given teams, stored
+ * as CreateInvitationAction stores one: by its token's hash only. Returns the
+ * plain token, which only the invitation email carries.
+ *
+ * @param  array<int, TeamModel>  $teams
+ * @param  array<string, mixed>  $attributes
+ */
+function invitationToken(OrganizationModel $organization, array $teams = [], array $attributes = []): string
+{
+    $token = InvitationTokens::generate();
+
+    InvitationModel::factory()->create($attributes + [
+        'organization_id' => $organization->getKey(),
+        'token_hash' => InvitationTokens::hash($token),
+        'teams' => array_map(fn (TeamModel $team): mixed => $team->getKey(), $teams),
+    ]);
+
+    return $token;
+}
+
+/**
  * Actions missing from a surface, keyed by surface.
  *
  * Every use case must be reachable from the HTTP API, MCP and a UI. The UI
@@ -135,6 +158,12 @@ const PARITY_EXCEPTIONS = [
     // come from the organization CSV import (bulk) and the link form.
     'SyncOrganizationAction' => ['ui'],
     'SyncOrganizationsAction' => ['ui'],
+    // The public invitation lookup is for the page a guest opens from the
+    // email link, served over HTTP by token alone. An MCP tool acts as a
+    // signed-in user, who has no use for it; offering it there would only
+    // add another way to probe tokens. (`ui` until the Atrium surface goes:
+    // the page that calls it lives in Atrium v2.)
+    'LookUpInvitationAction' => ['mcp', 'ui'],
 ];
 
 function parityGaps(): array

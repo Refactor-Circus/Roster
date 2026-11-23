@@ -200,6 +200,11 @@ class RosterServiceProvider extends PackageServiceProvider
     /**
      * The `roster` limiter behind `throttle:roster`: per user, or per IP for
      * guests. A null `roster.rate_limit.per_minute` turns it off.
+     *
+     * The `roster-invitation-lookup` limiter behind the public invitation
+     * lookup: per IP, valid token or not, so tokens cannot be guessed at
+     * speed. A null `roster.rate_limit.invitation_lookups_per_minute` turns
+     * it off.
      */
     private function registerRateLimiter(): void
     {
@@ -213,6 +218,16 @@ class RosterServiceProvider extends PackageServiceProvider
             $user = $request->user();
 
             return Limit::perMinute((int) $perMinute)->by($user instanceof Model ? 'user:'.$user->getKey() : 'ip:'.$request->ip());
+        });
+
+        RateLimiter::for('roster-invitation-lookup', function (Request $request): Limit {
+            $perMinute = $this->app->make(Repository::class)->get('roster.rate_limit.invitation_lookups_per_minute', 10);
+
+            if (! is_numeric($perMinute)) {
+                return Limit::none();
+            }
+
+            return Limit::perMinute((int) $perMinute)->by('ip:'.$request->ip());
         });
     }
 }
