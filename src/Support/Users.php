@@ -23,11 +23,11 @@ use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
 final class Users
 {
     /**
-     * Where the user counts per status are cached (the Atrium user-status
-     * widget reads them); forgotten whenever one of Roster's User actions
-     * finishes.
+     * Where ShowUserStatsAction caches the user counts per status for a
+     * minute; forgotten whenever one of Roster's User actions that changes
+     * users finishes.
      */
-    public const string STATUS_COUNTS_CACHE = 'roster:atrium:user-status-counts';
+    public const string STATUS_COUNTS_CACHE = 'roster:user-status-counts';
 
     /**
      * Whether each user model soft-deletes, read from its traits once.

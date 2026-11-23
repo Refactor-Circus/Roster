@@ -164,6 +164,15 @@ const PARITY_EXCEPTIONS = [
     // add another way to probe tokens. (`ui` until the Atrium surface goes:
     // the page that calls it lives in Atrium v2.)
     'LookUpInvitationAction' => ['mcp', 'ui'],
+    // A typeahead for UIs: answers a handful of names as a user types.
+    // Agents find users with list-users-tool, whose `search` matches
+    // anywhere in the name, email or display name and pages through all of
+    // them. (`ui` until the Atrium surface goes: Atrium v2 calls it over HTTP.)
+    'SearchUsersAction' => ['mcp', 'ui'],
+    // The counts behind a dashboard widget, on HTTP and MCP; the Atrium v1
+    // widget reads them through RosterPlugin, which is no request or
+    // controller. (`ui` until the Atrium surface goes.)
+    'ShowUserStatsAction' => ['ui'],
 ];
 
 function parityGaps(): array

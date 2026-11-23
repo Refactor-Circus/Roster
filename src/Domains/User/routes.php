@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use RefactorCircus\Roster\Domains\User\Http\Controllers\UserController;
+use RefactorCircus\Roster\Domains\User\Http\Controllers\UserDirectoryController;
 use RefactorCircus\Roster\Domains\User\Http\Controllers\UserProfileController;
 use RefactorCircus\Roster\Domains\User\Http\Controllers\UserStatusController;
 use RefactorCircus\Roster\Http\Controllers\TrashController;
@@ -23,3 +24,7 @@ Route::post('users/{user}/deactivate', [UserStatusController::class, 'deactivate
 Route::post('users/{user}/reactivate', [UserStatusController::class, 'reactivate'])->name('users.reactivate');
 Route::post('users/{user}/approve', [UserStatusController::class, 'approve'])->name('users.approve');
 Route::post('users/{user}/reject', [UserStatusController::class, 'reject'])->name('users.reject');
+
+// Outside `users/`, so neither segment can be mistaken for a user's route key.
+Route::get('stats/users', [UserDirectoryController::class, 'stats'])->name('stats.users');
+Route::get('search/users', [UserDirectoryController::class, 'search'])->name('search.users');

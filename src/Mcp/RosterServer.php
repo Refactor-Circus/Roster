@@ -71,6 +71,7 @@ use RefactorCircus\Roster\Domains\User\Mcp\Tools\PurgeUserTool;
 use RefactorCircus\Roster\Domains\User\Mcp\Tools\ReactivateUserTool;
 use RefactorCircus\Roster\Domains\User\Mcp\Tools\RejectUserTool;
 use RefactorCircus\Roster\Domains\User\Mcp\Tools\RestoreUserTool;
+use RefactorCircus\Roster\Domains\User\Mcp\Tools\ShowUserStatsTool;
 use RefactorCircus\Roster\Domains\User\Mcp\Tools\ShowUserTool;
 use RefactorCircus\Roster\Domains\User\Mcp\Tools\SuspendUserTool;
 use RefactorCircus\Roster\Domains\User\Mcp\Tools\UpdateProfileTool;
@@ -115,6 +116,7 @@ final class RosterServer extends Server
         DeleteUserTool::class,
         RestoreUserTool::class,
         PurgeUserTool::class,
+        ShowUserStatsTool::class,
 
         // Profile
         UpdateProfileTool::class,
