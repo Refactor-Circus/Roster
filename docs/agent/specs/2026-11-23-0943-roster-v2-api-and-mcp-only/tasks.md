@@ -72,11 +72,11 @@ depends on: 6
 files: composer.json (dedoc/scramble, client:generate), workbench/app/Providers/WorkbenchServiceProvider.php, openapi.json, client/package.json, client/package-lock.json, client/tsconfig.json, client/src/index.ts, client/src/schema.d.ts, client/scripts/generate.mjs, .gitignore, .github/workflows/tests.yml (client job), tests/Feature/OpenApiTest.php
 criteria: 21, 22, 23, 24
 
-- [ ] 7.1 Write `tests/Feature/OpenApiTest.php`: one operation per `roster.*` API route (operationId = route name, includes the six new routes and `roster.history.index`), none for web routes; fresh Scramble export equals committed `openapi.json`; `schema.d.ts` header sha256 equals the committed `openapi.json`'s; `client/package.json` name/version/deps/scripts as specified; `index.ts` exports `createRosterClient`
-- [ ] 7.2 Require `dedoc/scramble` (dev); configure it in the workbench (api path = roster prefix, route filter `roster.*` + `api` middleware, title "Roster API", version "2.0.0", operationId from route name), enable `roster.routes.enabled` there; export pretty-printed, key-sorted `openapi.json`
-- [ ] 7.3 Create `client/` (`@refactor-circus/roster-client` 2.0.0, openapi-fetch, openapi-typescript, typescript; `generate` writes `src/schema.d.ts` with the sha256 header; `typecheck` runs `tsc --noEmit`), `src/index.ts` with `createRosterClient({ baseUrl, fetch?, headers?, credentials? })` and `paths`/`components` re-exports; gitignore `client/node_modules`; commit generated files
-- [ ] 7.4 Add `composer client:generate` (Scramble export via testbench, then `npm --prefix client run generate`) and the CI `client` job (npm ci, generate, typecheck, `git diff --exit-code client/`)
-- [ ] 7.5 Run vendor/bin/pest; all green
+- [x] 7.1 Write `tests/Feature/OpenApiTest.php`: one operation per `roster.*` API route (operationId = route name, includes the six new routes and `roster.history.index`), none for web routes; fresh Scramble export equals committed `openapi.json`; `schema.d.ts` header sha256 equals the committed `openapi.json`'s; `client/package.json` name/version/deps/scripts as specified; `index.ts` exports `createRosterClient`
+- [x] 7.2 Require `dedoc/scramble` (dev); configure it in the workbench (api path = roster prefix, route filter `roster.*` + `api` middleware, title "Roster API", version "2.0.0", operationId from route name), enable `roster.routes.enabled` there; export pretty-printed, key-sorted `openapi.json`
+- [x] 7.3 Create `client/` (`@refactor-circus/roster-client` 2.0.0, openapi-fetch, openapi-typescript, typescript; `generate` writes `src/schema.d.ts` with the sha256 header; `typecheck` runs `tsc --noEmit`), `src/index.ts` with `createRosterClient({ baseUrl, fetch?, headers?, credentials? })` and `paths`/`components` re-exports; gitignore `client/node_modules`; commit generated files
+- [x] 7.4 Add `composer client:generate` (Scramble export via testbench, then `npm --prefix client run generate`) and the CI `client` job (npm ci, generate, typecheck, `git diff --exit-code client/`)
+- [x] 7.5 Run vendor/bin/pest; all green
 
 ## Group 8: Docs, changelog and standards
 depends on: 7

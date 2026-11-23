@@ -247,3 +247,54 @@ The gate runs `vendor/bin/pest`.
 ### Deviations
 
 None.
+
+## Group 7
+
+OpenAPI export and TypeScript client (AC 21–24). Tasks 7.1–7.5 are ticked; the gate runs the suite (7.5).
+
+### Files
+
+- `tests/Feature/OpenApiTest.php` (new). It checks:
+  - the committed operations equal the registered `roster.*` routes in the `api` middleware group, as `operationId METHOD /path`. The list includes the six new routes and `roster.history.index`.
+  - no operation exists for the six web routes (`roster.invitations.show`, `roster.invitations.page.*`, `roster.impersonation.*`, `roster.transfers.file`), and the test first asserts those routes are registered.
+  - the document is OpenAPI 3.1, `info.title` "Roster API", `info.version` "2.0.0".
+  - a fresh `workbench:openapi` export is byte-identical to `openapi.json`.
+  - `openapi.json` is pretty-printed, has sorted keys and ends with a newline.
+  - the first line of `schema.d.ts` is `// openapi.json sha256: <hex of openapi.json>`.
+  - `client/package.json`: name, version, deps, scripts, lockfile and `scripts/generate.mjs`.
+  - `index.ts` exports `createRosterClient` with the four options, calls `createClient<paths>(` and re-exports `paths` and `components`.
+  - Scramble is in `require-dev` only, and `client:generate` holds the expected steps.
+  - nothing in `src/` names `Dedoc\Scramble`.
+  - the CI `client` job exists.
+  - `.gitignore` lists `/client/node_modules`.
+- `composer.json`:
+  - adds `dedoc/scramble` `^0.13.55` (require-dev), the version Cortex's job uses.
+  - adds `client:generate`, which runs `@php vendor/bin/testbench workbench:openapi openapi.json`, then `npm --prefix client ci`, then `npm --prefix client run generate`.
+- `workbench/app/Providers/WorkbenchServiceProvider.php`:
+  - keeps `roster.routes.enabled` = true.
+  - After boot, it configures Scramble:
+    - `api_path` = `roster.routes.prefix`;
+    - version "2.0.0", a description, `ui.title` "Roster API";
+    - a route filter: name starts with `roster.` and route middleware includes `api`;
+    - `operationId` = route name;
+    - one relative server, `/roster`, so the document doesn't depend on `APP_URL`.
+  - Registers the closure command `workbench:openapi {path=openapi.json}`. It migrates a fresh in-memory SQLite database, because Scramble reads model columns. It runs `scramble:export`, then rewrites the file with every object's keys sorted recursively, keeping objects as objects and lists in order. The output is pretty-printed, unescaped slashes, with a trailing newline.
+- `openapi.json` (new, generated): 73 operations, OpenAPI 3.1.2. Two exports in a row were byte-identical.
+- `client/` (new):
+  - `package.json`: `@refactor-circus/roster-client` 2.0.0, private, TS source only (D-015). `openapi-fetch` is in dependencies; `openapi-typescript` and `typescript` are in devDependencies. Scripts: `generate` (`node scripts/generate.mjs`) and `typecheck` (`tsc --noEmit`).
+  - `package-lock.json` and `tsconfig.json`.
+  - `scripts/generate.mjs`: writes `src/schema.d.ts` with the sha256 header line, then a "generated, do not edit" line.
+  - `src/index.ts`: `createRosterClient({ baseUrl, fetch?, headers?, credentials? })` returns `createClient<paths>(options)`. It re-exports `paths`, `components` and `operations`.
+  - `src/schema.d.ts` (generated). `npm run typecheck` passes.
+- `.gitignore`: `/client/node_modules`.
+- `.github/workflows/tests.yml`: a `client` job on Node 22 (setup-node pinned by SHA like the sibling packages) that runs `npm ci`, `npm run generate`, `npm run typecheck` and `git diff --exit-code client/`.
+
+### Tests
+
+- `tests/Feature/OpenApiTest.php` was run alone: 12 passed. Pint passes on both PHP files. The gate runs the full suite.
+- Scramble's export reports two `JR001` warnings ("Cannot infer the resource model") for `UserStatsResource` and `OrganizationStatsResource`. Those two responses are weakly typed, which D-014 accepts.
+
+### Deviations
+
+- `client:generate` runs `npm --prefix client ci` before `generate`. Without it, a fresh checkout has no `openapi-typescript` to run. Cortex's script does the same. No standard is affected.
+- The export goes through the workbench command `workbench:openapi` instead of a bare `scramble:export`. Scramble cannot sort keys or pin the database, and the spec requires a key-sorted, deterministic `openapi.json`. The command is a closure in `WorkbenchServiceProvider`, so no file outside the group's list was added.
