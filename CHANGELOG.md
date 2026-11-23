@@ -2,6 +2,42 @@
 
 ## [Unreleased](https://github.com/Refactor-Circus/Roster/compare/v0.1.0...main)
 
+## [v2.0.0](https://github.com/Refactor-Circus/Roster/compare/v0.1.0...v2.0.0) - Unreleased
+
+Roster is now a JSON API and MCP package only. Its Atrium dashboard is gone; its UI moves to [Atrium v2](https://github.com/Refactor-Circus/Atrium), whose Nuxt layer calls Roster's API through the committed `openapi.json` and the generated TypeScript client.
+
+### Breaking
+
+- **The Atrium dashboard is removed; Roster's UI is now Atrium v2.** Roster no longer registers anything with Atrium, names no Atrium class, and needs no Atrium at all. Install [Atrium v2](https://github.com/Refactor-Circus/Atrium) for the screens, widgets and search, which it builds on Roster's HTTP API (turn the API on with `roster.routes.enabled`). Upgrading:
+  - **Removed classes**, everything under `RefactorCircus\Roster\Atrium`: `RosterPlugin`, `AtriumServiceProvider`, `ScreenAccess`, `Badges`, `InvitationPage` (Atrium's invitation page), `Features\RosterSupportFeature`, `Http\Controllers\Concerns\AuthorizesScreens` and the eight UI controllers (`UserUiController`, `OrganizationUiController`, `TeamUiController`, `RoleUiController`, `PermissionUiController`, `ImpersonationUiController`, `TransferUiController`, `InvitationUiController`). `RosterServiceProvider::$withoutAtrium` is gone too. Nothing replaces them in Roster; code that used `ScreenAccess::allows()` checks `Authorizer::check()` or `$user->can()` instead.
+  - **Removed routes**: every `atrium.roster.*` route (`atrium.roster.users.index`, `atrium.roster.organizations.show`, ...). `route()` calls to them throw. Atrium v2 has its own.
+  - **Removed views**: everything under `resources/views/ui` (the screens, widgets, partials, and the Atrium invitation page and banner). Roster keeps three plain views: `invitations/show`, `impersonation-banner` and `partials/impersonation-banner-plain`. `@include('roster::impersonation-banner')` always renders the plain banner now. Apps that published `roster-views` should delete their copies of `ui/` and re-publish (`php artisan vendor:publish --tag="roster-views" --force`). The signed invitation page always renders through `Domains\Invitation\Contracts\InvitationPage`, bound to `PlainInvitationPage`; bind your own to change it, or set `roster.invitations.accept_url`.
+  - **Removed config**: the `roster.atrium` section (with its `features` list); delete it from a published `config/roster.php`. `atrium.disabled => ['roster']` no longer means anything.
+  - **Removed Blade and view state**: the `@rosterCan` / `@endrosterCan` directive and the `rosterUsesAtrium` view share. Published views that used `@rosterCan` should use `@can` with Roster's permissions.
+  - **Removed access**: Roster defines no `viewAtrium` gate and no built-in `atrium.view` permission, and `atrium.*` is no longer a global-only prefix. An app on Atrium v1 that relied on Roster's gate loses dashboard access: Atrium v2 owns its own gate, or define `viewAtrium` yourself. Stored `atrium.view` rows and their grants are left alone: `php artisan roster:sync-permissions` reports them as unregistered and keeps them.
+  - **Removed feature flag**: `RosterSupportFeature`, and with it the `refactor-circus/pennantplus` suggestion and dev dependency. A stored Pennant value for it is ignored; delete it if you like.
+  - **Dependencies**: `refactor-circus/atrium` is gone from `require-dev`, `suggest` and `conflict`, along with its VCS repository.
+  - **Links that pointed at Atrium**: the approvers' "waiting for approval" email links to the new `roster.users.approvals.review_url` (`{user}` replaced by the route key), and has no button while it is `null` (the default); it linked to Atrium's user page. Leaving impersonation returns to `roster.impersonation.return_to`, or `/` when that is unset; it fell back to Atrium's user page.
+- **`Users::STATUS_COUNTS_CACHE` is now `roster:user-status-counts`.** The cached user-status counts live under the new key (they still last a minute and are forgotten when a user action finishes); code that forgot the old key should forget the constant.
+- **The browser test suite is removed**, with `composer test:browser`, `pestphp/pest-plugin-browser`, Playwright (the root `package.json`) and the `without-atrium` CI job. `composer test` covers the package.
+
+### Added
+
+- **API endpoints for a UI**, in the existing API group (`roster.routes.prefix`, off until `roster.routes.enabled` is true):
+  - `GET {prefix}/organizations/{organization}/role-assignments` (`roster.organizations.role-assignments.index`): every role assignment in an organization and its teams, paginated, each item the same as `GET users/{user}/roles` answers; needs `roster.roles.view` in the organization.
+  - `GET {prefix}/invitations/{token}` (`roster.invitations.lookup`): a public, token-only lookup of a pending invitation (`email`, `organization.name`, sorted team names, `expires_at`) for an invitation page a guest opens. Every unusable token gets the same 404, malformed tokens never reach the database, answers carry `Cache-Control: no-store`, and its events never carry the token. It has its own middleware, `roster.invitations.lookup_middleware` (default `['api', 'throttle:roster-invitation-lookup']`), never `roster.routes.middleware`, and its own per-IP limiter.
+  - `GET {prefix}/stats/users` (`roster.stats.users`): the total and the count per user status, cached for a minute; global `roster.users.view`.
+  - `GET {prefix}/stats/organizations` (`roster.stats.organizations`): organizations, teams and pending invitations; global `roster.organizations.view`.
+  - `GET {prefix}/search/users?q=&limit=` (`roster.search.users`): users whose name or email starts with `q`; global `roster.users.view`.
+  - `GET {prefix}/search/organizations?q=&limit=` (`roster.search.organizations`): organizations whose name or slug starts with `q`, limited to those where the caller holds `roster.organizations.view`.
+  - Search `q` is 1-100 characters and matched literally (`%`, `_` and `\` included); `limit` is 1-25, default 5.
+  - Each calls one Action, with its Data and starting and finished events (the existing `ListRoleAssignmentsAction` with its `organization` input, and the new `LookUpInvitationAction`, `ShowUserStatsAction`, `SearchUsersAction`, `ShowOrganizationStatsAction`, `SearchOrganizationsAction`).
+- **MCP tools** `show-user-stats-tool` and `show-organization-stats-tool`, answering the same payloads as the stats endpoints, with output schemas.
+- **Config keys**: `roster.invitations.lookup_middleware`, `roster.rate_limit.invitation_lookups_per_minute` (default 10, per IP; null turns it off) and `roster.users.approvals.review_url` (default `null`).
+- **`openapi.json`**: the committed OpenAPI 3.1 document of the JSON API ("Roster API" 2.0.0), one operation per API route with the route name as `operationId`, exported from the workbench with Scramble (a dev dependency only).
+- **The TypeScript client** `@refactor-circus/roster-client` 2.0.0 in `client/`: TypeScript source generated from `openapi.json` (`client/src/schema.d.ts`), and `createRosterClient({ baseUrl, fetch?, headers?, credentials? })` on `openapi-fetch`. Not published to npm; with pnpm, install `github:Refactor-Circus/Roster#v2.0.0&path:/client`.
+- **`composer client:generate`** regenerates both. `tests/Feature/OpenApiTest.php` fails when either is out of date, and CI's `client` job type-checks the client and fails on any diff it leaves.
+
 ## [v0.1.0](https://github.com/Refactor-Circus/Roster/commits/v0.1.0) - 2026-10-30
 
 ### Breaking

@@ -305,3 +305,47 @@ The retry found every group 7 task already committed (a279bf0), so it changed no
 - `tests/Feature/OpenApiTest.php` run alone: 12 passed, 59 assertions.
 - `npm --prefix client run generate` left no diff, and `npm --prefix client run typecheck` passes.
 - Pint passes on `OpenApiTest.php` and `WorkbenchServiceProvider.php`.
+
+## Group 8 (salvaged)
+
+Docs, changelog and standards (AC 6, 25, 26, 27). The build agent ended without a result; its work was in the tree, uncommitted (the `roster/atrium-views` deletion staged). There was no index lock and no merge or rebase in progress.
+
+### What was found
+
+Every listed file held finished work for 8.1 to 8.3, and nothing was half-edited (`git diff --check` is clean):
+
+- `tests/Feature/DocsTest.php` (8.1):
+  - The README intro names a JSON API and MCP server, with Atrium v2 as the optional UI. Neither the README nor the Boost skill has the "Atrium dashboard", "Screen extensions", "Registered tabs" or "MCP redirect domains" headings, or any Atrium v1 term.
+  - The six endpoints are rows of the HTTP API table.
+  - "Changing a user's status" maps `active`, `suspended` and `deactivated` to their routes, requests and tools.
+  - "Public invitation lookup" states the security model.
+  - The README says `roster.routes.enabled` defaults to `false`.
+  - "OpenAPI document and TypeScript client" covers regeneration and use.
+  - The CHANGELOG v2.0.0 has the Breaking upgrade note and the Added list.
+  - The agent guides name Atrium only as Atrium v2, and they document the endpoints and `composer client:generate`.
+  - The local standards are free of the UI. `roster/atrium-views` is gone.
+  - The two deviation rows and the resolved 2026-10-30 row are in standards-feedback.
+- `README.md` and `CHANGELOG.md` (8.2):
+  - The README is rewritten as an API and MCP package. It has the six rows, the status table, the lookup section, the OpenAPI/client section and the new MCP tools.
+  - The CHANGELOG has a `v2.0.0` entry with Breaking (removed classes, `atrium.roster.*` routes, `ui/` views, `roster.atrium`, `@rosterCan`/`rosterUsesAtrium`, `viewAtrium`/`atrium.view`, `RosterSupportFeature`, pennantplus, the links now in `roster.users.approvals.review_url`/`roster.impersonation.return_to`, the renamed status-counts cache key, the browser suite) and Added (endpoints, MCP tools, config keys, `openapi.json`, the client, `composer client:generate`).
+- 8.3:
+  - **Boost skill:** the Atrium architecture text is gone. The new section 12 covers the API for a UI, OpenAPI and the client.
+  - **`AGENTS.md`** (which `CLAUDE.md` links to): no Atrium architecture and no `composer test:browser`. It has the new endpoints, the lookup and the `client:generate` workflow.
+  - **Local standards:** `roster/atrium-views` is deleted. `roster/action-surfaces` is rewritten for HTTP and MCP, `roster/optional-surfaces` gains the lookup row in place of the dashboard, `roster/testbench-environment` has the new provider list and modes, and `http/authorization` drops the Atrium, `ScreenAccess` and `@rosterCan` text.
+  - **`standards-feedback.md`:** the 2026-10-30 plain-views row is marked Resolved 2026-11-23.
+
+### Checked by hand (the suite was not run)
+
+- The DocsTest needles were compared against the README, CHANGELOG, skill, `AGENTS.md` and standards text.
+- No Atrium v1 term or SSO/SCIM token is in the guides.
+- The README "Extending Roster" needles and ArchTest's old-tab-registry strings still hold.
+- `composer.json` has no Atrium or pennantplus entry, so the CHANGELOG's dependency claim is true.
+- `composer.json`'s `client:generate` matches the README description.
+
+### Committed
+
+The group's listed paths, with `tasks.md` and this note. `CLAUDE.md` is a symlink to `AGENTS.md` and had no change of its own.
+
+### Left
+
+- 8.4: run `vendor/bin/pest` (the gate).
