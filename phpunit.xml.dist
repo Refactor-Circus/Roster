@@ -25,11 +25,6 @@
         <testsuite name="Authorization">
             <directory>tests/Authorization</directory>
         </testsuite>
-        <!-- Browser tests need Playwright, so they are excluded from the
-             default run and invoked explicitly with `composer test:browser`. -->
-        <testsuite name="Browser">
-            <directory>tests/Browser</directory>
-        </testsuite>
         <testsuite name="Cortex">
             <directory>tests/Cortex</directory>
         </testsuite>

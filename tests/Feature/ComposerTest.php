@@ -52,6 +52,26 @@ it('refuses an Atrium older than the screen registry', function (): void {
     expect(rosterComposer()['conflict'] ?? null)->toBe(['refactor-circus/atrium' => '<0.1.0']);
 });
 
-it('still declares its Atrium plugin', function (): void {
-    expect(rosterComposer()['extra']['atrium']['plugins'] ?? null)->toBe(['RefactorCircus\\Roster\\Atrium\\RosterPlugin']);
+it('declares no Atrium plugin', function (): void {
+    expect((array) rosterComposer()['extra'])->toHaveKey('laravel')->not->toHaveKey('atrium');
+});
+
+it('neither requires nor suggests PennantPlus', function (): void {
+    expect((array) rosterComposer()['require'])->not->toHaveKey('refactor-circus/pennantplus')
+        ->and((array) rosterComposer()['require-dev'])->not->toHaveKey('refactor-circus/pennantplus')
+        ->and((array) rosterComposer()['suggest'])->not->toHaveKey('refactor-circus/pennantplus');
+});
+
+it('has no browser test tooling', function (): void {
+    $composer = rosterComposer();
+    $root = dirname(__DIR__, 2);
+
+    expect((array) $composer['require-dev'])->not->toHaveKey('pestphp/pest-plugin-browser')
+        ->and((array) $composer['scripts'])->not->toHaveKey('test:browser')
+        ->and((string) json_encode($composer['scripts']))->not->toContain('--exclude-testsuite=Browser')
+        ->and((string) file_get_contents($root.'/phpunit.xml.dist'))->not->toContain('tests/Browser')
+        ->and(is_file($root.'/package.json'))->toBeFalse()
+        ->and(is_file($root.'/package-lock.json'))->toBeFalse()
+        ->and(is_file($root.'/.github/workflows/browser-tests.yml'))->toBeFalse()
+        ->and((string) file_get_contents($root.'/ring-master.yml'))->not->toContain('browser_test');
 });

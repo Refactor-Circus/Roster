@@ -17,9 +17,6 @@ migrations:
   - vendor/refactor-circus/cortex/database/migrations
   # refactor-circus/impex (dev dependency, auto-discovered) runs CSV imports and exports.
   - vendor/refactor-circus/impex/database/migrations
-  # refactor-circus/pennantplus (dev dependency, auto-discovered) decides RosterSupportFeature
-  # through Pennant, whose features table lives here.
-  - vendor/laravel/pennant/database/migrations
 
 seeders:
   - Workbench\Database\Seeders\DatabaseSeeder

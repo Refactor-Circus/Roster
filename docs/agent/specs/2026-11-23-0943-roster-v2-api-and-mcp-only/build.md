@@ -131,3 +131,41 @@ Not run here; the gate runs `vendor/bin/pest`. `vendor/bin/pint --test` passes o
 - The stats count is the widget's query as it was: teams are not soft-deleted, so a team of a deleted (soft-deleted, restorable) organization still counts, as does a pending invitation into one. AC 8 holds as written (records that are not deleted; invitations in `pending()`).
 - `RosterPlugin`'s organizations widget keeps its own copy of the query rather than calling the action (it is deleted in group 5 and is outside the list).
 - The LIKE helpers (`startsWith()`, `escape()`) repeat `SearchUsersAction`'s; sharing them would need a new `Support` class outside both groups' lists.
+
+## Group 5 (salvaged)
+
+Delete the Atrium screens and browser tooling (AC 15, 20). The build agent ended without a result; its work was in the tree, partly staged, uncommitted. No index lock and no merge or rebase in progress.
+
+### What was found
+
+Tasks 5.1 to 5.4 were done in the tree and consistent; nothing was left half-edited. `vendor/bin/pint --test` passes on every changed PHP file. A search of `src/`, `tests/`, `config/`, `workbench/`, `resources/` finds no remaining use of a deleted class, route, view or test case (what still names `atrium.roster.*` asserts it is absent, or is group 6's: `UserAwaitingApprovalNotification`, `ImpersonationWebController`, docs).
+
+- 5.1: `ComposerTest` asserts no `extra.atrium`, no pennantplus in `require`/`require-dev`/`suggest`, and no browser tooling (pest-plugin-browser, `test:browser`, `--exclude-testsuite=Browser`, the `Browser` testsuite, root `package.json`/`package-lock.json`, `browser-tests.yml`, `browser_test`). The route and class checks are in a new `tests/Feature/AtriumScreensRemovedTest.php` (no `atrium.roster.*` route with the API mounted as control; `RosterPlugin`, `ScreenAccess`, `Badges`, `RosterSupportFeature` and the eight `*UiController`s absent; no `roster.atrium` config).
+- 5.2: `RosterPlugin`, `Badges`, `ScreenAccess`, `Features/RosterSupportFeature`, the eight UI controllers and every screen view under `resources/views/ui` deleted, except `ui/invitations/show` and `ui/impersonation-banner` (neither includes a partial); `AuthorizesScreens` kept. The `roster.atrium` config section and its import gone. `atrium.plugins` (and the pennantplus store) gone from `WorkbenchServiceProvider`; `atrium.plugins` and the browser-only `$transactional` switch gone from `TestCase`. `tests/Pest.php` loses `ResetsScreenExtensions`, the Browser directory workaround, the Browser/AtriumFeatures/PennantPlus `uses()`, the `ui` parity surface and the `SyncOrganization*` exceptions, and `'ui'` from the `LookUpInvitationAction`, `SearchUsersAction` and `SearchOrganizationsAction` entries (`ShowUserStatsAction` and `ShowOrganizationStatsAction` dropped, as groups 3 and 4 asked). The listed Atrium-only tests and test cases deleted.
+- 5.3: `OrganizationScopedListsTest` keeps the API/MCP assertions; its Atrium search test now checks `roster.search.organizations` (only the admin's organization, prefix match). `SoftDeleteTest`, `TemplateTest`, `RemovedSsoScimTest` drop their screen tests. `PerformanceTest` drops the two page-render tests and checks the cached counts through `ShowUserStatsAction`.
+- 5.4: `phpunit.xml.dist` without the `Browser` testsuite; `composer.json` without pest-plugin-browser, pennantplus (`require-dev`, `suggest` and its VCS repository), `test:browser`, `--exclude-testsuite=Browser` and `extra.atrium`; `package.json`, `package-lock.json` and `browser-tests.yml` deleted; `browser_test` gone from `ring-master.yml`; the pennant migrations gone from `testbench.yaml`.
+
+### Committed
+
+The group's listed paths only, with `tasks.md` and this note.
+
+### Left uncommitted (outside the group's file list)
+
+These are this group's work too (groups 6 to 8 depend on 5, so nothing else writes this tree), and the suite needs them: without the first two the app fails to boot, since both name the deleted `ScreenAccess`; the tests below fail on deleted routes or classes. They must be committed with this group, as D-018 did for group 3:
+
+- `src/Atrium/AtriumServiceProvider.php`: `@rosterCan` checks `Authorizer::check()` directly instead of `ScreenAccess::allows()`.
+- `src/Atrium/Http/Controllers/Concerns/AuthorizesScreens.php`: only `screen()` and `overviewTab()` remain (the invitation page's), with the access closure inlined (global without a record, the invitation's organization with one, anything else refused).
+- `tests/Feature/AtriumScreensRemovedTest.php` (new, untracked): the 5.1 route and class checks.
+- `tests/Modes/Keen/OrganizationActivityRemovedTest.php` (deleted, staged): screen-only.
+- `tests/ArchTest.php` (no `Workbench` use of the Atrium classes, no `ScreenAccess` rule, no Browser skip paths), `tests/Feature/Organization/MembershipSourceTest.php`, `tests/Feature/Permission/RegisteredResourcesTest.php`, `tests/Feature/UserApprovalTest.php`, `tests/Modes/Traitless/TraitlessUserTest.php`, `tests/Modes/TransfersUnavailable/TransfersUnavailableTest.php`: screen assertions dropped.
+- `tests/Feature/Web/ImpersonationFlowTest.php`: leaving impersonation redirects to `/` now that `atrium.roster.users.show` is gone.
+- `.github/workflows/tests.yml` (Windows step runs bare `vendor/bin/pest`) and `.gitignore` (no `/node_modules`, `tests/Browser/*` entries).
+
+### Tests
+
+Not run here; the gate runs `vendor/bin/pest`. `pestphp/pest-plugin-browser` is still in `vendor/` until `composer update`, which is harmless: its directory cleanup only runs for browser tests.
+
+### Left
+
+- Commit the files above with this group.
+- 5.5: run `vendor/bin/pest` (the gate).

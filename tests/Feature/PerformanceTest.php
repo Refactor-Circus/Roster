@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
-use RefactorCircus\Roster\Atrium\RosterPlugin;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\RemoveMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
@@ -29,6 +28,7 @@ use RefactorCircus\Roster\Domains\Transfer\Data\StartImportData;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
+use RefactorCircus\Roster\Domains\User\Actions\ShowUserStatsAction;
 use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
 use RefactorCircus\Roster\Support\CaseInsensitive;
 use RefactorCircus\Roster\Support\Users;
@@ -121,13 +121,6 @@ it('lists users with context in a fixed number of queries', function (int $size)
 
     expect(queries(fn () => $this->getJson(route('roster.users.index', ['per_page' => 100]))->assertOk()))->toBeLessThanOrEqual(8);
 })->with([5, 30]);
-
-it('renders each organization tab in a fixed number of queries', function (string $tab): void {
-    [$owner] = crowd(30);
-    $this->actingAs($owner);
-
-    expect(queries(fn () => $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => $tab]))->assertOk()))->toBeLessThanOrEqual(16);
-})->with(['members', 'teams', 'invitations', 'roles', 'activity', 'settings']);
 
 it('lists transfers in a fixed number of queries', function (int $size): void {
     $owner = user();
@@ -249,13 +242,6 @@ it('shows a team in a fixed number of queries, with at most its first members', 
         ->toBeLessThanOrEqual(10);
 })->with([3, 30]);
 
-it('renders a team page in a fixed number of queries', function (int $size): void {
-    [$owner] = crowd($size);
-    $this->actingAs($owner);
-
-    expect(queries(fn () => $this->get(route('atrium.roster.teams.show', ['acme', 'ops']))->assertOk()))->toBeLessThanOrEqual(18);
-})->with([3, 30]);
-
 it('previews member imports without a query per row', function (): void {
     [$owner] = crowd(20);
     $csv = fn (int $rows): string => "email,name,teams\n".implode("\n", array_map(fn (int $i): string => ($i <= 20 ? "m{$i}" : "new{$i}")."@acme.test,Person {$i},ops", range(1, $rows)));
@@ -281,17 +267,17 @@ it('previews user and organization imports with no lookups per row', function (T
     'organizations' => [TransferType::ImportOrganizations, fn (int $i): string => "erp,C-{$i},Org {$i},,,,owner@acme.test", 1],
 ]);
 
-it('caches the user-status widget counts until a user changes', function (): void {
+it('caches the user status counts until a user changes', function (): void {
     user();
-    $widget = collect(app(RosterPlugin::class)->widgets())->firstOrFail(fn ($definition): bool => $definition->key === 'roster.user-status');
+    $stats = fn (): array => app(ShowUserStatsAction::class)->execute();
 
-    $widget->resolveData();
+    $stats();
 
-    expect(queries(fn () => $widget->resolveData()))->toBe(0);
+    expect(queries($stats))->toBe(0);
 
     app(CreateUserAction::class)->execute(new CreateUserData(name: 'Ada', email: 'ada@example.com'));
 
-    expect($widget->resolveData()['counts']['active'])->toBe(2);
+    expect($stats()['by_status']['active'])->toBe(2);
 });
 
 it('compares lower(column) on PostgreSQL, where an expression index can serve it', function (): void {

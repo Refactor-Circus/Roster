@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Laravel\Mcp\Server\Tool;
-use RefactorCircus\Atrium\Testing\ResetsScreenExtensions;
 use RefactorCircus\Keystone\Testing\McpTools;
 use RefactorCircus\Keystone\Testing\Parity;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
@@ -18,14 +17,11 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\RosterServer;
-use RefactorCircus\Roster\Tests\AtriumFeaturesTestCase;
 use RefactorCircus\Roster\Tests\AtriumUnavailableTestCase;
 use RefactorCircus\Roster\Tests\AuthorizationTestCase;
-use RefactorCircus\Roster\Tests\BrowserTestCase;
 use RefactorCircus\Roster\Tests\CortexTestCase;
 use RefactorCircus\Roster\Tests\DefaultsTestCase;
 use RefactorCircus\Roster\Tests\KeenTestCase;
-use RefactorCircus\Roster\Tests\PennantPlusTestCase;
 use RefactorCircus\Roster\Tests\RenamedTablesTestCase;
 use RefactorCircus\Roster\Tests\TestCase;
 use RefactorCircus\Roster\Tests\TraitlessTestCase;
@@ -34,33 +30,14 @@ use RefactorCircus\Roster\Tests\UlidTestCase;
 use Workbench\App\Models\User;
 use Workbench\Database\Factories\UserFactory;
 
-// pest-plugin-browser removes its output directories with @rmdir() when it
-// boots. A missing directory raises a (suppressed) warning that failOnWarning
-// turns into a failed run, even with every test passing, so make sure each
-// one it removes exists; empty directories remove cleanly.
-foreach (['Traces', 'Screenshots', 'Screenshots/Sliders', 'Screenshots/ImageDiffView'] as $directory) {
-    if (! is_dir(__DIR__.'/Browser/'.$directory)) {
-        @mkdir(__DIR__.'/Browser/'.$directory, recursive: true);
-    }
-}
-
 uses(TestCase::class)->in('Feature');
 uses(AuthorizationTestCase::class)->in('Authorization');
-
-// Screen extensions live on Atrium's app-lifetime registry: whatever a test
-// registers is gone after it. Atrium is optional, so only while it is installed.
-if (trait_exists(ResetsScreenExtensions::class)) {
-    uses(ResetsScreenExtensions::class)->in('Feature', 'Authorization');
-}
 uses(CortexTestCase::class)->in('Cortex');
-uses(BrowserTestCase::class)->in('Browser');
 uses(DefaultsTestCase::class)->in('Defaults');
 uses(TraitlessTestCase::class)->in('Modes/Traitless');
 uses(UlidTestCase::class)->in('Modes/Ulid');
 uses(TestCase::class)->in('Modes/Owned');
-uses(AtriumFeaturesTestCase::class)->in('Modes/AtriumFeatures');
 uses(KeenTestCase::class)->in('Modes/Keen');
-uses(PennantPlusTestCase::class)->in('Modes/PennantPlus');
 uses(TransfersUnavailableTestCase::class)->in('Modes/TransfersUnavailable');
 uses(AtriumUnavailableTestCase::class)->in('Modes/AtriumUnavailable');
 uses(RenamedTablesTestCase::class)->in('Modes/RenamedTables');
@@ -142,46 +119,30 @@ function invitationToken(OrganizationModel $organization, array $teams = [], arr
 /**
  * Actions missing from a surface, keyed by surface.
  *
- * Every use case must be reachable from the HTTP API, MCP and a UI. The UI
- * surface is the Atrium dashboard plus Roster's user-facing web pages
- * (accepting an invitation is self-service, not an admin screen). An Action
- * counts as reachable when its class name appears in that surface's request
- * or controller classes.
+ * Every use case must be reachable from the HTTP API and MCP. An Action
+ * counts as reachable when its class name appears in that surface's
+ * request classes.
  *
  * @return array<string, array<int, string>>
  */
 const PARITY_EXCEPTIONS = [
     // Using the one-time link swaps a browser session; it has no API or
-    // MCP meaning. Start, list and stop are on every surface.
+    // MCP meaning. Start, list and stop are on both surfaces.
     'EnterImpersonationAction' => ['http', 'mcp'],
-    // Machine-to-machine sync from an ERP or CRM. In Atrium the same results
-    // come from the organization CSV import (bulk) and the link form.
-    'SyncOrganizationAction' => ['ui'],
-    'SyncOrganizationsAction' => ['ui'],
     // The public invitation lookup is for the page a guest opens from the
     // email link, served over HTTP by token alone. An MCP tool acts as a
     // signed-in user, who has no use for it; offering it there would only
-    // add another way to probe tokens. (`ui` until the Atrium surface goes:
-    // the page that calls it lives in Atrium v2.)
-    'LookUpInvitationAction' => ['mcp', 'ui'],
+    // add another way to probe tokens.
+    'LookUpInvitationAction' => ['mcp'],
     // A typeahead for UIs: answers a handful of names as a user types.
     // Agents find users with list-users-tool, whose `search` matches
     // anywhere in the name, email or display name and pages through all of
-    // them. (`ui` until the Atrium surface goes: Atrium v2 calls it over HTTP.)
-    'SearchUsersAction' => ['mcp', 'ui'],
-    // The counts behind a dashboard widget, on HTTP and MCP; the Atrium v1
-    // widget reads them through RosterPlugin, which is no request or
-    // controller. (`ui` until the Atrium surface goes.)
-    'ShowUserStatsAction' => ['ui'],
+    // them.
+    'SearchUsersAction' => ['mcp'],
     // A typeahead for UIs, as SearchUsersAction is. Agents find
     // organizations with list-organizations-tool, whose `search` matches
-    // anywhere in the name or slug and pages through all of them. (`ui`
-    // until the Atrium surface goes: Atrium v2 calls it over HTTP.)
-    'SearchOrganizationsAction' => ['mcp', 'ui'],
-    // The counts behind a dashboard widget, on HTTP and MCP; the Atrium v1
-    // widget counts them itself in RosterPlugin, which is no request or
-    // controller. (`ui` until the Atrium surface goes.)
-    'ShowOrganizationStatsAction' => ['ui'],
+    // anywhere in the name or slug and pages through all of them.
+    'SearchOrganizationsAction' => ['mcp'],
 ];
 
 function parityGaps(): array
@@ -191,10 +152,5 @@ function parityGaps(): array
     return Parity::gaps($root.'/Domains/*/Actions/*.php', [
         'http' => $root.'/Domains/*/Http/Requests/*.php',
         'mcp' => $root.'/Domains/*/Mcp/Requests/*.php',
-        'ui' => [
-            $root.'/Atrium/Http/Controllers/*.php',
-            $root.'/Domains/*/Http/Controllers/*WebController.php',
-            $root.'/Domains/*/Http/Controllers/TransferFileController.php',
-        ],
     ], PARITY_EXCEPTIONS);
 }

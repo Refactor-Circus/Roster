@@ -58,7 +58,7 @@ it('serves a published template instead of the default, and publishes them', fun
         ->toContain(resource_path('roster/import-templates'));
 });
 
-it('downloads templates over http, mcp and atrium', function (): void {
+it('downloads templates over http and mcp', function (): void {
     $this->actingAs(user());
 
     $this->get(route('roster.imports.templates.show', 'import_organizations'))
@@ -67,33 +67,4 @@ it('downloads templates over http, mcp and atrium', function (): void {
     $this->getJson(route('roster.imports.templates.show', 'export_users'))->assertJsonValidationErrors('type');
 
     mcpTool(ShowImportTemplateTool::class, ['type' => 'import_teams'])->assertOk()->assertSee('name,slug,members');
-
-    $this->get(route('atrium.roster.transfers.template', 'import_members'))->assertOk()->assertSee('email,name,display_name,teams,role');
-    $this->get(route('atrium.roster.transfers.template', 'export_users'))->assertNotFound();
-});
-
-it('offers templates on the import page only', function (): void {
-    $this->actingAs(user());
-    organization(attributes: ['name' => 'Acme']);
-
-    // The import page's picker submits the type as a query.
-    $this->get(route('atrium.roster.transfers.index'))->assertSee('data-testid="import-templates"', false)->assertSee('Import organizations');
-    $this->get(route('atrium.roster.transfers.template', ['type' => 'import_teams']))->assertOk()->assertSee('name,slug,members');
-    $this->get(route('atrium.roster.transfers.template'))->assertNotFound();
-
-    $this->get(route('atrium.roster.users.index'))->assertDontSee(route('atrium.roster.transfers.template', 'import_users'));
-    $this->get(route('atrium.roster.organizations.index'))->assertDontSee(route('atrium.roster.transfers.template', 'import_organizations'));
-    $this->get(route('atrium.roster.organizations.show', 'acme'))->assertDontSee(route('atrium.roster.transfers.template', 'import_members'));
-    $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'teams']))->assertDontSee(route('atrium.roster.transfers.template', 'import_teams'));
-});
-
-it('links an organization\'s import and export from its members and teams tabs only', function (): void {
-    $this->actingAs(user());
-    organization(attributes: ['name' => 'Acme']);
-    $transfers = 'data-testid="organization-transfers"';
-
-    $this->get(route('atrium.roster.organizations.show', 'acme'))->assertSee($transfers, false)->assertSee('aria-label="'.__('roster::roster.import_export').'"', false);
-    $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'teams']))->assertSee($transfers, false);
-    $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'settings']))->assertDontSee($transfers, false);
-    $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => 'roles']))->assertDontSee($transfers, false);
 });

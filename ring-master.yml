@@ -6,7 +6,6 @@ commands:
   verify: 'composer test'
   format: 'composer lint'
   format_check: 'composer lint:check'
-  browser_test: 'composer test:browser'
 standards:
   global:
     -

@@ -28,7 +28,6 @@
         "laravel/pint": "^1.32.1, !=1.32.2",
         "orchestra/testbench": "^11.3",
         "pestphp/pest": "^5.3.4",
-        "pestphp/pest-plugin-browser": "^5.1.2",
         "pestphp/pest-plugin-laravel": "^5.0.1",
         "pestphp/pest-plugin-type-coverage": "^5.0.3",
         "phpstan/extension-installer": "^1.4.3",
@@ -36,7 +35,6 @@
         "refactor-circus/cortex": "^0.1",
         "refactor-circus/impex": "^0.1",
         "refactor-circus/keen": "^0.1",
-        "refactor-circus/pennantplus": "^0.1",
         "refactor-circus/ringside": "dev-main",
         "refactor-circus/standards": "dev-main"
     },
@@ -48,7 +46,6 @@
         "refactor-circus/cortex": "Lets Cortex agents use the Roster tools (dev-main).",
         "refactor-circus/guardian": "Single sign-on (OIDC, SAML, Entra ID) and SCIM provisioning for Roster's organizations (dev-main).",
         "refactor-circus/impex": "Required for CSV import and export (dev-main).",
-        "refactor-circus/pennantplus": "Switch Roster in Atrium on and off with the RosterSupportFeature Pennant feature (dev-main).",
         "refactor-circus/keen": "Records Roster's changes in the suite-wide audit log (dev-main)."
     },
     "autoload": {
@@ -92,13 +89,10 @@
             "vendor/bin/phpstan analyse"
         ],
         "test:types": [
-            "vendor/bin/pest --type-coverage --min=100 --exclude-testsuite=Browser"
+            "vendor/bin/pest --type-coverage --min=100"
         ],
         "test:unit": [
-            "vendor/bin/pest --parallel --exclude-testsuite=Browser"
-        ],
-        "test:browser": [
-            "vendor/bin/pest --testsuite=Browser"
+            "vendor/bin/pest --parallel"
         ],
         "test": [
             "@analyse",
@@ -128,11 +122,6 @@
             "aliases": {
                 "Roster": "RefactorCircus\\Roster\\Facades\\Roster"
             }
-        },
-        "atrium": {
-            "plugins": [
-                "RefactorCircus\\Roster\\Atrium\\RosterPlugin"
-            ]
         }
     },
     "config": {
@@ -157,10 +146,6 @@
         {
             "type": "vcs",
             "url": "https://github.com/Refactor-Circus/Impex.git"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/Refactor-Circus/PennantPlus.git"
         },
         {
             "type": "vcs",

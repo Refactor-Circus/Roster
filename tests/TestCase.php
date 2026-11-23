@@ -11,7 +11,6 @@ use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 use RefactorCircus\Atrium\AtriumServiceProvider;
 use RefactorCircus\Impex\ImpexServiceProvider;
-use RefactorCircus\Roster\Atrium\RosterPlugin;
 use RefactorCircus\Roster\RosterServiceProvider;
 use Workbench\App\Models\User;
 
@@ -24,13 +23,6 @@ abstract class TestCase extends Orchestra
      * denies everything outside `local` until its gate is defined.
      */
     protected bool $openAtrium = true;
-
-    /**
-     * Whether the test runs inside a rolled-back transaction on a database
-     * migrated once per process (see defineDatabaseMigrations). Browser
-     * tests talk to a real server, so they migrate per test instead.
-     */
-    protected bool $transactional = true;
 
     /**
      * The test-case classes whose database this process has migrated.
@@ -79,26 +71,21 @@ abstract class TestCase extends Orchestra
         $app['config']->set('roster.routes.enabled', true);
         // Surface tests cover behaviour; tests/Authorization turns it back on.
         $app['config']->set('roster.authorization', false);
-        // Discovery reads vendor/composer/installed.json, which never lists
-        // the package under test, so register the plugin the way an app would.
-        $app['config']->set('atrium.plugins', [RosterPlugin::class]);
         // Impex runs drive inline on the sync queue, so a CSV import or
         // export completes (or parks on its confirmation) within the call.
         $app['config']->set('queue.default', 'sync');
         $app['config']->set('filesystems.disks.local.root', sys_get_temp_dir().'/roster-tests-'.getmypid());
 
-        if ($this->transactional) {
-            $file = $this->databaseFile();
+        $file = $this->databaseFile();
 
-            if (! is_file($file)) {
-                touch($file);
-            }
-
-            $app['config']->set('database.connections.testing.database', $file);
-            // Throwaway data: skip fsyncs and keep the rollback journal in memory.
-            $app['config']->set('database.connections.testing.synchronous', 'off');
-            $app['config']->set('database.connections.testing.journal_mode', 'memory');
+        if (! is_file($file)) {
+            touch($file);
         }
+
+        $app['config']->set('database.connections.testing.database', $file);
+        // Throwaway data: skip fsyncs and keep the rollback journal in memory.
+        $app['config']->set('database.connections.testing.synchronous', 'off');
+        $app['config']->set('database.connections.testing.journal_mode', 'memory');
     }
 
     /**
@@ -108,18 +95,6 @@ abstract class TestCase extends Orchestra
      */
     protected function defineDatabaseMigrations(): void
     {
-        if (! $this->transactional) {
-            $this->loadLaravelMigrations();
-
-            foreach (array_slice($this->migrationPaths(), 1) as $path) {
-                $this->loadMigrationsFrom($path);
-            }
-
-            $this->afterMigrating();
-
-            return;
-        }
-
         if (! isset(self::$migrated[$this->schemaKey()])) {
             Artisan::call('migrate:fresh', ['--path' => $this->migrationPaths(), '--realpath' => true]);
             $this->afterMigrating();
