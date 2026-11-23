@@ -191,3 +191,9 @@
 - Rationale: Recommended option.
 - Date: 2026-11-23
 - Raised by: factory build; default chosen because the user asked to proceed without stopping
+
+## D-033: Who may import a member with a role value while authorization is on, now that the Roles contract cannot say what a role grants?
+- Choice: A super-admin, the organization's owner, or an actor who already holds that same role in the organization (Roles::of, cached per import). Imports with no actor or with authorization off allow any role, as before. Implemented in MembersPlanner::mayGrant() and pinned in RolesThroughContractTest.
+- Rationale: Recommended option.
+- Date: 2026-11-23
+- Raised by: factory build; default chosen because the user asked to proceed without stopping
