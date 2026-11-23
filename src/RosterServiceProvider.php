@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use RefactorCircus\Keystone\Audit\AuditHooks;
 use RefactorCircus\Keystone\Audit\History;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
+use RefactorCircus\Keystone\Contracts\ReadActionEvent;
 use RefactorCircus\Keystone\Packages\Package;
 use RefactorCircus\Keystone\Support\PackageServiceProvider;
 use RefactorCircus\Keystone\Support\Surface;
@@ -108,9 +109,9 @@ class RosterServiceProvider extends PackageServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'roster');
 
         // The cached user counts per status go stale with any change Roster
-        // makes to a user.
+        // makes to a user; reads (lists, shows, searches) leave them.
         Event::listen(ActionFinishedEvent::class, function (ActionFinishedEvent $event): void {
-            if (str_starts_with($event::class, 'RefactorCircus\\Roster\\Domains\\User\\Events\\') && ! str_ends_with($event::class, 'ListedActionEvent') && ! str_ends_with($event::class, 'ShownActionEvent')) {
+            if (str_starts_with($event::class, 'RefactorCircus\\Roster\\Domains\\User\\Events\\') && ! $event instanceof ReadActionEvent && ! str_ends_with($event::class, 'ListedActionEvent') && ! str_ends_with($event::class, 'ShownActionEvent')) {
                 Cache::forget(Users::STATUS_COUNTS_CACHE);
             }
         });

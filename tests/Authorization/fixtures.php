@@ -82,6 +82,8 @@ function apiRoutes(): array
         'users.reject' => ['POST', 'roster.users.reject', $user, []],
         'users.context.update' => ['PUT', 'roster.users.context.update', $user, ['organization' => 'acme']],
         'users.domain-join' => ['POST', 'roster.users.domain-join', $user, []],
+        'stats.users' => ['GET', 'roster.stats.users', $none, []],
+        'search.users' => ['GET', 'roster.search.users', $none, ['q' => 'target']],
         'organizations.index' => ['GET', 'roster.organizations.index', $none, []],
         'organizations.store' => ['POST', 'roster.organizations.store', $none, ['name' => 'New', 'owner' => 1]],
         'organizations.show' => ['GET', 'roster.organizations.show', $org, []],

@@ -7,7 +7,6 @@ namespace RefactorCircus\Roster\Atrium;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use RefactorCircus\Atrium\Domains\Navigation\Data\NavGroup;
@@ -30,8 +29,7 @@ use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
-use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
-use RefactorCircus\Roster\Support\Statuses;
+use RefactorCircus\Roster\Domains\User\Actions\ShowUserStatsAction;
 use RefactorCircus\Roster\Support\Users;
 
 /**
@@ -334,43 +332,12 @@ class RosterPlugin extends Plugin
     }
 
     /**
-     * Users per status. Users without a profile row count as active. Counted
-     * at most once a minute: counting every user on every dashboard render
-     * gets slow on large tables.
+     * Users per status, as `GET stats/users` counts them (cached a minute).
      *
      * @return array<string, int>
      */
     private function statusCounts(): array
     {
-        return Cache::remember(self::STATUS_COUNTS_CACHE, 60, fn (): array => $this->countStatuses());
-    }
-
-    /**
-     * @return array<string, int>
-     */
-    private function countStatuses(): array
-    {
-        $total = app(Users::class)->query()->count();
-
-        $counts = ProfileModel::query()
-            ->where('status', '!=', Statuses::users()::active())
-            ->selectRaw('status, count(*) as aggregate')
-            ->groupBy('status')
-            ->pluck('aggregate', 'status')
-            ->map(fn (mixed $count): int => is_numeric($count) ? (int) $count : 0)
-            ->all();
-
-        $others = array_sum($counts);
-
-        $active = (string) Statuses::users()::active()->value;
-        $result = [$active => max(0, $total - $others)];
-
-        foreach (Statuses::values(Statuses::users()) as $status) {
-            if ($status !== $active) {
-                $result[$status] = $counts[$status] ?? 0;
-            }
-        }
-
-        return $result;
+        return app(ShowUserStatsAction::class)->execute()['by_status'];
     }
 }
