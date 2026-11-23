@@ -21,7 +21,6 @@ const ROSTER_ACTIONS = [ROSTER_DOMAINS.'/*/Actions/*.php', __DIR__.'/../src/Tran
  */
 const ROSTER_CORE = [
     'RefactorCircus\Roster\Support\Authorization\Authorizer' => 'src/Support/Authorization/Authorizer.php',
-    'RefactorCircus\Roster\Domains\Role\Support\BuiltInRoles' => 'src/Domains/Role/Support/BuiltInRoles.php',
     'RefactorCircus\Roster\Roster' => 'src/Roster.php',
     'RefactorCircus\Roster\Domains\Organization\Concerns\ManagesMemberships' => 'src/Domains/Organization/Concerns/ManagesMemberships.php',
     'RefactorCircus\Roster\Domains\Organization\Resources\MemberResource' => 'src/Domains/Organization/Resources/MemberResource.php',
@@ -232,6 +231,68 @@ function rosterFilesContaining(array $folders, array $needles, array $except = [
 
     return $found;
 }
+
+arch('nothing in Roster uses the removed Role domain')
+    ->expect('RefactorCircus\Roster\Domains\Role')
+    ->not->toBeUsedIn('RefactorCircus\Roster');
+
+arch('nothing in Roster uses the removed Permission domain')
+    ->expect('RefactorCircus\Roster\Domains\Permission')
+    ->not->toBeUsedIn('RefactorCircus\Roster');
+
+// Catches what `toBeUsedIn` cannot: class names in config, migrations,
+// strings and docblocks.
+arch('no source, config, migration or workbench file names the Role or Permission domain')
+    ->expect(fn (): array => rosterFilesContaining(
+        ['src', 'config', 'database', 'workbench/app', 'workbench/database'],
+        ['Domains\\Role\\', 'Domains\\Permission\\', 'Domains/Role/', 'Domains/Permission/'],
+    ))
+    ->toBeEmpty();
+
+/**
+ * Every line, under these folders (relative to the package, or to `$root`),
+ * that names Guardian in any case, as `path:line`.
+ *
+ * @param  array<int, string>  $paths
+ * @return array<int, string>
+ */
+function rosterGuardianMentions(array $paths, string $root = __DIR__.'/..'): array
+{
+    $found = [];
+    $root = rtrim($root, '/').'/';
+
+    foreach ($paths as $path) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root.$path, FilesystemIterator::SKIP_DOTS)) as $file) {
+            /** @var SplFileInfo $file */
+            foreach (file($file->getPathname()) ?: [] as $number => $line) {
+                if (stripos($line, 'guardian') !== false) {
+                    $found[] = substr($file->getPathname(), strlen($root)).':'.($number + 1);
+                }
+            }
+        }
+    }
+
+    return $found;
+}
+
+// Roster requires only Keystone: a role store plugs into Keystone's
+// authorization contract without Roster naming it.
+arch('nothing Roster ships names Guardian')
+    ->expect(fn (): array => rosterGuardianMentions(['src', 'config', 'database']))
+    ->toBeEmpty();
+
+it('catches Guardian named in any case', function (): void {
+    $root = sys_get_temp_dir().'/roster-guardian-guard-'.getmypid();
+
+    if (! is_dir($root.'/src')) {
+        mkdir($root.'/src', 0777, true);
+    }
+
+    file_put_contents($root.'/src/Clean.php', "<?php\n// nothing here\n");
+    file_put_contents($root.'/src/Named.php', "<?php\n// install GUARDIAN\nuse RefactorCircus\\Guardian\\Roles;\n");
+
+    expect(rosterGuardianMentions(['src'], $root))->toEqualCanonicalizing(['src/Named.php:2', 'src/Named.php:3']);
+});
 
 arch('Roster uses nothing from Cortex: Cortex registers its own screens')
     ->expect('RefactorCircus\Cortex')

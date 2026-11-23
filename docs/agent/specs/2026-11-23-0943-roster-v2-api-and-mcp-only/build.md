@@ -556,3 +556,38 @@ Criterion 40: `tests/Authorization` passes with a role store bound, which is Key
 - **The import's grant rule is an interim. It needs a decision (returned to the user).** Keystone's `Roles` cannot say what a role grants, so the old "nobody hands out more than they hold" check cannot run role by role. Until the user decides, `MembersPlanner::mayGrant()` lets only a super-admin import role values while authorization is on. Without an actor, or with authorization off, any role is allowed, as before. This is stricter than before: an organization owner or admin gets `import_role_not_grantable`.
 - The `revokeRoles()` call with neither scope (never used) now only forgets the user. It used to delete every assignment.
 
+## Group 13 (salvaged)
+
+### What I found
+
+- No `index.lock`, and no merge or rebase in progress. Groups 14 to 16 depend on 13, so every uncommitted change in the tree is group 13's.
+- The build agent had done most of the work but committed nothing.
+  - Staged: the deletion of `src/Domains/Role/`, `src/Domains/Permission/` (including `RosterRolesPermissions` and group 1's role-assignments endpoint), the role-tables migration, `tests/Authorization/Legacy/`, `tests/Feature/Permission/`, `tests/Feature/Http/OrganizationRoleAssignmentsHttpTest.php`, `RolesHttpTest.php` and `tests/Feature/Mcp/RoleToolsTest.php`. Also staged, outside the list: `database/factories/RoleFactory.php`, `PermissionFactory.php` and `tests/Unit/Permission/PermissionCatalogueTest.php`.
+  - Unstaged, in the list: `DomainServiceProvider`, `RosterServer` (tools and instructions), `Support/Audit`, `Support/Tables`, `config/roster.php`, the two index migrations, `tests/ArchTest.php` (no `Domains\Role`/`Domains\Permission` use, no file naming them, no `guardian` in `src/`, `config/`, `database/`), `tests/Feature/ComposerTest.php` (no Guardian package) and `tests/Pest.php` (`grant()`/`roleGranting()` on the role store only, new `withRoleStore()`/`roleStore()`, no `KeepsRosterRoles`). Untracked: `tests/Feature/MigrationsRoleTablesTest.php`.
+  - Outside the list, needed by the group: `composer.json` (drops the Guardian `suggest`, criterion 41); `src/RosterServiceProvider.php` (takes over the `Gate::before` and the context-forgetting listener from the deleted `PermissionServiceProvider`); `workbench/database/seeders/DatabaseSeeder.php` (no role seeding); `tests/Feature/RoleDomainsRemovedTest.php` (untracked: routes, tools, commands, classes and config keys gone, criteria 28 and 30); and test updates in `tests/AuthorizationTestCase.php`, `tests/Authorization/{fixtures,HttpAuthorizationTest,McpAuthorizationTest}.php`, `tests/Cortex/CortexTest.php`, `tests/Unit/SignInRequirementsTest.php` and the Feature tests `AccessThroughContractTest`, `Http/HardeningTest`, `Http/ImpersonationsHttpTest`, `ImpersonationActionsTest`, `ImpersonationSafetyTest`, `IndexesTest`, `NoExternalSignInTest`, `PerformanceTest`, `QueuedNotificationsTest`, `UserApprovalTest`, `Web/ImpersonationFlowTest`.
+
+### What I changed
+
+- `src/Support/Audit.php`: `label()` returns `string`. With the role assignment gone it can no longer be null, and `composer analyse` failed on the unused `null`.
+- `tests/Pest.php`: Pint fixes (import order, `!` spacing).
+
+### Checks (whole worktree)
+
+- `composer analyse` and `composer lint:check` pass.
+- `composer test:unit`: 1056 tests, 1033 passed, 6 failed, all in files outside the group's list:
+  - `DocsTest` "names only classes that exist in the Extending Roster examples" (README and Boost skill): both still name `Domains\Permission\Services\PermissionCatalogue`. Group 16 rewrites them.
+  - `OpenApiTest` (two cases): `openapi.json` still has the removed role and permission routes. Group 15 regenerates it.
+  - `Mcp/OutputSchemaTest`: expects 58 structured tools, and there are 48 now.
+  - `PaginationTest`: expects 10 paged list Data classes, and there are 7 now.
+- The group's own tests pass: `MigrationsRoleTablesTest`, `RoleDomainsRemovedTest`, the new `ArchTest` guards and `ComposerTest`.
+
+### What I committed
+
+Only the group's listed paths, plus this note and the ticked tasks (13.2, 13.3, 13.4). Everything listed above as outside the list is still uncommitted in the worktree. The three staged out-of-list deletions are still staged.
+
+### What is left
+
+- The commit alone is not green. It deletes `PermissionServiceProvider` (and the `Gate::before` in it), while the `RosterServiceProvider` that takes it over is uncommitted. Its `tests/Pest.php` defines `roleGranting()`, which the committed `tests/Authorization/fixtures.php` still defines too. The out-of-list changes need committing on the job branch as a group 13 follow-up, as D-032 did for group 10. That decision is returned to the user.
+- 13.1 stays unticked: the criterion 28 and 30 tests are in the out-of-list `RoleDomainsRemovedTest.php`.
+- 13.5 stays unticked until the suite is green. `OutputSchemaTest` (48) and `PaginationTest` (7) need their counts updated. `DocsTest` and `OpenApiTest` belong to groups 16 and 15, unless the user wants group 13 to fix them now.
+

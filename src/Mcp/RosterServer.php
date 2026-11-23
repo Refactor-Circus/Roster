@@ -36,19 +36,6 @@ use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\SyncOrganizationTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\TransferOwnershipTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\UnlinkOrganizationTool;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\UpdateOrganizationTool;
-use RefactorCircus\Roster\Domains\Permission\Mcp\Tools\CreatePermissionTool;
-use RefactorCircus\Roster\Domains\Permission\Mcp\Tools\DeletePermissionTool;
-use RefactorCircus\Roster\Domains\Permission\Mcp\Tools\ListPermissionsTool;
-use RefactorCircus\Roster\Domains\Permission\Mcp\Tools\ListUserPermissionsTool;
-use RefactorCircus\Roster\Domains\Permission\Mcp\Tools\UpdatePermissionTool;
-use RefactorCircus\Roster\Domains\Role\Mcp\Tools\AssignRoleTool;
-use RefactorCircus\Roster\Domains\Role\Mcp\Tools\CreateRoleTool;
-use RefactorCircus\Roster\Domains\Role\Mcp\Tools\DeleteRoleTool;
-use RefactorCircus\Roster\Domains\Role\Mcp\Tools\ListRoleAssignmentsTool;
-use RefactorCircus\Roster\Domains\Role\Mcp\Tools\ListRolesTool;
-use RefactorCircus\Roster\Domains\Role\Mcp\Tools\RevokeRoleTool;
-use RefactorCircus\Roster\Domains\Role\Mcp\Tools\ShowRoleTool;
-use RefactorCircus\Roster\Domains\Role\Mcp\Tools\UpdateRoleTool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Tools\AddTeamMemberTool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Tools\CreateTeamTool;
 use RefactorCircus\Roster\Domains\Team\Mcp\Tools\DeleteTeamTool;
@@ -91,10 +78,8 @@ use RefactorCircus\Roster\Mcp\Tools\ListRosterHistoryTool;
     'organization) group members. Each organization has one owner, who cannot be removed; transfer-ownership-tool '.
     'moves it. Invite people by email with create-invitation-tool; the recipient accepts through the emailed link. '.
     'A user\'s current organization and team are set with switch-context-tool. '.
-    'Roles bundle permissions and are assigned globally, in an organization, or on a team; a user\'s permissions in '.
-    'a scope are the union of their global, organization and team roles, and an organization\'s owner holds every '.
-    'organization permission. Every tool needs a permission (e.g. roster.users.update) - list-user-permissions-tool '.
-    'shows what a user holds. You can only grant permissions you hold yourself. '.
+    'Every tool needs an ability (e.g. roster.users.update) in the organization or team it acts on, or globally; '.
+    'the application decides who holds which, and an organization\'s owner holds every organization ability in it. '.
     'When the refactor-circus/keen audit log is installed, every change is recorded there; list-roster-history-tool reads Roster\'s history. '.
     'Bulk changes go through CSV (show-import-template-tool gives each import type\'s columns): start-import-tool previews every row without changing anything, and only '.
     'confirm-import-tool applies it; start-export-tool builds a CSV whose download link show-transfer-tool returns. '.
@@ -168,21 +153,6 @@ final class RosterServer extends Server
         RevokeInvitationTool::class,
         AcceptInvitationTool::class,
         DeclineInvitationTool::class,
-
-        // Roles and permissions
-        ListPermissionsTool::class,
-        CreatePermissionTool::class,
-        UpdatePermissionTool::class,
-        DeletePermissionTool::class,
-        ListRolesTool::class,
-        ShowRoleTool::class,
-        CreateRoleTool::class,
-        UpdateRoleTool::class,
-        DeleteRoleTool::class,
-        ListRoleAssignmentsTool::class,
-        AssignRoleTool::class,
-        RevokeRoleTool::class,
-        ListUserPermissionsTool::class,
 
         // Impersonation
         StartImpersonationTool::class,

@@ -140,9 +140,9 @@ files: src/Domains/Role/** (delete), src/Domains/Permission/** (delete), src/Dom
 criteria: 28, 29, 30, 33, 41
 
 - [ ] 13.1 Write tests: routes and MCP tools absent (criterion 28); commands absent; a fresh migrate creates no role tables; with pre-created `roster_*` role tables holding rows, migrate and rollback leave them and their rows; config keys gone (criterion 30); arch: nothing uses `Domains\Role` or `Domains\Permission`; no `guardian` string in `src/`, `config/` or `database/`; `composer.json` names no guardian package
-- [ ] 13.2 Delete both domains (including the interim adapter and group 1's role-assignments endpoint), and remove them from `DomainServiceProvider`, `RosterServer::TOOLS`, `Support/Audit` and the parity exemptions
-- [ ] 13.3 Delete the role-tables migration and remove `roles`/`role_assignments` from the two index migrations; remove `permission_cache`, `super_admins`, the role policies and table keys from `config/roster.php` and `Support/Tables`
-- [ ] 13.4 Delete the tests of removed code (`tests/Feature/Permission/`, `tests/Authorization/Legacy/`, role/permission HTTP and MCP tests) and update the parity list in `tests/Pest.php`
+- [x] 13.2 Delete both domains (including the interim adapter and group 1's role-assignments endpoint), and remove them from `DomainServiceProvider`, `RosterServer::TOOLS`, `Support/Audit` and the parity exemptions
+- [x] 13.3 Delete the role-tables migration and remove `roles`/`role_assignments` from the two index migrations; remove `permission_cache`, `super_admins`, the role policies and table keys from `config/roster.php` and `Support/Tables`
+- [x] 13.4 Delete the tests of removed code (`tests/Feature/Permission/`, `tests/Authorization/Legacy/`, role/permission HTTP and MCP tests) and update the parity list in `tests/Pest.php`
 - [ ] 13.5 Run composer analyse and vendor/bin/pest; all green
 
 ## Group 14: Gate fallback coverage

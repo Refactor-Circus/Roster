@@ -12,8 +12,6 @@ use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\TransferContext;
@@ -63,9 +61,7 @@ final readonly class Audit
     private const array MODELS = [
         OrganizationModel::class,
         TeamModel::class,
-        RoleModel::class,
         InvitationModel::class,
-        RoleAssignmentModel::class,
         TransferModel::class,
     ];
 
@@ -82,33 +78,25 @@ final readonly class Audit
         }
     }
 
-    private function label(Model $model): ?string
+    private function label(Model $model): string
     {
         return match (true) {
-            $model instanceof OrganizationModel, $model instanceof TeamModel, $model instanceof RoleModel => $model->name,
+            $model instanceof OrganizationModel, $model instanceof TeamModel => $model->name,
             $model instanceof InvitationModel => $model->email,
-            $model instanceof RoleAssignmentModel => $model->role?->name,
             $model instanceof TransferModel => $model->type->label(),
             default => $this->users->name($model) ?? $this->users->email($model) ?? (string) $model->getKey(),
         };
     }
 
     /**
-     * A user's profile fields, a role's permissions, an organization's
-     * domains, and what a role assignment grants where.
+     * A user's profile fields and an organization's domains.
      *
      * @return array<string, mixed>
      */
     private function snapshot(Model $model): array
     {
         return match (true) {
-            $model instanceof RoleModel => ['permissions' => $model->permissions()->orderBy('name')->pluck('name')->all()],
             $model instanceof OrganizationModel => ['domains' => $model->domains()->orderBy('domain')->pluck('domain')->map(fn (mixed $domain): string => (string) $domain)->all()],
-            $model instanceof RoleAssignmentModel => [
-                'role' => $model->role?->slug,
-                'organization' => $model->organization?->slug,
-                'team' => $model->team?->slug,
-            ],
             $model instanceof TeamModel, $model instanceof InvitationModel, $model instanceof TransferModel => [],
             default => $this->profile($model),
         };
@@ -132,20 +120,14 @@ final readonly class Audit
     }
 
     /**
-     * An entry is about a user when one is involved: being given a role,
-     * being impersonated. Otherwise the event's `user`, else the audit log's
-     * own choice (the event's first model).
+     * An entry is about a user when one is involved: being impersonated.
+     * Otherwise the event's `user`, else the audit log's own choice (the
+     * event's first model).
      *
      * @param  array<string, Model>  $models
      */
     private function subject(array $models): ?Model
     {
-        $assignment = $models['assignment'] ?? null;
-
-        if ($assignment instanceof RoleAssignmentModel && $assignment->user instanceof Model) {
-            return $assignment->user;
-        }
-
         $impersonation = $models['impersonation'] ?? null;
 
         if ($impersonation instanceof ImpersonationModel && $impersonation->user instanceof Model) {
@@ -186,7 +168,7 @@ final readonly class Audit
 
     /**
      * The organization an entry belongs to: the event's organization, or the
-     * one its team, invitation, role, assignment or impersonation is in, or
+     * one its team, invitation or impersonation is in, or
      * the subject's. Users belong to no one organization, so an entry about a
      * user alone is scoped to their current one.
      *
@@ -199,8 +181,7 @@ final readonly class Audit
                 return $model;
             }
 
-            if ($model instanceof TeamModel || $model instanceof InvitationModel || $model instanceof RoleAssignmentModel
-                || $model instanceof RoleModel || $model instanceof ImpersonationModel) {
+            if ($model instanceof TeamModel || $model instanceof InvitationModel || $model instanceof ImpersonationModel) {
                 // The loaded relation when there is one, saving a query per entry.
                 $loaded = $model->relationLoaded('organization') ? $model->getRelation('organization') : null;
                 $organization = $loaded instanceof OrganizationModel ? $loaded : $this->find($model->getAttribute('organization_id'));

@@ -15,12 +15,6 @@ use RefactorCircus\Roster\Domains\Organization\Policies\MembershipPolicy;
 use RefactorCircus\Roster\Domains\Organization\Policies\OrganizationDomainPolicy;
 use RefactorCircus\Roster\Domains\Organization\Policies\OrganizationLinkPolicy;
 use RefactorCircus\Roster\Domains\Organization\Policies\OrganizationPolicy;
-use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
-use RefactorCircus\Roster\Domains\Permission\Policies\PermissionPolicy;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
-use RefactorCircus\Roster\Domains\Role\Policies\RoleAssignmentPolicy;
-use RefactorCircus\Roster\Domains\Role\Policies\RolePolicy;
 use RefactorCircus\Roster\Domains\Team\Enums\TeamStatus;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
@@ -98,42 +92,28 @@ return [
     | Authorization
     |--------------------------------------------------------------------------
     |
+    | Roster checks named permissions (`roster.users.view`, ...) through
+    | Keystone's authorization contract. A role store, when one is installed,
+    | decides who holds them; without one, your app's Gate abilities and
+    | policies do. An organization's owner holds every organization
+    | permission in it.
+    |
     | authorization: When true (the default), every Roster API route and MCP
     |                tool requires a signed-in user holding the Action's
     |                permission. SECURITY: setting it to false
     |                makes the route middleware the only check - anyone who
     |                can reach the API could then manage every user.
-    | super_admins:  Emails always treated as super-admins (every permission
-    |                passes). Honoured only once the email is verified, and
-    |                only on user models implementing MustVerifyEmail; prefer
-    |                `php artisan roster:grant-super-admin {email}`.
     | roles.default_member:
-    |                Slug of the organization role every new member gets.
-    |                Null to give new members no role.
-    | permission_cache.ttl:
-    |                Seconds to keep the permission catalogue and each user's
-    |                role grants in the cache store between requests, so a
-    |                request's first permission check skips two queries. 0
-    |                (the default) keeps them per request only. Roster's own
-    |                Actions and model writes clear them; after writing roles,
-    |                assignments or permissions some other way, call
-    |                `Permissions::forgetCache()`.
-    | permission_cache.store:
-    |                The cache store to use; null for the default store.
+    |                Slug of the organization role every new member gets from
+    |                the role store. Null, or a role the store does not have,
+    |                gives new members no role.
     |
     */
 
     'authorization' => true,
 
-    'super_admins' => [],
-
     'roles' => [
         'default_member' => 'member',
-    ],
-
-    'permission_cache' => [
-        'ttl' => 0,
-        'store' => null,
     ],
 
     /*
@@ -420,7 +400,7 @@ return [
     |
     | When refactor-circus/cortex is installed, the MCP server is registered with it, so
     | its instructions can be overridden, and the tools join its registry,
-    | so Cortex agents can manage users, organizations and roles. Agents act
+    | so Cortex agents can manage users, organizations and teams. Agents act
     | as the signed-in user: Roster's permission checks apply, and a run
     | with no signed-in user is refused. Set `tools` to a list of tool
     | names, such as ['list-users-tool', 'show-user-tool'], to offer only
@@ -449,7 +429,7 @@ return [
     | UserPolicy::manageStatus()), with the model's class, the
     | organization or team the call is about, and the user it is about when
     | everyone may do it to themselves. Resources: users (UserModel),
-    | organizations, members (MembershipModel), teams, invitations and roles.
+    | organizations, members (MembershipModel), teams and invitations.
     | The other policies answer your own `$user->can('view', $record)` checks.
     |
     | Package resources register their own policies; add an entry here to
@@ -473,9 +453,6 @@ return [
         TeamModel::class => TeamPolicy::class,
         TeamMemberModel::class => TeamMemberPolicy::class,
         InvitationModel::class => InvitationPolicy::class,
-        RoleModel::class => RolePolicy::class,
-        PermissionModel::class => PermissionPolicy::class,
-        RoleAssignmentModel::class => RoleAssignmentPolicy::class,
         ImpersonationModel::class => ImpersonationPolicy::class,
         TransferModel::class => TransferPolicy::class,
         TransferRowModel::class => TransferRowPolicy::class,
@@ -505,10 +482,6 @@ return [
         'teams' => 'roster_teams',
         'team_members' => 'roster_team_members',
         'invitations' => 'roster_invitations',
-        'permissions' => 'roster_permissions',
-        'roles' => 'roster_roles',
-        'permission_role' => 'roster_permission_role',
-        'role_assignments' => 'roster_role_assignments',
         'impersonations' => 'roster_impersonations',
         'transfers' => 'roster_transfers',
         'transfer_rows' => 'roster_transfer_rows',

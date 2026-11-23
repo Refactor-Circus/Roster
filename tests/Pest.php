@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Laravel\Mcp\Server\Tool;
 use RefactorCircus\Keystone\Authorization\Contracts\Permissions as PermissionsContract;
@@ -14,13 +15,8 @@ use RefactorCircus\Roster\Domains\Invitation\Services\InvitationTokens;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\RosterServer;
-use RefactorCircus\Roster\Tests\Authorization\Legacy\KeepsRosterRoles;
 use RefactorCircus\Roster\Tests\AuthorizationTestCase;
 use RefactorCircus\Roster\Tests\CortexTestCase;
 use RefactorCircus\Roster\Tests\DefaultsTestCase;
@@ -35,9 +31,6 @@ use Workbench\Database\Factories\UserFactory;
 
 uses(TestCase::class)->in('Feature');
 uses(AuthorizationTestCase::class)->in('Authorization');
-// Tests of Roster's own role and permission API, on its role tables until
-// group 13 deletes them with the two domains.
-uses(KeepsRosterRoles::class)->in('Authorization/Legacy');
 uses(CortexTestCase::class)->in('Cortex');
 uses(DefaultsTestCase::class)->in('Defaults');
 uses(TraitlessTestCase::class)->in('Modes/Traitless');
@@ -66,48 +59,62 @@ function user(array $attributes = []): User
 }
 
 /**
- * Give a user a role by slug: global, in an organization, or on a team.
- *
- * Through the role store when one is bound (tests/Authorization installs
- * Keystone's `FakeRoles`), otherwise as a row in Roster's role tables.
+ * Bind Keystone's fakes as the role store, with the default roles a role
+ * store seeds from Roster's declared abilities, for a test that needs roles
+ * outside tests/Authorization (which always has them). Roster itself runs on
+ * Keystone's Gate fallback otherwise.
  */
-function grant(User $user, string $slug, ?OrganizationModel $organization = null, ?TeamModel $team = null): void
+function withRoleStore(): FakeRoles
 {
-    $roles = app(Roles::class);
-
-    if ($roles instanceof FakeRoles) {
-        if (! $roles->assign($user, $slug, $team ?? $organization)) {
-            throw new LogicException("The role [{$slug}] is not defined for that scope.");
-        }
-
-        app(PermissionsContract::class)->forget($user);
-
-        return;
-    }
-
-    $role = RoleModel::query()->where('slug', $slug)->firstOrFail();
-
-    RoleAssignmentModel::query()->create([
-        'role_id' => $role->getKey(),
-        'user_id' => $user->getKey(),
-        'organization_id' => $organization?->getKey() ?? $team?->organization_id,
-        'team_id' => $team?->getKey(),
-    ]);
-
-    app(Permissions::class)->flush();
+    return AuthorizationTestCase::installRoleStore();
 }
 
 /**
- * A global role holding exactly the given permissions.
- *
- * @param  array<int, string>  $permissions
+ * The bound role store, which a test installs with `withRoleStore()`.
  */
-function roleWith(array $permissions, string $scope = 'global'): RoleModel
+function roleStore(): FakeRoles
 {
-    $role = RoleModel::factory()->create(['scope' => $scope]);
-    $role->permissions()->sync(PermissionModel::query()->whereIn('name', $permissions)->pluck('id'));
+    $roles = app(Roles::class);
 
-    return $role;
+    if (! $roles instanceof FakeRoles) {
+        throw new LogicException('No role store is bound: call withRoleStore() first.');
+    }
+
+    return $roles;
+}
+
+/**
+ * Give a user a role by slug, from the bound role store: global, in an
+ * organization, or on a team.
+ */
+function grant(User $user, string $slug, ?OrganizationModel $organization = null, ?TeamModel $team = null): void
+{
+    if (! roleStore()->assign($user, $slug, $team ?? $organization)) {
+        throw new LogicException("The role [{$slug}] is not defined for that scope.");
+    }
+
+    app(PermissionsContract::class)->forget($user);
+}
+
+/**
+ * A new role in the bound role store granting exactly the given abilities,
+ * held globally, in an organization or on a team. Returns its slug, for
+ * `grant()`.
+ *
+ * @param  list<string>  $abilities
+ * @param  'global'|'organization'|'team'  $scope
+ */
+function roleGranting(array $abilities, string $scope = 'global'): string
+{
+    $slug = 'role-'.Str::lower(Str::random(8));
+
+    roleStore()->define($slug, $abilities, match ($scope) {
+        'organization' => OrganizationModel::class,
+        'team' => TeamModel::class,
+        default => null,
+    });
+
+    return $slug;
 }
 
 function organization(?User $owner = null, array $attributes = []): OrganizationModel

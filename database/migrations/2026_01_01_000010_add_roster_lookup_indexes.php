@@ -10,7 +10,9 @@ use RefactorCircus\Roster\Support\Tables;
 /**
  * Indexes for the columns Roster filters, joins and sorts on that no index
  * leads with. MySQL indexes foreign keys by itself; PostgreSQL and SQLite do
- * not, so each index is only added where none exists yet.
+ * not, so each index is only added where none exists yet. The role tables
+ * are no longer Roster's: their indexes, on installs that have them, are
+ * left as they are both ways.
  */
 return new class extends Migration
 {
@@ -20,7 +22,6 @@ return new class extends Migration
     private const array COLUMNS = [
         'organizations' => ['name'],
         'organization_domains' => ['organization_id'],
-        'roles' => ['organization_id'],
         'profiles' => ['current_organization_id', 'current_team_id'],
         'impersonations' => ['organization_id', 'created_at'],
         'transfers' => ['organization_id'],

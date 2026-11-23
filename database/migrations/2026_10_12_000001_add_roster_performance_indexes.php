@@ -10,14 +10,16 @@ use RefactorCircus\Roster\Support\Tables;
 /**
  * Indexes for the organization-scoped lists Roster pages through, which
  * filter on the organization and sort by creation time then key: one index
- * answers the filter and the order without a sort.
+ * answers the filter and the order without a sort. The role tables are no
+ * longer Roster's: their index, on installs that have it, is left as it is
+ * both ways.
  */
 return new class extends Migration
 {
     /**
      * @var array<int, string>
      */
-    private const array TABLES = ['memberships', 'role_assignments', 'invitations'];
+    private const array TABLES = ['memberships', 'invitations'];
 
     private const array COLUMNS = ['organization_id', 'created_at', 'id'];
 

@@ -44,12 +44,17 @@ it('suggests Cortex and Keen', function (): void {
         ->toHaveKey('refactor-circus/keen', "Records Roster's changes in the suite-wide audit log (dev-main).");
 });
 
-it('suggests Guardian for single sign-on and SCIM, and no SSO vendor library', function (): void {
-    $suggest = (array) rosterComposer()['suggest'];
-
-    expect($suggest)
-        ->toHaveKey('refactor-circus/guardian', "Single sign-on (OIDC, SAML, Entra ID) and SCIM provisioning for Roster's organizations (dev-main).")
+it('suggests no SSO vendor library', function (): void {
+    expect((array) rosterComposer()['suggest'])
         ->not->toHaveKeys(['laravel/socialite', 'socialiteproviders/saml2', 'firebase/php-jwt', 'socialiteproviders/microsoft-azure']);
+});
+
+it('names no Guardian package anywhere', function (): void {
+    // Roster requires only Keystone: a role store or SSO package plugs into
+    // Keystone's contracts and Roster's seams without Roster naming it.
+    expect((string) file_get_contents(dirname(__DIR__, 2).'/composer.json'))
+        ->not->toContain('refactor-circus/guardian')
+        ->and(array_keys((array) rosterComposer()['suggest']))->toBe(['refactor-circus/cortex', 'refactor-circus/impex', 'refactor-circus/keen']);
 });
 
 it('no longer needs the SSO vendor libraries for its own tests', function (): void {
