@@ -596,3 +596,9 @@ Only the group's listed paths, plus this note and the ticked tasks (13.2, 13.3, 
 
 - Committed the out-of-list group 13 work (D-034). `OutputSchemaTest` expects 48, `PaginationTest` 7; both counts checked against what `RosterServer::TOOLS` and `src/Domains/*/Data/List*Data.php` hold now.
 - Checks: `composer analyse` and `lint:check` pass; `vendor/bin/pest --parallel`: 1056 tests, 1035 passed, 4 failed (`DocsTest` x2, group 16; `OpenApiTest` x2, group 15).
+
+## Group 14: Gate fallback coverage (direct build)
+
+- `tests/Feature/GateFallbackTest.php` (criterion 39), with authorization on and no role store: the bound permissions are `ImpersonationAwarePermissions` around Keystone's `GatePermissions`, and `Roles` is `NullRoles`; the API answers; the owner updates their organization (a stranger gets 403); `Gate::define('roster.users.view', ...)` lets a user list users; a user with neither gets 403; joining assigns nothing; a pending user notifies nobody; an import row with a role gets `import_unknown_role`; impersonation fails with `impersonate_escalation` until the host defines a `super-admin` Gate ability. All nine passed on the first run: groups 10-13 had already made the fallback work, so nothing needed fixing.
+- `tests/TestCase.php` `setUp()` guard: throws unless the wrapped `Permissions` is `GatePermissions` and `Roles` is `NullRoles` (checked before `AuthorizationTestCase` or `withRoleStore()` binds the fakes). The wrapped implementation is read by reflection, so `ImpersonationAwarePermissions` gains no public accessor.
+- Checks: analyse and lint:check pass; `vendor/bin/pest --parallel`: 1065 tests, 1044 passed, 4 failed (`DocsTest` x2, group 16; `OpenApiTest` x2, group 15).

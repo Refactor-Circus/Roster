@@ -150,9 +150,9 @@ depends on: 13
 files: tests/Feature/GateFallbackTest.php, tests/TestCase.php
 criteria: 39
 
-- [ ] 14.1 Write `GateFallbackTest` on Keystone's defaults: boot, migrate, the API answering; the owner may update their organization; `Gate::define('roster.users.view', ...)` lets a user list users; a user with neither gets 403; joining assigns nothing without failing; awaiting approval notifies nobody without failing; an import role is a row error; only a host-defined `super-admin` may impersonate
-- [ ] 14.2 Make `tests/TestCase.php` assert in a `setUp` guard that the bound implementations are Keystone's `GatePermissions` and `NullRoles`; fix anything the new tests expose
-- [ ] 14.3 Run vendor/bin/pest; all green
+- [x] 14.1 Write `GateFallbackTest` on Keystone's defaults: boot, migrate, the API answering; the owner may update their organization; `Gate::define('roster.users.view', ...)` lets a user list users; a user with neither gets 403; joining assigns nothing without failing; awaiting approval notifies nobody without failing; an import role is a row error; only a host-defined `super-admin` may impersonate
+- [x] 14.2 Make `tests/TestCase.php` assert in a `setUp` guard that the bound implementations are Keystone's `GatePermissions` and `NullRoles`; fix anything the new tests expose
+- [x] 14.3 Run vendor/bin/pest; all green
 
 ## Group 15: Regenerate OpenAPI and the client
 depends on: 14

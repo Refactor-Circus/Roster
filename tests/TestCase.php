@@ -7,9 +7,16 @@ namespace RefactorCircus\Roster\Tests;
 use Illuminate\Foundation\Testing\DatabaseTransactionsManager;
 use Illuminate\Support\Facades\Artisan;
 use Laravel\Mcp\Server\McpServiceProvider;
+use LogicException;
 use Orchestra\Testbench\TestCase as Orchestra;
 use RefactorCircus\Impex\ImpexServiceProvider;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
+use RefactorCircus\Keystone\Authorization\GatePermissions;
+use RefactorCircus\Keystone\Authorization\NullRoles;
 use RefactorCircus\Roster\RosterServiceProvider;
+use RefactorCircus\Roster\Support\Authorization\ImpersonationAwarePermissions;
+use ReflectionProperty;
 use Workbench\App\Models\User;
 
 use function Orchestra\Testbench\default_migration_path;
@@ -22,6 +29,25 @@ abstract class TestCase extends Orchestra
      * @var array<string, true>
      */
     private static array $migrated = [];
+
+    /**
+     * Roster runs on Keystone's defaults unless a test binds a role store
+     * (`withRoleStore()`, tests/Authorization): nothing in Roster or its
+     * workbench may bind `Permissions` or `Roles` itself.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $permissions = $this->app->make(Permissions::class);
+        $bound = $permissions instanceof ImpersonationAwarePermissions
+            ? (new ReflectionProperty($permissions, 'permissions'))->getValue($permissions)
+            : $permissions;
+
+        if (! $bound instanceof GatePermissions || ! $this->app->make(Roles::class) instanceof NullRoles) {
+            throw new LogicException('Roster tests start on Keystone\'s GatePermissions and NullRoles; got '.get_debug_type($bound).' and '.get_debug_type($this->app->make(Roles::class)).'.');
+        }
+    }
 
     /**
      * @return array<int, class-string>
