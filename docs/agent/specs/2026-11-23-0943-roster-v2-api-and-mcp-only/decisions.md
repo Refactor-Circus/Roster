@@ -119,3 +119,51 @@
 - Rationale: The user said "i'd like everything release as v2 to match". This supersedes any earlier choice to keep `^0.1` constraints or release Keystone as v0.2.0.
 - Date: 2026-11-23
 - Raised by: user
+
+## D-021: Do roles and permissions stay in Roster?
+- Choice: No. They move to Guardian. Roster asks Keystone's authorization contract (`Contracts\Permissions`, `Contracts\Roles`), and with no role store bound it falls back to Laravel's Gate and policies. Criterion 1 (organization role assignments) and D-011 are withdrawn.
+- Rationale: User decision, 2026-11-23.
+- Date: 2026-11-23
+- Raised by: user
+
+## D-022: Where do the organization owner rule and team-to-organization inheritance live?
+- Choice: On the scope models. `OrganizationModel` and `TeamModel` implement Keystone's `Scope` (`grantsByItself()` for the owner rule, `parentScope()` for team to organization), and `GLOBAL_ONLY_PREFIXES` moves to `OrganizationModel::GLOBAL_ONLY_ABILITIES` with unchanged values.
+- Rationale: Ownership is membership data that Roster owns, and every contract implementation honours `Scope`. Behaviour is the same with or without a role store. The README lists `roster.organizations.sync` as global-only but the code does not. The code is the behaviour, so the list moves unchanged and the README is corrected.
+- Date: 2026-11-23
+- Raised by: spec writer; conservative default
+
+## D-023: How do Roster's impersonation blocks reach checks made by other packages?
+- Choice: Roster decorates the bound `Permissions` with `ImpersonationAwarePermissions` through `$app->extend()`. The default blocked list replaces `roster.roles.manage` and `roster.roles.assign` with the patterns `*.roles.manage` and `*.roles.assign`, which `Str::is` already supports.
+- Rationale: A role store's own API (role management) must stay blocked while someone is impersonating, but Roster must not name that package. Wildcards keep the protection without naming it.
+- Date: 2026-11-23
+- Raised by: spec writer; conservative default (security)
+
+## D-024: What happens to the existing `roster_*` role tables?
+- Choice: Roster deletes its create migration, stops touching those tables, and never drops them. Guardian's migration copies them (Guardian spec). The upgrade note tells hosts to drop them by hand once they have checked the copy.
+- Rationale: The data is not destroyed when Guardian is installed late or not at all, and the two packages' migrations need no cross-package ordering.
+- Date: 2026-11-23
+- Raised by: spec writer; conservative default
+
+## D-025: What do the fallback's unknowns mean for Roster?
+- Choice: `abilities()` null means only super-admins may impersonate. `Roles::holders()` empty means approvals notify no one and do not fail. `Roles::exists()` false means the default member role is skipped and import role values are row errors.
+- Rationale: Each refuses rather than grants. Impersonating a user whose powers cannot be listed could escalate.
+- Date: 2026-11-23
+- Raised by: spec writer; conservative default (security)
+
+## D-026: How does the suite stay green while callers switch?
+- Choice: Group 10 binds an interim adapter (Roster's existing role service behind Keystone's contracts). Group 11 moves the authorization tests onto Keystone's fakes. Group 12 switches role writes and reads. Group 13 deletes the domains and the adapter, enforced by an arch test.
+- Rationale: Each group ends green, and no group mixes a rewrite of the tests with production changes.
+- Date: 2026-11-23
+- Raised by: spec writer; conservative default
+
+## D-027: Which abilities does Roster still declare, and what about `lead`?
+- Choice: Roster declares every former `roster.*` permission except `roster.roles.*`, which become the role store's own (`guardian.roles.*` in Guardian). `grantTo` covers `admin` and `member` only, so the team `lead` role is not declared. A role store that keeps adopted roles keeps `lead` with its grants.
+- Rationale: Role management belongs to the role store. A default team role is a role-store concern, and a store with no team scope type cannot create it.
+- Date: 2026-11-23
+- Raised by: spec writer; conservative default
+
+## D-028: Order with Guardian and spec review
+- Choice: This addendum waits for Keystone's authorization addendum and blocks Guardian's v2 spec. Spec review is skipped on the user's instruction, so the status stays `approved`. The pace is build and gate, with no review rounds.
+- Rationale: Guardian's v2 requires Roster `^2.0`, and Roster's `2.0.x-dev` alias only exists once this job merges. Guardian's current main stays on `^0.1` tags meanwhile.
+- Date: 2026-11-23
+- Raised by: user (pace, review); order defaulted by the spec writer

@@ -87,3 +87,88 @@ criteria: 6, 25, 26, 27
 - [x] 8.2 Rewrite README (API + MCP, Atrium v2 as optional UI) and add the CHANGELOG v2.0.0 entry
 - [x] 8.3 Update the Boost skill, `CLAUDE.md` and `AGENTS.md` (remove Atrium/Screens architecture bullets and `composer test:browser`; add new endpoints, regeneration); update the local standards (delete `roster/atrium-views`, rewrite `action-surfaces`, `optional-surfaces`, `testbench-environment`, `http/authorization`); mark the 2026-10-30 plain-views feedback row resolved
 - [x] 8.4 Run vendor/bin/pest; all green
+
+## Addendum 2026-11-23: roles and permissions move to Guardian
+
+Builders: if a design question comes up, choose the most conservative option consistent with spec.md and decisions.md, record it as the next D-entry in decisions.md, and continue. You may change files outside a group's list when the group needs it; commit them with the group.
+
+## Group 9: Scope models and declared abilities
+depends on: 8
+files: src/Domains/Organization/Models/OrganizationModel.php, src/Domains/Team/Models/TeamModel.php, src/Support/Authorization/RosterAbilities.php, src/RosterServiceProvider.php, config/roster.php, composer.json, tests/Unit/ScopeModelsTest.php, tests/Feature/RosterAbilitiesTest.php
+criteria: 30, 31, 32
+
+- [ ] 9.1 Write tests: `ScopeModelsTest` (team's `parentScope()` is its organization; organization's is null; owner `grantsByItself` true for `roster.teams.manage`, false for `roster.users.view` and `roster.organizations.create`; non-owner false; team false); `RosterAbilitiesTest` (after boot Keystone `Abilities` has every former permission except `roster.roles.*` with its description; `grantTo` for `admin` and `member` as criterion 31); `roster.impersonation.blocked` default contains `*.roles.manage` and `*.roles.assign` and no `roster.roles.*`
+- [ ] 9.2 Run `composer update refactor-circus/keystone` so the Keystone authorization addendum is installed (stop and report if it is not on Keystone `dev-main` yet)
+- [ ] 9.3 Implement `Scope` on both models and move the global-only list to `OrganizationModel::GLOBAL_ONLY_ABILITIES` (keep `Permissions::GLOBAL_ONLY_PREFIXES` delegating to it until group 13)
+- [ ] 9.4 Add `RosterAbilities` and define them from `RosterServiceProvider::boot()`; change the blocked defaults in `config/roster.php`
+- [ ] 9.5 Run vendor/bin/pest; all green
+
+## Group 10: Access checks through Keystone's contract
+depends on: 9
+files: src/Support/Authorization/Authorizer.php, src/Support/Authorization/Resources.php, src/Support/Authorization/ImpersonationAwarePermissions.php, src/Domains/Permission/Services/RosterRolesPermissions.php, src/Domains/Permission/PermissionServiceProvider.php, src/Domains/Permission/Services/Authorizer.php (delete), src/Domains/Permission/Services/Resources.php (delete), src/Support/Policies/Policy.php, src/Support/Concerns/AuthorizesWithRoster.php, src/Domains/Transfer/Services/Transfers.php, src/Domains/Transfer/Http/Requests/ShowImportTemplateRequest.php, src/Domains/Transfer/Mcp/Requests/ShowImportTemplateMcpRequest.php, src/Domains/Transfer/Actions/ConfirmImportAction.php, src/RosterServiceProvider.php, tests/Feature/AccessThroughContractTest.php
+criteria: 33, 34, 38
+
+- [ ] 10.1 Write tests in `AccessThroughContractTest`: with Keystone's `FakePermissions` installed, `Authorizer::permits()` and `check()` follow the fake (grant in an organization, parent organization for a team scope, the owner rule through `Scope`); `organizationsWith()` combines `scopesWith()` with owned organizations, keeps a null from `scopesWith()`, and drops owned organizations for a global-only ability; while impersonating, `allows('acme.roles.manage')` on a fake bound after boot is false; `Gate::before` answers true or null for `roster.*` abilities with the context scope and leaves super-admin passing to the implementation
+- [ ] 10.2 Move `Authorizer` and `Resources` to `src/Support/Authorization/` (drop the `roles` core resource); `permits()` and `organizationsWith()` use the contract as criterion 33; update every import (Policy, AuthorizesWithRoster, Transfer classes, providers)
+- [ ] 10.3 Add `ImpersonationAwarePermissions` and register it with `$this->app->extend(Permissions::class, ...)` in `RosterServiceProvider::register()`
+- [ ] 10.4 Add the interim `RosterRolesPermissions` (Roster's current `Permissions` service behind Keystone's `Permissions` and `Roles`) and bind it in `PermissionServiceProvider` with `scoped()`; rewrite the `Gate::before` as criterion 38
+- [ ] 10.5 Run vendor/bin/pest; all green (the existing role-based tests pass through the adapter)
+
+## Group 11: Authorization suite on Keystone's fakes
+depends on: 10
+files: tests/AuthorizationTestCase.php, tests/Authorization/fixtures.php, tests/Authorization/*.php, tests/Pest.php
+criteria: 40
+
+- [ ] 11.1 Rewrite `tests/Authorization/fixtures.php` and `AuthorizationTestCase` to install `FakePermissions` and `FakeRoles`, define `super-admin`, `admin` and `member` from `RosterAbilities`'s `grantTo`, and grant through `FakeRoles::assign()` in place of `RoleModel`/`RoleAssignmentModel` rows
+- [ ] 11.2 Port each file in `tests/Authorization/` to those fixtures with unchanged expectations, and mark the cases that test Roster's role API itself (`RoleActionsTest`, `PermissionsTest`, `OrganizationRoleAssignmentsAuthorizationTest`, role/permission routes in `HttpAuthorizationTest` and `McpAuthorizationTest`) for deletion in group 13 by moving them to `tests/Authorization/Legacy/`
+- [ ] 11.3 Run vendor/bin/pest; all green
+
+## Group 12: Role writes and reads through Keystone's Roles
+depends on: 11
+files: src/Domains/Organization/Concerns/ManagesMemberships.php, src/Domains/User/Actions/DeleteUserAction.php, src/Domains/User/Actions/PurgeUserAction.php, src/Domains/User/Services/Approvals.php, src/Domains/User/Concerns/HasRoster.php, src/Domains/User/UserServiceProvider.php, src/Domains/Transfer/Services/Exporters/MembersExporter.php, src/Domains/Transfer/Services/Planners/MembersPlanner.php, src/Domains/Impersonation/Actions/StartImpersonationAction.php, src/Roster.php, tests/Feature/RolesThroughContractTest.php
+criteria: 35, 36, 37
+
+- [ ] 12.1 Write tests in `RolesThroughContractTest` with `FakeRoles`/`FakePermissions`: joining assigns `default_member` in the organization scope (none when null or unknown); leaving an organization revokes in it and its teams; leaving a team revokes in the team; delete and purge call `revokeEverywhere`; `forget()` is called after each change; approvers come from `holders('roster.users.approve')`; the export role column and the import's unknown-role error and assignment; the impersonation super-admin and escalation rules, including null `abilities()`; `externalSignInFor()` with a super-admin; `hasRosterPermission()` asks the contract; no `rosterRoleAssignments` relation
+- [ ] 12.2 Switch `ManagesMemberships`, `DeleteUserAction`, `PurgeUserAction` and ownership transfer to `Roles`/`Permissions::forget()`
+- [ ] 12.3 Switch `Approvals`, `MembersExporter`, `MembersPlanner` (drop `AssignRoleAction`), `StartImpersonationAction` and `Roster::externalSignInFor()`
+- [ ] 12.4 Remove `rosterRoleAssignments()` from `HasRoster` and its relation from `UserServiceProvider`; `hasRosterPermission()` asks the contract
+- [ ] 12.5 Run vendor/bin/pest; all green
+
+## Group 13: Delete the Role and Permission domains
+depends on: 12
+files: src/Domains/Role/** (delete), src/Domains/Permission/** (delete), src/Domains/DomainServiceProvider.php, src/Mcp/RosterServer.php, src/Support/Audit.php, src/Support/Tables.php, config/roster.php, database/migrations/2026_01_01_000003_create_roster_role_tables.php (delete), database/migrations/2026_01_01_000010_add_roster_lookup_indexes.php, database/migrations/2026_10_12_000001_add_roster_performance_indexes.php, tests/Feature/Permission/** (delete), tests/Authorization/Legacy/** (delete), tests/Feature/Http/*Role*, tests/Feature/Mcp/*Role*, tests/Feature/Mcp/*Permission*, tests/Feature/MigrationsRoleTablesTest.php, tests/ArchTest.php, tests/Feature/ComposerTest.php, tests/Pest.php
+criteria: 28, 29, 30, 33, 41
+
+- [ ] 13.1 Write tests: routes and MCP tools absent (criterion 28); commands absent; a fresh migrate creates no role tables; with pre-created `roster_*` role tables holding rows, migrate and rollback leave them and their rows; config keys gone (criterion 30); arch: nothing uses `Domains\Role` or `Domains\Permission`; no `guardian` string in `src/`, `config/` or `database/`; `composer.json` names no guardian package
+- [ ] 13.2 Delete both domains (including the interim adapter and group 1's role-assignments endpoint), and remove them from `DomainServiceProvider`, `RosterServer::TOOLS`, `Support/Audit` and the parity exemptions
+- [ ] 13.3 Delete the role-tables migration and remove `roles`/`role_assignments` from the two index migrations; remove `permission_cache`, `super_admins`, the role policies and table keys from `config/roster.php` and `Support/Tables`
+- [ ] 13.4 Delete the tests of removed code (`tests/Feature/Permission/`, `tests/Authorization/Legacy/`, role/permission HTTP and MCP tests) and update the parity list in `tests/Pest.php`
+- [ ] 13.5 Run composer analyse and vendor/bin/pest; all green
+
+## Group 14: Gate fallback coverage
+depends on: 13
+files: tests/Feature/GateFallbackTest.php, tests/TestCase.php
+criteria: 39
+
+- [ ] 14.1 Write `GateFallbackTest` on Keystone's defaults: boot, migrate, the API answering; the owner may update their organization; `Gate::define('roster.users.view', ...)` lets a user list users; a user with neither gets 403; joining assigns nothing without failing; awaiting approval notifies nobody without failing; an import role is a row error; only a host-defined `super-admin` may impersonate
+- [ ] 14.2 Make `tests/TestCase.php` assert in a `setUp` guard that the bound implementations are Keystone's `GatePermissions` and `NullRoles`; fix anything the new tests expose
+- [ ] 14.3 Run vendor/bin/pest; all green
+
+## Group 15: Regenerate OpenAPI and the client
+depends on: 14
+files: openapi.json, client/src/schema.d.ts, client/dist/*, tests/Feature/OpenApiTest.php
+criteria: 42
+
+- [ ] 15.1 Update `OpenApiTest`'s expected operations: drop every route removed in criterion 28, and assert none of them is in the document
+- [ ] 15.2 Run `composer client:generate` and commit `openapi.json` and the regenerated client
+- [ ] 15.3 Run vendor/bin/pest; all green
+
+## Group 16: Docs, changelog and standards for the move
+depends on: 15
+files: README.md, CHANGELOG.md, resources/boost/skills/roster-development/SKILL.md, CLAUDE.md, AGENTS.md, docs/agent/standards/**, docs/agent/standards-feedback.md, tests/Feature/DocsTest.php
+criteria: 43, 44, 45, 46
+
+- [ ] 16.1 Update `DocsTest`: the README "Roles and permissions" section names Keystone's authorization contract, the Gate fallback with a `Gate::define` example and `super-admin`, and the owner rule. None of README, Boost skill, `CLAUDE.md`, `AGENTS.md` or `docs/agent/standards/` contains `PermissionCatalogue`, `roster:sync-permissions`, `permission_cache` or `rosterRoleAssignments`. CHANGELOG v2.0.0 Breaking names the removed routes, tools, commands and config, and its upgrade note names `refactor-circus/guardian` `^2.0` and dropping the `roster_*` role tables by hand.
+- [ ] 16.2 Rewrite the README section (drop the built-in roles table, `permission_cache` and the "Extending Roster" permission registration, and fix the global-only list per D-022), and extend the CHANGELOG
+- [ ] 16.3 Update the Boost skill, `CLAUDE.md`, `AGENTS.md` and the local standards that describe roles or permissions. Add a `standards-feedback.md` row if any standard still assumes Roster owns permissions.
+- [ ] 16.4 Run composer test; all green
