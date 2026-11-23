@@ -36,8 +36,8 @@ it('becomes the user, shows the banner, and returns', function (): void {
         ->assertSee('You are acting as Ada (signed in as Admin).')
         ->assertSee('Return to my account');
 
-    $this->post(route('roster.impersonation.leave'))
-        ->assertRedirect(route('atrium.roster.users.show', $this->ada->getRouteKey()));
+    // No roster.impersonation.return_to here: back to the home page.
+    $this->post(route('roster.impersonation.leave'))->assertRedirect('/');
 
     expect(Auth::id())->toBe($this->admin->getKey())
         ->and($this->started->impersonation->refresh()->end_reason)->toBe('stopped');

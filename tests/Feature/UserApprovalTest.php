@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use RefactorCircus\Roster\Domains\Organization\Actions\UpdateOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Data\UpdateOrganizationData;
-use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\User\Actions\ApproveUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
 use RefactorCircus\Roster\Domains\User\Actions\ReactivateUserAction;
@@ -131,36 +130,4 @@ it('approves and rejects over http and mcp', function (): void {
 
     $r = pendingUser(['email' => 'r@example.com']);
     mcpTool(RejectUserTool::class, ['user' => $r->getRouteKey(), 'reason' => 'Spam'])->assertOk()->assertSee('deactivated');
-});
-
-it('approves from the user page in atrium', function (): void {
-    $this->actingAs($this->approver);
-    $pending = pendingUser();
-
-    $this->get(route('atrium.roster.users.show', $pending->getRouteKey()))->assertOk()->assertSee('data-testid="approval-card"', false);
-    $this->post(route('atrium.roster.users.approve', $pending->getRouteKey()))->assertRedirect();
-    $this->get(route('atrium.roster.users.show', $pending->getRouteKey()))->assertDontSee('data-testid="approval-card"', false);
-
-    expect(app(Users::class)->status($pending->fresh()))->toBe(UserStatus::Active);
-});
-
-it('activates pending users straight from the users list and an organization\'s members', function (): void {
-    $this->actingAs($this->approver);
-    $acme = organization(attributes: ['name' => 'Acme']);
-    $listed = pendingUser(['email' => 'listed@example.com']);
-    $member = pendingUser(['email' => 'member@example.com']);
-    MembershipModel::query()->create(['organization_id' => $acme->id, 'user_id' => $member->getKey()]);
-
-    $this->get(route('atrium.roster.users.index'))->assertSee('data-testid="activate-user"', false);
-    $this->from(route('atrium.roster.users.index'))
-        ->post(route('atrium.roster.users.approve', $listed->getRouteKey()))
-        ->assertRedirect(route('atrium.roster.users.index'));
-
-    $members = route('atrium.roster.organizations.show', 'acme');
-    $this->get($members)->assertSee('data-testid="activate-user"', false);
-    $this->from($members)->post(route('atrium.roster.users.approve', $member->getRouteKey()))->assertRedirect($members);
-    $this->get($members)->assertDontSee('data-testid="activate-user"', false);
-
-    expect(app(Users::class)->status($listed->fresh()))->toBe(UserStatus::Active)
-        ->and(app(Users::class)->status($member->fresh()))->toBe(UserStatus::Active);
 });

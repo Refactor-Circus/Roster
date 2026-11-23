@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Gate;
-use RefactorCircus\Roster\Atrium\ScreenAccess;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
 use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
@@ -166,11 +165,6 @@ it('throws, naming the resource, when a registered model has no policy', functio
         InvalidArgumentException::class,
         'acme.gadgets',
     );
-    $this->assertThrows(
-        fn () => ScreenAccess::allows('acme.gadgets.approve', $acme),
-        InvalidArgumentException::class,
-        'acme.gadgets',
-    );
 
     try {
         Blade::render("@rosterCan('acme.gadgets.approve', \$scope) yes @endrosterCan", ['scope' => $acme]);
@@ -231,7 +225,7 @@ it('sees a resource registered after the first check', function (): void {
         ->and($authorizer->check($user, 'acme.widgets.approve', $acme))->toBeTrue();
 });
 
-it('takes registered permissions on ScreenAccess and @rosterCan', function (): void {
+it('takes registered permissions on @rosterCan', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $approver = widgetApprover($acme);
     $other = user();
@@ -242,14 +236,12 @@ it('takes registered permissions on ScreenAccess and @rosterCan', function (): v
     $this->actingAs($approver);
     request()->setUserResolver(fn (): User => $approver);
 
-    expect(ScreenAccess::allows('acme.widgets.approve', $acme))->toBeTrue()
-        ->and(trim(Blade::render($view, ['scope' => $acme])))->toBe('yes');
+    expect(trim(Blade::render($view, ['scope' => $acme])))->toBe('yes');
 
     $this->actingAs($other);
     request()->setUserResolver(fn (): User => $other);
 
-    expect(ScreenAccess::allows('acme.widgets.approve', $acme))->toBeFalse()
-        ->and(trim(Blade::render($view, ['scope' => $acme])))->toBe('');
+    expect(trim(Blade::render($view, ['scope' => $acme])))->toBe('');
 });
 
 it('leaves the impersonation-blocked list to the application', function (): void {

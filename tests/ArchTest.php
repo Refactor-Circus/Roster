@@ -311,19 +311,13 @@ function rosterAtriumClasses(): array
     return $classes;
 }
 
-// The workbench is the demo application, which registers the plugin the
-// way a host application does.
 arch('outside the Atrium folder, nothing in Roster uses it but the provider seam')
     ->expect(array_values(array_diff(rosterAtriumClasses(), ['RefactorCircus\Roster\Atrium\AtriumServiceProvider'])))
-    ->toOnlyBeUsedIn(['RefactorCircus\Roster\Atrium', 'Workbench']);
+    ->toOnlyBeUsedIn('RefactorCircus\Roster\Atrium');
 
 arch('the Atrium seam is registered only by RosterServiceProvider')
     ->expect('RefactorCircus\Roster\Atrium\AtriumServiceProvider')
     ->toOnlyBeUsedIn('RefactorCircus\Roster\RosterServiceProvider');
-
-arch('ScreenAccess stands on Roster alone')
-    ->expect('RefactorCircus\Roster\Atrium\ScreenAccess')
-    ->not->toUse('RefactorCircus\Atrium');
 
 // Atrium stays autoloadable in the suite (it is a dev dependency), so the
 // rules above would not notice a name that is only a string. Outside
@@ -343,7 +337,7 @@ arch('nothing names Roster\'s old tab registry')
     ->expect(fn (): array => rosterFilesContaining(
         ['src', 'resources', 'tests', 'README.md'],
         ['Atrium\\Tabs', 'Roster\\Atrium\\TabDefinition', 'TabVisibility', 'partials.tabs', 'registered-tab'],
-        ['tests/ArchTest.php', 'tests/Browser/Screenshots', 'tests/Browser/Traces'],
+        ['tests/ArchTest.php'],
     ))
     ->toBeEmpty();
 

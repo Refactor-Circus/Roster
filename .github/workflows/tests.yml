@@ -113,9 +113,7 @@ jobs:
 
       - name: Test Suite (Windows)
         if: runner.os == 'Windows'
-        # Bare `pest` would pick up the Browser suite, which needs Playwright.
-        # That is installed and run by the browser-tests workflow instead.
-        run: vendor/bin/pest --exclude-testsuite=Browser
+        run: vendor/bin/pest
 
   # Roster without refactor-circus/atrium: the in-suite AtriumUnavailable mode
   # with Atrium's classes really absent, so any reference to them outside
