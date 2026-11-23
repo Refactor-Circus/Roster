@@ -502,3 +502,9 @@ Criterion 40: `tests/Authorization` passes with a role store bound, which is Key
 - **Joining does not yet give a role in `FakeRoles`.** `ManagesMemberships` still writes the default member role to Roster's tables until group 12. Tests that relied on that role (`PoliciesTest`, the `GateTest` context case and `authorizationWorld()`) now grant `member` explicitly. After group 12 the explicit grant is redundant but harmless, because `assign()` is idempotent.
 - **`grant()` in `tests/Pest.php` has two paths.** The role-table path stays for `tests/Feature` and Legacy. Group 13 removes it along with `roleWith()`, `ROLE_API_ROUTES`, `isRoleApiRoute()`/`isRoleApiTool()` and the `KeepsRosterRoles` line.
 - `docs/agent/standards/roster/testbench-environment.md` and `http/authorization.md` still say only that `AuthorizationTestCase` turns authorization on. That is still true. Mentioning the fakes is left to group 16.
+
+## Group 11 (retry)
+
+- I found the work for 11.1–11.3 already in commit `075a36f`, with a clean tree and the tasks ticked. Nothing needed changing.
+- Outside `tests/Authorization/Legacy/`, no file in `tests/Authorization/` or `tests/AuthorizationTestCase.php` uses `RoleModel`, `RoleAssignmentModel`, `PermissionModel`, `roleWith()` or Roster's `Permissions` service.
+- `composer test:unit` (1145 passed, 3744 assertions), `composer lint:check` and `composer analyse` all pass.
