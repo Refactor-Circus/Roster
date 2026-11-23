@@ -9,12 +9,12 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Facades\Route;
 use RefactorCircus\Roster\Support\Users;
 
 /**
  * Tells an approver that someone is waiting for their account to be
- * accepted, with a link to their page in Atrium when it's installed.
+ * accepted, with a button to `roster.users.approvals.review_url` when the
+ * application sets one.
  */
 final class UserAwaitingApprovalNotification extends Notification implements ShouldQueue
 {
@@ -47,8 +47,10 @@ final class UserAwaitingApprovalNotification extends Notification implements Sho
             ->subject(__('roster::roster.awaiting_approval_subject', ['user' => $who]))
             ->line(__('roster::roster.awaiting_approval_line', ['user' => $who, 'email' => (string) $users->email($this->user)]));
 
-        return Route::has('atrium.roster.users.show')
-            ? $message->action(__('roster::roster.awaiting_approval_action'), route('atrium.roster.users.show', $this->user->getRouteKey()))
+        $reviewUrl = config('roster.users.approvals.review_url');
+
+        return is_string($reviewUrl) && $reviewUrl !== ''
+            ? $message->action(__('roster::roster.awaiting_approval_action'), str_replace('{user}', rawurlencode((string) $this->user->getRouteKey()), $reviewUrl))
             : $message;
     }
 }

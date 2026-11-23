@@ -24,7 +24,7 @@ interface Status extends BackedEnum
     public function label(): string;
 
     /**
-     * The Atrium badge variant the status shows with: `success`, `info`,
+     * The badge variant a UI shows the status with: `success`, `info`,
      * `warning`, `danger`, `primary` or `neutral`.
      */
     public function badge(): string;

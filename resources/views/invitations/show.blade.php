@@ -1,7 +1,7 @@
 {{--
-    The invitation page without the Atrium dashboard: plain HTML, styled
-    inline because no stylesheet is loaded. With Atrium installed, Roster
-    renders roster::ui.invitations.show instead.
+    The invitation page (PlainInvitationPage): plain HTML, styled inline
+    because no stylesheet is loaded. Bind your own InvitationPage, or set
+    `roster.invitations.accept_url`, to use a page of your own instead.
 --}}
 @php($heading = __('roster::roster.invitation_title', ['organization' => $organization->name]))
 <!DOCTYPE html>

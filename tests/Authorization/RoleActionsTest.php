@@ -39,7 +39,7 @@ it('manages app permissions but keeps built-ins', function (): void {
 
     app(DeletePermissionAction::class)->execute($permission);
 
-    expect(fn () => app(DeletePermissionAction::class)->execute(PermissionModel::query()->where('name', 'atrium.view')->sole()))
+    expect(fn () => app(DeletePermissionAction::class)->execute(PermissionModel::query()->where('name', 'roster.audit.view')->sole()))
         ->toThrow(ValidationException::class);
     expect(validator(['name' => 'Not Valid'], CreatePermissionData::rules())->fails())->toBeTrue();
 });

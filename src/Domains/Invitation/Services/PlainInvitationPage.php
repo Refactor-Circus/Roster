@@ -11,8 +11,8 @@ use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 
 /**
- * The invitation page as plain HTML (`roster::invitations.show`), for
- * applications without Atrium.
+ * The invitation page as plain HTML (`roster::invitations.show`), Roster's
+ * default `InvitationPage`.
  */
 final class PlainInvitationPage implements InvitationPage
 {
@@ -27,8 +27,7 @@ final class PlainInvitationPage implements InvitationPage
     /**
      * What every invitation page receives: the invitation, its organization,
      * the names of the teams it adds the invitee to (sorted) and the token.
-     *
-     * @internal Shared with Roster's Atrium page, so both render the same data.
+     * A host's own page may render the same data.
      *
      * @return array<string, mixed>
      */

@@ -20,7 +20,6 @@ use RefactorCircus\Keystone\Contracts\ReadActionEvent;
 use RefactorCircus\Keystone\Packages\Package;
 use RefactorCircus\Keystone\Support\PackageServiceProvider;
 use RefactorCircus\Keystone\Support\Surface;
-use RefactorCircus\Roster\Atrium\AtriumServiceProvider;
 use RefactorCircus\Roster\Console\Commands\PurgeDeletedCommand;
 use RefactorCircus\Roster\Domains\DomainServiceProvider;
 use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
@@ -37,20 +36,9 @@ use RefactorCircus\Roster\Support\Users;
  *
  * Roster describes itself to refactor-circus/keystone in `definition()`, so the shared
  * base classes find its config, routes and MCP server by namespace.
- *
- * Atrium is optional: Roster's Atrium seam (Atrium\AtriumServiceProvider)
- * is registered only while Atrium is installed.
  */
 class RosterServiceProvider extends PackageServiceProvider
 {
-    /**
-     * Skip the Atrium seam as if Atrium were not installed. For Roster's own
-     * tests of the Atrium-free install, which still have Atrium autoloadable.
-     *
-     * @internal
-     */
-    public static bool $withoutAtrium = false;
-
     /**
      * Roster checks every call by default: `roster.authorization` is on
      * unless an application turns it off. The shared history route and tool
@@ -82,12 +70,6 @@ class RosterServiceProvider extends PackageServiceProvider
         $this->app->singleton(SignInRequirements::class);
 
         $this->app->register(DomainServiceProvider::class);
-
-        // After the domains, so the seam's bindings replace their plain defaults.
-        // A string, so nothing here loads Atrium when it is not installed.
-        if (! self::$withoutAtrium && class_exists('RefactorCircus\Atrium\Atrium')) {
-            $this->app->register(AtriumServiceProvider::class);
-        }
 
         $this->registerSurfaces();
     }

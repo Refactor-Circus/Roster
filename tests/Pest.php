@@ -17,7 +17,6 @@ use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\RosterServer;
-use RefactorCircus\Roster\Tests\AtriumUnavailableTestCase;
 use RefactorCircus\Roster\Tests\AuthorizationTestCase;
 use RefactorCircus\Roster\Tests\CortexTestCase;
 use RefactorCircus\Roster\Tests\DefaultsTestCase;
@@ -39,7 +38,6 @@ uses(UlidTestCase::class)->in('Modes/Ulid');
 uses(TestCase::class)->in('Modes/Owned');
 uses(KeenTestCase::class)->in('Modes/Keen');
 uses(TransfersUnavailableTestCase::class)->in('Modes/TransfersUnavailable');
-uses(AtriumUnavailableTestCase::class)->in('Modes/AtriumUnavailable');
 uses(RenamedTablesTestCase::class)->in('Modes/RenamedTables');
 
 /**

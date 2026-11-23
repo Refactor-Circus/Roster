@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\Permission;
 
 use Illuminate\Contracts\Auth\Access\Gate;
-use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Database\Eloquent\Model;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
@@ -84,8 +83,7 @@ class PermissionServiceProvider extends ServiceProvider
 
     /**
      * Resolve Roster permissions through Laravel's Gate, so `$user->can()`
-     * and `@can` work with them, and give Atrium a gate when the app has not
-     * defined one.
+     * and `@can` work with them.
      */
     private function registerGate(): void
     {
@@ -161,15 +159,6 @@ class PermissionServiceProvider extends ServiceProvider
             [RoleSavedEvent::class, RoleDeletedEvent::class, RoleAssignmentSavedEvent::class, RoleAssignmentDeletedEvent::class],
             fn (): bool => $this->forgetCached(catalogue: false),
         );
-
-        $this->app->booted(function () use ($gate): void {
-            $ability = $this->app->make(Repository::class)->get('atrium.gate', 'viewAtrium');
-
-            if (is_string($ability) && ! $gate->has($ability)) {
-                $gate->define($ability, fn (mixed $user): bool => $user instanceof Model
-                    && $this->app->make(Permissions::class)->allows($user, 'atrium.view'));
-            }
-        });
     }
 
     /**

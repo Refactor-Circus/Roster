@@ -144,7 +144,7 @@ arch('package models are final, except the extendable owned-mode user')
     ->toBeFinal()
     ->ignoring('RefactorCircus\Roster\Domains\User\Models\UserModel');
 
-arch('every action is reachable from the HTTP API, MCP and a UI')
+arch('every action is reachable from the HTTP API and MCP')
     ->expect(fn (): array => parityGaps())
     ->toBeEmpty();
 
@@ -245,9 +245,87 @@ arch('Roster ships no audit trail or history navigation')
     ->expect(fn (): array => rosterFilesContaining(['src', 'resources'], ['historyNavItem', 'audit-trail']))
     ->toBeEmpty();
 
-arch('no Roster view renders an Atrium audit component')
-    ->expect(fn (): array => rosterFilesContaining(['resources/views'], ['x-atrium::audit']))
+/**
+ * Every line, under these folders or files (relative to the package, or to
+ * `$root`), that names Atrium in any case, as `path:line`. Generated
+ * workbench state (storage, caches) is skipped.
+ *
+ * @param  array<int, string>  $paths
+ * @return array<int, string>
+ */
+function rosterAtriumMentions(array $paths, string $root = __DIR__.'/..'): array
+{
+    $found = [];
+    $root = rtrim($root, '/').'/';
+
+    foreach ($paths as $path) {
+        $absolute = $root.$path;
+
+        if (! file_exists($absolute)) {
+            continue;
+        }
+
+        $files = is_file($absolute)
+            ? [new SplFileInfo($absolute)]
+            : new RecursiveIteratorIterator(new RecursiveDirectoryIterator($absolute, FilesystemIterator::SKIP_DOTS));
+
+        foreach ($files as $file) {
+            /** @var SplFileInfo $file */
+            $relative = substr($file->getPathname(), strlen($root));
+
+            if (str_starts_with($relative, 'workbench/storage/') || str_starts_with($relative, 'workbench/bootstrap/cache/')) {
+                continue;
+            }
+
+            foreach (file($file->getPathname()) ?: [] as $number => $line) {
+                if (stripos($line, 'atrium') !== false) {
+                    $found[] = $relative.':'.($number + 1);
+                }
+            }
+        }
+    }
+
+    return $found;
+}
+
+/**
+ * Every `composer.json` dependency section key that names Atrium:
+ * `refactor-circus/atrium` or any key containing `atrium`.
+ *
+ * @return array<int, string>
+ */
+function rosterComposerAtriumKeys(): array
+{
+    /** @var array<string, mixed> $composer */
+    $composer = json_decode((string) file_get_contents(__DIR__.'/../composer.json'), true, flags: JSON_THROW_ON_ERROR);
+    $found = [];
+
+    foreach (['require', 'require-dev', 'suggest', 'conflict', 'extra'] as $section) {
+        foreach (array_keys((array) ($composer[$section] ?? [])) as $key) {
+            if (stripos((string) $key, 'atrium') !== false) {
+                $found[] = $section.'.'.$key;
+            }
+        }
+    }
+
+    return $found;
+}
+
+arch('nothing Roster ships names Atrium')
+    ->expect(fn (): array => rosterAtriumMentions(['src', 'config', 'database', 'lang', 'resources/views', 'workbench', 'testbench.yaml']))
     ->toBeEmpty();
+
+arch('composer.json neither requires, suggests, conflicts with nor configures Atrium')
+    ->expect(fn (): array => rosterComposerAtriumKeys())
+    ->toBeEmpty();
+
+arch('Roster has no Atrium folder')
+    ->expect(fn (): bool => is_dir(__DIR__.'/../src/Atrium'))
+    ->toBeFalse();
+
+arch('Roster uses no Atrium class')
+    ->expect('RefactorCircus\Atrium')
+    ->not->toBeUsedIn('RefactorCircus\Roster');
 
 /**
  * Whether a `roster::` view exists in the package's own views, as
@@ -267,7 +345,7 @@ function rosterViewExists(string $name): bool
     }
 }
 
-arch('Roster\'s own tab registry is gone: screens declare themselves on Atrium\'s')
+arch('Roster\'s old tab registry is gone')
     ->expect(fn (): array => array_values(array_filter([
         ...array_map(
             fn (string $class): ?string => class_exists($class) ? $class : null,
@@ -280,56 +358,49 @@ arch('Roster\'s own tab registry is gone: screens declare themselves on Atrium\'
     ])))
     ->toBeEmpty();
 
-// Local installs symlink the sibling packages, so Pest reads them as this
-// project's code; their own Atrium use is not Roster's concern.
-arch('only Roster\'s Atrium folder uses Atrium')
-    ->expect('RefactorCircus\Atrium')
-    ->toOnlyBeUsedIn('RefactorCircus\Roster\Atrium')
-    ->ignoring(['RefactorCircus\Cortex', 'RefactorCircus\Impex', 'RefactorCircus\Keen', 'RefactorCircus\PennantPlus']);
-
 /**
- * Every class under src/Atrium, the Atrium folder's own namespace.
+ * Every file under resources/views, relative to it.
  *
- * @return array<int, class-string>
+ * @return array<int, string>
  */
-function rosterAtriumClasses(): array
+function rosterViewFiles(): array
 {
-    $classes = [];
-    $root = __DIR__.'/../src/Atrium/';
+    $root = __DIR__.'/../resources/views/';
+    $files = [];
 
     foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)) as $file) {
         /** @var SplFileInfo $file */
-        if ($file->getExtension() === 'php') {
-            /** @var class-string $class */
-            $class = 'RefactorCircus\\Roster\\Atrium\\'.str_replace(['/', '.php'], ['\\', ''], substr($file->getPathname(), strlen($root)));
-            $classes[] = $class;
-        }
+        $files[] = substr($file->getPathname(), strlen($root));
     }
 
-    sort($classes);
+    sort($files);
 
-    return $classes;
+    return $files;
 }
 
-arch('outside the Atrium folder, nothing in Roster uses it but the provider seam')
-    ->expect(array_values(array_diff(rosterAtriumClasses(), ['RefactorCircus\Roster\Atrium\AtriumServiceProvider'])))
-    ->toOnlyBeUsedIn('RefactorCircus\Roster\Atrium');
+it('ships exactly the three plain views', function (): void {
+    expect(rosterViewFiles())->toBe([
+        'impersonation-banner.blade.php',
+        'invitations/show.blade.php',
+        'partials/impersonation-banner-plain.blade.php',
+    ])
+        ->and(is_dir(__DIR__.'/../resources/views/ui'))->toBeFalse();
+});
 
-arch('the Atrium seam is registered only by RosterServiceProvider')
-    ->expect('RefactorCircus\Roster\Atrium\AtriumServiceProvider')
-    ->toOnlyBeUsedIn('RefactorCircus\Roster\RosterServiceProvider');
+it('catches Atrium named in any case, in folders and single files', function (): void {
+    $root = sys_get_temp_dir().'/roster-atrium-guard-'.getmypid();
 
-// Atrium stays autoloadable in the suite (it is a dev dependency), so the
-// rules above would not notice a name that is only a string. Outside
-// src/Atrium the one mention is RosterServiceProvider's installed check.
-arch('nothing outside the Atrium folder names an Atrium class')
-    ->expect(fn (): array => array_values(array_filter(
-        rosterFilesContaining(['src'], ['RefactorCircus\\Atrium', 'RefactorCircus\\\\Atrium'], ['src/Atrium']),
-        fn (string $found): bool => $found !== 'src/RosterServiceProvider.php: RefactorCircus\\Atrium'
-            || substr_count((string) file_get_contents(__DIR__.'/../src/RosterServiceProvider.php'), 'RefactorCircus\\Atrium') !== 1
-            || ! str_contains((string) file_get_contents(__DIR__.'/../src/RosterServiceProvider.php'), "class_exists('RefactorCircus\\Atrium\\Atrium')"),
-    )))
-    ->toBeEmpty();
+    if (! is_dir($root.'/src')) {
+        mkdir($root.'/src', 0777, true);
+    }
+
+    file_put_contents($root.'/src/Clean.php', "<?php\n// nothing here\n");
+    file_put_contents($root.'/src/Named.php', "<?php\n// the ATRIUM dashboard\nuse RefactorCircus\\Atrium\\Atrium;\n");
+    file_put_contents($root.'/testbench.yaml', "providers:\n  - atrium\n");
+
+    expect(rosterAtriumMentions(['src', 'testbench.yaml', 'missing'], $root))
+        ->toEqualCanonicalizing(['src/Named.php:2', 'src/Named.php:3', 'testbench.yaml:2']);
+});
 
 // This file names them to check they are gone. The CHANGELOG, which tells
 // upgraders what was removed, is not searched.

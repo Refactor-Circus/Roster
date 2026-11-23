@@ -31,18 +31,13 @@
         "pestphp/pest-plugin-laravel": "^5.0.1",
         "pestphp/pest-plugin-type-coverage": "^5.0.3",
         "phpstan/extension-installer": "^1.4.3",
-        "refactor-circus/atrium": "^0.1",
         "refactor-circus/cortex": "^0.1",
         "refactor-circus/impex": "^0.1",
         "refactor-circus/keen": "^0.1",
         "refactor-circus/ringside": "dev-main",
         "refactor-circus/standards": "dev-main"
     },
-    "conflict": {
-        "refactor-circus/atrium": "<0.1.0"
-    },
     "suggest": {
-        "refactor-circus/atrium": "The Atrium dashboard: Roster's admin screens, widgets and search (dev-main).",
         "refactor-circus/cortex": "Lets Cortex agents use the Roster tools (dev-main).",
         "refactor-circus/guardian": "Single sign-on (OIDC, SAML, Entra ID) and SCIM provisioning for Roster's organizations (dev-main).",
         "refactor-circus/impex": "Required for CSV import and export (dev-main).",
@@ -135,10 +130,6 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/Refactor-Circus/Atrium.git"
-        },
         {
             "type": "vcs",
             "url": "https://github.com/Refactor-Circus/Cortex.git"

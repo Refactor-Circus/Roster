@@ -19,8 +19,8 @@ use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Models\UserModel;
 
 /**
- * How Roster's own surfaces - the JSON API, MCP tools and Atrium screens -
- * decide whether the caller may act.
+ * How Roster's own surfaces - the JSON API and MCP tools - decide whether
+ * the caller may act.
  *
  * With `roster.authorization` on (the default), every call needs an
  * authenticated user allowed the Action's permission in the right scope.

@@ -14,7 +14,7 @@ it('manages permissions', function (): void {
     $this->patchJson(route('roster.permissions.update', 'invoices.edit'), ['description' => 'Edit'])->assertOk()->assertJsonPath('data.description', 'Edit');
     $this->getJson(route('roster.permissions.index', ['search' => 'invoices']))->assertOk()->assertJsonPath('meta.total', 1);
     $this->deleteJson(route('roster.permissions.destroy', 'invoices.edit'))->assertNoContent();
-    $this->deleteJson(route('roster.permissions.destroy', 'atrium.view'))->assertUnprocessable();
+    $this->deleteJson(route('roster.permissions.destroy', 'roster.audit.view'))->assertUnprocessable();
 });
 
 it('manages roles', function (): void {

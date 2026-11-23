@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 /**
- * Roster requires only Keystone of the suite: Atrium, Cortex and Keen are
- * suggested, and an Atrium older than the screen registry is refused.
+ * Roster requires only Keystone of the suite: Cortex and Keen are
+ * suggested.
  *
  * @return array<string, mixed>
  */
@@ -24,13 +24,22 @@ it('requires only Keystone of the suite packages', function (): void {
         ->and($require)->toContain('php', 'refactor-circus/keystone', 'laravel/framework', 'laravel/mcp');
 });
 
-it('keeps Atrium as a dev dependency', function (): void {
-    expect(rosterComposer()['require-dev'])->toHaveKey('refactor-circus/atrium', '^0.1');
+it('neither requires, suggests nor conflicts with Atrium', function (): void {
+    $composer = rosterComposer();
+
+    expect((array) $composer['require-dev'])->not->toHaveKey('refactor-circus/atrium')
+        ->and((array) $composer['suggest'])->not->toHaveKey('refactor-circus/atrium')
+        ->and($composer)->not->toHaveKey('conflict');
 });
 
-it('suggests Atrium, Cortex and Keen', function (): void {
+it('has no Atrium VCS repository', function (): void {
+    $urls = array_column((array) rosterComposer()['repositories'], 'url');
+
+    expect($urls)->not->toContain('https://github.com/Refactor-Circus/Atrium.git');
+});
+
+it('suggests Cortex and Keen', function (): void {
     expect(rosterComposer()['suggest'])
-        ->toHaveKey('refactor-circus/atrium', "The Atrium dashboard: Roster's admin screens, widgets and search (dev-main).")
         ->toHaveKey('refactor-circus/cortex', 'Lets Cortex agents use the Roster tools (dev-main).')
         ->toHaveKey('refactor-circus/keen', "Records Roster's changes in the suite-wide audit log (dev-main).");
 });
@@ -46,10 +55,6 @@ it('suggests Guardian for single sign-on and SCIM, and no SSO vendor library', f
 it('no longer needs the SSO vendor libraries for its own tests', function (): void {
     expect((array) rosterComposer()['require-dev'])
         ->not->toHaveKeys(['laravel/socialite', 'socialiteproviders/saml2', 'firebase/php-jwt', 'socialiteproviders/microsoft-azure']);
-});
-
-it('refuses an Atrium older than the screen registry', function (): void {
-    expect(rosterComposer()['conflict'] ?? null)->toBe(['refactor-circus/atrium' => '<0.1.0']);
 });
 
 it('declares no Atrium plugin', function (): void {

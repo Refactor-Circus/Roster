@@ -8,6 +8,7 @@ use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
+use RefactorCircus\Roster\Domains\Role\Support\BuiltInRoles;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Actions\RemoveTeamMemberAction;
@@ -24,9 +25,13 @@ function permissions(): Permissions
 
 it('seeds the built-in permissions and roles', function (): void {
     expect(permissions()->knows('roster.users.view'))->toBeTrue()
-        ->and(permissions()->knows('atrium.view'))->toBeTrue()
+        ->and(permissions()->knows('roster.audit.view'))->toBeTrue()
+        // Atrium v2 owns its own access: Roster seeds no atrium.view.
+        ->and(permissions()->knows('atrium.view'))->toBeFalse()
         ->and(RoleModel::query()->where('system', true)->pluck('slug')->sort()->values()->all())
         ->toBe(['admin', 'lead', 'member', 'super-admin']);
+
+    expect(array_keys(BuiltInRoles::PERMISSIONS))->each->toStartWith('roster.');
 });
 
 it('unions global, organization and team roles by scope', function (): void {

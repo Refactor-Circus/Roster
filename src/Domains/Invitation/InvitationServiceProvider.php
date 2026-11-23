@@ -17,7 +17,7 @@ class InvitationServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // The plain page; Roster's Atrium seam replaces it while Atrium is installed.
+        // The plain page; an application's own binding replaces it.
         $this->app->singleton(InvitationPage::class, PlainInvitationPage::class);
     }
 

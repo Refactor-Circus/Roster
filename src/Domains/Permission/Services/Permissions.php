@@ -32,7 +32,7 @@ final class Permissions
      *
      * @var array<int, string>
      */
-    public const array GLOBAL_ONLY_PREFIXES = ['roster.users.', 'roster.organizations.create', 'atrium.'];
+    public const array GLOBAL_ONLY_PREFIXES = ['roster.users.', 'roster.organizations.create'];
 
     /** @var array<string, array<int, string>> */
     private array $resolved = [];

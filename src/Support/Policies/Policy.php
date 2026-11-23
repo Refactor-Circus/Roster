@@ -19,7 +19,7 @@ use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
  * answer with Roster's own permissions: a method asks whether the user holds
  * the permission in the organization or team the subject belongs to.
  *
- * Roster's API, MCP tools and Atrium screens reach a policy with the model's
+ * Roster's API and MCP tools reach a policy with the model's
  * class, the organization or team the call is about, and the user the call is
  * about when everyone may do it to themselves:
  *

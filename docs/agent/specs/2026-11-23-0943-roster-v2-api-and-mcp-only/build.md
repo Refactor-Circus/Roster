@@ -169,3 +169,55 @@ Not run here; the gate runs `vendor/bin/pest`. `pestphp/pest-plugin-browser` is 
 
 - Commit the files above with this group.
 - 5.5: run `vendor/bin/pest` (the gate).
+
+## Group 6 (salvaged)
+
+Remove the Atrium seam and every remaining reference (AC 14–19). The first agent ended without a result. There was no index lock and no merge or rebase.
+
+### Found
+
+Most of 6.2–6.4 was done but uncommitted:
+
+- `src/Atrium/**` and `resources/views/ui/**` deleted (staged).
+- The seam, `$withoutAtrium` and the docblocks removed from `RosterServiceProvider`.
+- The banner includes only the plain partial.
+- Atrium wording stripped from the domain and support files.
+- No `viewAtrium` gate, no `atrium.view` built-in, and no `'atrium.'` global-only prefix.
+- `roster.users.approvals.review_url` added (banner and default `null`) and used by `UserAwaitingApprovalNotification`, with `{user}` replaced by the route key.
+- `ImpersonationWebController::returnTo()` returns `return_to` or `/`.
+- Config banners rewritten.
+- composer.json without `refactor-circus/atrium` (`require-dev`, `suggest`, `conflict`) or its VCS repository. Cortex, Impex and Keen have Atrium in `require-dev` only, so nothing needs it transitively (D-016).
+- testbench.yaml without the Atrium provider or `atrium-assets`, starting at `/`.
+- The `without-atrium` CI job removed.
+
+The mixed tests were rewritten: `GateTest`, `CommandsTest` (a stored `atrium.view` is reported and kept with its grants), `PermissionsTest`, `RoleActionsTest`, `RolesHttpTest`, `PermissionCatalogueTest`, `UserApprovalTest` (review URL or no button), `ImpersonationFlowTest` (plain banner, `return_to` or `/`) and `InvitationPageTest` (`PlainInvitationPage`, a host binding wins, `accept_url` overrides the link). `lang/` and `src/Support/Users.php` had no Atrium text.
+
+### Finished in this salvage
+
+- `tests/ArchTest.php`:
+  - New guard: no line naming `atrium` (case-insensitive) in `src/`, `config/`, `database/`, `lang/`, `resources/views/`, `workbench/` (not `workbench/storage` or `workbench/bootstrap/cache`) or `testbench.yaml`.
+  - No `atrium` key in composer `require`/`require-dev`/`suggest`/`conflict`/`extra`.
+  - No `src/Atrium` folder, and no `RefactorCircus\Atrium` use in `RefactorCircus\Roster`.
+  - `resources/views` holds exactly the three plain views.
+  - A self-test of the guard on a temporary folder.
+  - The seam rules (`rosterAtriumClasses()`, seam-only-in-provider, the class-name string check, `x-atrium::audit`) are removed. The parity rule is retitled "HTTP API and MCP".
+- `TestCase`: lost the Atrium provider, `$openAtrium` with its `viewAtrium` gate, and `atrium.disabled`. It sets `impex.ui.enabled` and `cortex.ui.enabled` to false: Atrium v1 stays in `vendor/` through the siblings' dev dependencies, and with the guard passing their providers would otherwise register with an Atrium whose provider no longer boots.
+- `AuthorizationTestCase`: lost `$openAtrium`.
+- `tests/Pest.php`: lost the `AtriumUnavailable` mode.
+- Deleted `tests/Modes/AtriumUnavailable/**`, `tests/AtriumUnavailableTestCase.php` and `tests/Feature/AtriumSeamTest.php`.
+- `ComposerTest`: no Atrium in `require-dev` or `suggest`, no `conflict` section, no Atrium VCS repository.
+- `RegisteredResourcesTest`: the `@rosterCan` renders are replaced by an assertion that no `rosterCan` directive is registered. The Authorizer assertions are kept.
+- `ImpersonationFlowTest`: asserts no `rosterUsesAtrium` view share.
+- `DocsTest` and the listed Traitless, TransfersUnavailable and MembershipSource tests needed nothing: the removal does not break them. The README text they read is group 8's.
+
+### Outside the file list
+
+`resources/views/invitations/show.blade.php` and `resources/views/partials/impersonation-banner-plain.blade.php`: only their header comments changed, to drop the word Atrium. The AC 14 guard over `resources/views/` fails without that. They are committed with this group.
+
+### Tests
+
+Not run here; the gate runs `vendor/bin/pest`. `php -l` passes on the edited tests.
+
+### Left
+
+- 6.5: run `vendor/bin/pest` (the gate).

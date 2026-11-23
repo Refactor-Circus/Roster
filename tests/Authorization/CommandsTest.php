@@ -22,13 +22,33 @@ it('fails for an unknown email', function (): void {
 });
 
 it('restores missing built-ins without touching edits', function (): void {
-    PermissionModel::query()->where('name', 'atrium.view')->delete();
+    PermissionModel::query()->where('name', 'roster.audit.view')->delete();
     $member = RoleModel::query()->where('slug', 'member')->sole();
     $member->permissions()->detach();
 
     $this->artisan('roster:sync-permissions')->assertSuccessful();
 
-    expect(PermissionModel::query()->where('name', 'atrium.view')->exists())->toBeTrue()
+    expect(PermissionModel::query()->where('name', 'roster.audit.view')->exists())->toBeTrue()
         // Admin edits to existing roles are kept.
         ->and($member->permissions()->count())->toBe(0);
+});
+
+it('no longer creates atrium.view', function (): void {
+    expect(PermissionModel::query()->where('name', 'atrium.view')->exists())->toBeFalse();
+
+    $this->artisan('roster:sync-permissions')->assertSuccessful();
+
+    expect(PermissionModel::query()->where('name', 'atrium.view')->exists())->toBeFalse();
+});
+
+it('reports a stored atrium.view as unregistered and keeps it and its grants', function (): void {
+    $permission = PermissionModel::query()->create(['name' => 'atrium.view', 'description' => 'Open the Atrium dashboard.', 'system' => true]);
+    $role = roleWith(['atrium.view']);
+
+    $this->artisan('roster:sync-permissions')
+        ->expectsOutputToContain('System permission [atrium.view] is no longer registered')
+        ->assertSuccessful();
+
+    expect(PermissionModel::query()->whereKey($permission->getKey())->exists())->toBeTrue()
+        ->and($role->permissions()->pluck('name')->all())->toBe(['atrium.view']);
 });

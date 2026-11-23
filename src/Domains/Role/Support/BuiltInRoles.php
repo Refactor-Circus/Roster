@@ -49,7 +49,6 @@ final class BuiltInRoles
         'roster.roles.manage' => 'Create, edit and delete roles and permissions.',
         'roster.roles.assign' => 'Assign and revoke roles.',
         'roster.audit.view' => "Read Roster's history in the audit log.",
-        'atrium.view' => 'Open the Atrium dashboard.',
     ];
 
     /**

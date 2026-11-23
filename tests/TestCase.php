@@ -6,10 +6,8 @@ namespace RefactorCircus\Roster\Tests;
 
 use Illuminate\Foundation\Testing\DatabaseTransactionsManager;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Server\McpServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
-use RefactorCircus\Atrium\AtriumServiceProvider;
 use RefactorCircus\Impex\ImpexServiceProvider;
 use RefactorCircus\Roster\RosterServiceProvider;
 use Workbench\App\Models\User;
@@ -19,26 +17,11 @@ use function Orchestra\Testbench\default_migration_path;
 abstract class TestCase extends Orchestra
 {
     /**
-     * Whether to open Atrium to everyone, as surface tests need. Atrium
-     * denies everything outside `local` until its gate is defined.
-     */
-    protected bool $openAtrium = true;
-
-    /**
      * The test-case classes whose database this process has migrated.
      *
      * @var array<string, true>
      */
     private static array $migrated = [];
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        if ($this->openAtrium) {
-            Gate::define('viewAtrium', fn (): bool => true);
-        }
-    }
 
     /**
      * @return array<int, class-string>
@@ -47,7 +30,6 @@ abstract class TestCase extends Orchestra
     {
         return [
             McpServiceProvider::class,
-            AtriumServiceProvider::class,
             ImpexServiceProvider::class,
             RosterServiceProvider::class,
         ];
@@ -55,9 +37,10 @@ abstract class TestCase extends Orchestra
 
     protected function defineEnvironment($app): void
     {
-        // refactor-circus/cortex is a dev dependency, so Atrium discovers its plugin here
-        // without its migrations; its navigation would query missing tables.
-        $app['config']->set('atrium.disabled', ['cortex']);
+        // Impex and Cortex are dev dependencies; their own dashboard
+        // registration is no part of Roster, so it stays off here.
+        $app['config']->set('impex.ui.enabled', false);
+        $app['config']->set('cortex.ui.enabled', false);
 
         $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
         $app['config']->set('database.default', 'testing');

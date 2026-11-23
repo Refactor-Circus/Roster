@@ -32,8 +32,14 @@ it('rejects a name registered twice, naming it', function (): void {
 });
 
 it('rejects a name Roster already defines, naming it', function (): void {
-    expect(fn () => (new PermissionCatalogue)->permission('atrium.view', 'Open Atrium.'))
-        ->toThrow(InvalidArgumentException::class, '[atrium.view]');
+    expect(fn () => (new PermissionCatalogue)->rosterPermission('roster.audit.view', 'Again.'))
+        ->toThrow(InvalidArgumentException::class, '[roster.audit.view] is already registered');
+});
+
+it('leaves atrium.view to whichever package registers it', function (): void {
+    $catalogue = (new PermissionCatalogue)->permission('atrium.view', 'Open the dashboard.');
+
+    expect($catalogue->has('atrium.view'))->toBeTrue();
 });
 
 it('reserves roster.* for Roster, naming the permission', function (string $name): void {

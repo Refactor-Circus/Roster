@@ -1,7 +1,7 @@
 {{--
-    The impersonation banner without the Atrium dashboard, included by
-    roster::impersonation-banner: plain HTML, styled inline because it shows
-    on the application's own pages.
+    The impersonation banner, included by roster::impersonation-banner:
+    plain HTML, styled inline because it shows on the application's own
+    pages.
 --}}
 @php($directory = app(\RefactorCircus\Roster\Support\Users::class))
 <div role="status" data-testid="impersonation-banner" @if ($bannerClass ?? null) class="{{ $bannerClass }}" @endif style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem 1rem;background:#b45309;color:#ffffff;font:500 .875rem/1.4 system-ui,sans-serif;">

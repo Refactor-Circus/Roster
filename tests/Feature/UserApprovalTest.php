@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
@@ -43,6 +44,26 @@ it('creates users as pending when asked, and tells the approvers', function (): 
         ->and(app(Users::class)->status(app(CreateUserAction::class)->execute(new CreateUserData(name: 'Al', email: 'al@example.com'))))->toBe(UserStatus::Active);
 
     Notification::assertSentOnDemand(UserAwaitingApprovalNotification::class, fn ($notification, $channels, $notifiable): bool => $notifiable->routes['mail'] === 'approver@example.com');
+});
+
+it('sends the approvers\' email without a button while roster.users.approvals.review_url is not set', function (): void {
+    expect(config('roster.users.approvals.review_url'))->toBeNull();
+
+    $mail = (new UserAwaitingApprovalNotification(pendingUser()))->toMail(new AnonymousNotifiable);
+
+    expect($mail->actionUrl)->toBeNull()
+        ->and($mail->actionText)->toBeNull()
+        ->and($mail->subject)->toContain('Pat');
+});
+
+it('links the approvers\' email to roster.users.approvals.review_url with {user} replaced', function (): void {
+    config()->set('roster.users.approvals.review_url', 'https://admin.test/users/{user}/review');
+    $user = pendingUser();
+
+    $mail = (new UserAwaitingApprovalNotification($user))->toMail(new AnonymousNotifiable);
+
+    expect($mail->actionUrl)->toBe('https://admin.test/users/'.$user->getRouteKey().'/review')
+        ->and($mail->actionText)->toBe(__('roster::roster.awaiting_approval_action'));
 });
 
 it('approves a pending user and tells them', function (): void {

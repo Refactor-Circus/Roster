@@ -100,18 +100,6 @@ function gateAsked(): ArrayObject
     return $seen;
 }
 
-/**
- * The exception a throwing Blade render started from.
- */
-function rootCause(Throwable $exception): Throwable
-{
-    while ($exception->getPrevious() !== null) {
-        $exception = $exception->getPrevious();
-    }
-
-    return $exception;
-}
-
 it('sends a registered permission to its model\'s policy', function (): void {
     $acme = organization(attributes: ['name' => 'Acme']);
     $approver = widgetApprover($acme);
@@ -166,14 +154,6 @@ it('throws, naming the resource, when a registered model has no policy', functio
         'acme.gadgets',
     );
 
-    try {
-        Blade::render("@rosterCan('acme.gadgets.approve', \$scope) yes @endrosterCan", ['scope' => $acme]);
-        $this->fail('@rosterCan did not throw.');
-    } catch (Throwable $exception) {
-        expect(rootCause($exception))->toBeInstanceOf(InvalidArgumentException::class)
-            ->and(rootCause($exception)->getMessage())->toContain('acme.gadgets');
-    }
-
     Exceptions::assertNothingReported();
 
     // Nothing was remembered for the checks that threw: once the policy
@@ -225,23 +205,9 @@ it('sees a resource registered after the first check', function (): void {
         ->and($authorizer->check($user, 'acme.widgets.approve', $acme))->toBeTrue();
 });
 
-it('takes registered permissions on @rosterCan', function (): void {
-    $acme = organization(attributes: ['name' => 'Acme']);
-    $approver = widgetApprover($acme);
-    $other = user();
-    app(Resources::class)->resource('acme.widgets', RegisteredWidgetModel::class);
-    Gate::policy(RegisteredWidgetModel::class, RegisteredWidgetPolicy::class);
-    $view = "@rosterCan('acme.widgets.approve', \$scope) yes @endrosterCan";
-
-    $this->actingAs($approver);
-    request()->setUserResolver(fn (): User => $approver);
-
-    expect(trim(Blade::render($view, ['scope' => $acme])))->toBe('yes');
-
-    $this->actingAs($other);
-    request()->setUserResolver(fn (): User => $other);
-
-    expect(trim(Blade::render($view, ['scope' => $acme])))->toBe('');
+it('registers no @rosterCan Blade directive: Blade checks go through @can', function (): void {
+    expect(Blade::getCustomDirectives())->not->toHaveKey('rosterCan')
+        ->not->toHaveKey('endrosterCan');
 });
 
 it('leaves the impersonation-blocked list to the application', function (): void {

@@ -10,6 +10,7 @@ use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\Permission\Actions\CreatePermissionAction;
 use RefactorCircus\Roster\Domains\Permission\Data\CreatePermissionData;
+use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
 use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
@@ -69,13 +70,25 @@ it('works in blade', function (): void {
     expect(Blade::render("@can('roster.users.view') yes @else no @endcan"))->toContain('yes');
 });
 
-it('defines the atrium gate from atrium.view when the app has not', function (): void {
+it('defines no viewAtrium gate, even for a user granted a stored atrium.view', function (): void {
+    // An install upgraded from v1 still has the row and its grants.
+    PermissionModel::query()->create(['name' => 'atrium.view', 'description' => 'Open the Atrium dashboard.', 'system' => true]);
     $ada = user();
-
-    expect(Gate::forUser($ada)->allows('viewAtrium'))->toBeFalse();
-
     RoleAssignmentModel::query()->create(['role_id' => roleWith(['atrium.view'])->id, 'user_id' => $ada->getKey()]);
     app(Permissions::class)->flush();
 
-    expect(Gate::forUser($ada)->allows('viewAtrium'))->toBeTrue();
+    expect(Gate::has('viewAtrium'))->toBeFalse()
+        ->and(Gate::forUser($ada)->allows('viewAtrium'))->toBeFalse();
+});
+
+it('no longer treats a stored atrium.view as global-only', function (): void {
+    PermissionModel::query()->create(['name' => 'atrium.view', 'description' => 'Open the Atrium dashboard.', 'system' => true]);
+    $owner = user();
+    $acme = organization($owner);
+    app(Permissions::class)->flush();
+
+    // An owner holds every permission that is not global-only in their organization.
+    expect(Permissions::GLOBAL_ONLY_PREFIXES)->toBe(['roster.users.', 'roster.organizations.create'])
+        ->and(app(Permissions::class)->for($owner, $acme))->toContain('atrium.view')
+        ->and(app(Permissions::class)->for($owner, $acme))->not->toContain('roster.users.view');
 });

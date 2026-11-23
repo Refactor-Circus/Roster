@@ -70,6 +70,10 @@ return [
     |           waiting for approval.
     | approvals.notify_user:
     |           Email people when they're approved or rejected.
+    | approvals.review_url:
+    |           The button in the approvers' email, e.g. a user page in your
+    |           admin UI. `{user}` is replaced with the waiting user's route
+    |           key. Null sends the email without a button.
     |
     */
 
@@ -85,6 +89,7 @@ return [
         'approvals' => [
             'notify_approvers' => true,
             'notify_user' => true,
+            'review_url' => null,
         ],
     ],
 
@@ -93,9 +98,9 @@ return [
     | Authorization
     |--------------------------------------------------------------------------
     |
-    | authorization: When true (the default), every Roster API route, MCP
-    |                tool and Atrium screen requires a signed-in user holding
-    |                the Action's permission. SECURITY: setting it to false
+    | authorization: When true (the default), every Roster API route and MCP
+    |                tool requires a signed-in user holding the Action's
+    |                permission. SECURITY: setting it to false
     |                makes the route middleware the only check - anyone who
     |                can reach the API could then manage every user.
     | super_admins:  Emails always treated as super-admins (every permission
@@ -138,8 +143,8 @@ return [
     |
     | Roster keeps no audit log of its own. With refactor-circus/keen
     | installed, Keen records every change Roster makes, and Roster shows the
-    | history on its Atrium pages, its `GET /roster/history` route and its
-    | history MCP tool. Without Keen none of that exists.
+    | history on its `GET /roster/history` route and its history MCP tool.
+    | Without Keen none of that exists.
     |
     | enabled: Set to false to keep Roster out of the audit log even while
     |          Keen is installed: Keen records nothing of Roster's, and Roster
@@ -185,8 +190,7 @@ return [
     |                   suffix, e.g. 'billing.*'. SECURITY: keep account- and
     |                   access-changing abilities here.
     | redirect:         Where entering impersonation lands.
-    | return_to:        Where "return to my account" lands; null for the
-    |                   user's Atrium page.
+    | return_to:        Where "return to my account" lands; null for `/`.
     | middleware_group: The route middleware group Roster adds its
     |                   `roster.impersonation` middleware to (which ends
     |                   expired or revoked sessions). Null to add it yourself.
@@ -437,10 +441,10 @@ return [
     | of your own (extending the bundled one, or not) to change who may do
     | what; the bundled policies answer with Roster's permissions.
     |
-    | Every check on Roster's JSON API, MCP tools and Atrium screens goes
-    | through these: permission `roster.{resource}.{verb}` asks the policy of
-    | the resource's model, by the camel-cased verb (`roster.users.manage-status`
-    | asks UserPolicy::manageStatus()), with the model's class, the
+    | Every check on Roster's JSON API and MCP tools goes through these:
+    | permission `roster.{resource}.{verb}` asks the policy of the resource's
+    | model, by the camel-cased verb (`roster.users.manage-status` asks
+    | UserPolicy::manageStatus()), with the model's class, the
     | organization or team the call is about, and the user it is about when
     | everyone may do it to themselves. Resources: users (UserModel),
     | organizations, members (MembershipModel), teams, invitations and roles.
