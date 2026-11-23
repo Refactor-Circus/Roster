@@ -7,12 +7,13 @@ namespace RefactorCircus\Roster\Domains\User\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
+use RefactorCircus\Keystone\Contracts\ReadActionEvent;
 use RefactorCircus\Roster\Domains\User\Data\ListUsersData;
 
 /**
  * Users have been listed.
  */
-final class UsersListedActionEvent implements ActionFinishedEvent
+final class UsersListedActionEvent implements ActionFinishedEvent, ReadActionEvent
 {
     use Dispatchable;
     use SerializesModels;

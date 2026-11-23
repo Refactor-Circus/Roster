@@ -357,3 +357,9 @@ This retry finishes task 8.4. Tasks 8.1 to 8.3 were already committed in d638374
 - **Files:** only `tasks.md` (8.4 ticked) and this note. No code, docs, standards or test files changed.
 - **Tests:** no new tests. `tests/Feature/DocsTest.php` from 8.1 covers AC 6, 25, 26 and 27. As instructed, this retry did not run the suite; 8.4 (`vendor/bin/pest`) is the gate that runs after the build.
 - **Deviations:** none beyond the two invitation-lookup rows already in `docs/agent/standards-feedback.md`.
+
+## Rework round 1
+
+- **Duplicated LIKE escaping (minor):** the new `src/Support/PrefixSearch.php` now holds the `!` escape character, the `column like ? escape '!'` condition and the escaping. Its `apply($query, $columns, $value)` adds the OR-group of starts-with conditions, and `pattern()` returns the escaped value with a trailing `%`. `SearchUsersAction` and `SearchOrganizationsAction` call it and no longer keep a copy. `tests/Feature/PrefixSearchTest.php` covers the escaping and literal matching of `%`, `_` and `!`. The HTTP search tests pass unchanged.
+- **Status-count listener stated the rule twice (minor):** `UsersListingActionEvent`, `UsersListedActionEvent`, `UserShowingActionEvent` and `UserShownActionEvent` now implement `ReadActionEvent`, like the search and stats events already did. The listener in `RosterServiceProvider` checks only `ReadActionEvent`; the `ListedActionEvent`/`ShownActionEvent` suffix checks are gone. Keen already skipped these events by name, so audit behaviour stays the same. `UserStatsAndSearchHttpTest` now lists and shows a user in the "keeps the cached counts" test. A dataset test also checks that every User read event is a `ReadActionEvent`. Read events in other domains were left alone because the listener only looks at User events.
+- **Checks:** `composer test:unit`, `composer lint:check` and `composer analyse` all pass.

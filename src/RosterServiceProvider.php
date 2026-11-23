@@ -91,9 +91,10 @@ class RosterServiceProvider extends PackageServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'roster');
 
         // The cached user counts per status go stale with any change Roster
-        // makes to a user; reads (lists, shows, searches) leave them.
+        // makes to a user; reads (lists, shows, searches, stats - every one
+        // a ReadActionEvent) leave them.
         Event::listen(ActionFinishedEvent::class, function (ActionFinishedEvent $event): void {
-            if (str_starts_with($event::class, 'RefactorCircus\\Roster\\Domains\\User\\Events\\') && ! $event instanceof ReadActionEvent && ! str_ends_with($event::class, 'ListedActionEvent') && ! str_ends_with($event::class, 'ShownActionEvent')) {
+            if (str_starts_with($event::class, 'RefactorCircus\\Roster\\Domains\\User\\Events\\') && ! $event instanceof ReadActionEvent) {
                 Cache::forget(Users::STATUS_COUNTS_CACHE);
             }
         });

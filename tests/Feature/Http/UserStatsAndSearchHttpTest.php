@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
+use RefactorCircus\Keystone\Contracts\ReadActionEvent;
 use RefactorCircus\Roster\Domains\User\Actions\SuspendUserAction;
 use RefactorCircus\Roster\Domains\User\Data\SearchUsersData;
+use RefactorCircus\Roster\Domains\User\Events\UserShowingActionEvent;
+use RefactorCircus\Roster\Domains\User\Events\UserShownActionEvent;
+use RefactorCircus\Roster\Domains\User\Events\UsersListedActionEvent;
+use RefactorCircus\Roster\Domains\User\Events\UsersListingActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UsersSearchedActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UsersSearchingActionEvent;
 use RefactorCircus\Roster\Domains\User\Events\UserStatsShowingActionEvent;
@@ -94,14 +99,29 @@ it('forgets the cached counts when a User action finishes', function (): void {
 });
 
 it('keeps the cached counts while users are only read or searched', function (): void {
-    user(['name' => 'Ada Lovelace']);
+    $ada = user(['name' => 'Ada Lovelace']);
 
     $this->getJson(route('roster.stats.users'))->assertOk();
+    $this->getJson(route('roster.users.index'))->assertOk();
+    $this->getJson(route('roster.users.show', $ada))->assertOk();
     $this->getJson(route('roster.search.users', ['q' => 'Ada']))->assertOk();
     $this->getJson(route('roster.stats.users'))->assertOk();
 
     expect(Cache::has(Users::STATUS_COUNTS_CACHE))->toBeTrue();
 });
+
+it('marks every User read event as a read, so the cached counts survive it', function (string $event): void {
+    expect(is_subclass_of($event, ReadActionEvent::class))->toBeTrue();
+})->with([
+    UsersListingActionEvent::class,
+    UsersListedActionEvent::class,
+    UserShowingActionEvent::class,
+    UserShownActionEvent::class,
+    UsersSearchingActionEvent::class,
+    UsersSearchedActionEvent::class,
+    UserStatsShowingActionEvent::class,
+    UserStatsShownActionEvent::class,
+]);
 
 it('announces showing the stats with a starting and a finished event', function (): void {
     Event::fake([UserStatsShowingActionEvent::class, UserStatsShownActionEvent::class]);
