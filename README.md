@@ -631,6 +631,7 @@ enum CustomerStatus: string implements Status
 | DELETE | `/roster/organizations/{organization}/teams/{team}/members/{user}` | `roster.organizations.teams.members.destroy` |
 | GET, POST | `/roster/organizations/{organization}/invitations` | `roster.organizations.invitations.index`, `.store` |
 | DELETE | `/roster/organizations/{organization}/invitations/{invitation}` | `roster.organizations.invitations.revoke` |
+| GET | `/roster/invitations/{token}` | `roster.invitations.lookup` (public, token only: email, organization name, team names, `expires_at`; `roster.invitations.lookup_middleware`, rate-limited per IP; one 404 for every unusable token) |
 | POST | `/roster/invitations/{token}/accept` | `roster.invitations.accept` (as the authenticated user) |
 | POST | `/roster/invitations/{token}/decline` | `roster.invitations.decline` (as the authenticated user) |
 | GET, POST | `/roster/permissions` | `roster.permissions.index`, `.store` |

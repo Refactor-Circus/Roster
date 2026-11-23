@@ -307,6 +307,21 @@ return [
     |                     the user (only a signed-in user whose email matches
     |                     the invitation can accept it), so keep `auth` - or
     |                     your guard's equivalent - in the list.
+    | lookup_middleware:  Wraps the public invitation lookup,
+    |                     `GET {routes.prefix}/invitations/{token}`
+    |                     (`roster.invitations.lookup`), which shows the
+    |                     invited email, organization name, team names and
+    |                     expiry to whoever holds the token - for a page of
+    |                     your own that a guest opens from the email. It is
+    |                     registered only while `routes.enabled` is true, and
+    |                     never with `routes.middleware`.
+    |                     SECURITY: it is public on purpose - the token is the
+    |                     only credential - so do not add authentication. Keep
+    |                     the `throttle:roster-invitation-lookup` limiter (see
+    |                     Rate Limiting): it is what stops tokens being
+    |                     guessed. Answers are never cached, and every unusable
+    |                     token gets the same 404. The token sits in the URL,
+    |                     so keep these paths out of your access logs.
     |
     */
 
@@ -315,6 +330,7 @@ return [
         'redirect' => '/',
         'accept_url' => null,
         'middleware' => ['web', 'auth'],
+        'lookup_middleware' => ['api', 'throttle:roster-invitation-lookup'],
     ],
 
     /*
@@ -327,6 +343,10 @@ return [
     | SECURITY: each route checks the caller's Roster permissions (see
     | Authorization above), but it needs an authenticated user to check: add
     | authentication middleware (e.g. `auth:sanctum`) before enabling it.
+    |
+    | The public invitation lookup follows `enabled` and `prefix`, but not
+    | `middleware`: it has its own `invitations.lookup_middleware`, because
+    | the guest opening an invitation link is not signed in yet.
     |
     */
 
@@ -341,14 +361,24 @@ return [
     | Rate Limiting
     |--------------------------------------------------------------------------
     |
-    | The `throttle:roster` limiter in the default API and MCP middleware:
-    | requests per minute, per signed-in user (or per IP for guests). Null
-    | turns the limiter off; you can also drop it from the middleware lists.
+    | per_minute:      The `throttle:roster` limiter in the default API and
+    |                  MCP middleware: requests per minute, per signed-in
+    |                  user (or per IP for guests).
+    | invitation_lookups_per_minute:
+    |                  The `throttle:roster-invitation-lookup` limiter in the
+    |                  default `invitations.lookup_middleware`: public
+    |                  invitation lookups per minute, per IP, whether the
+    |                  tokens are valid or not. SECURITY: it is what stops
+    |                  invitation tokens being guessed; keep it low.
+    |
+    | Null turns a limiter off; you can also drop it from the middleware
+    | lists.
     |
     */
 
     'rate_limit' => [
         'per_minute' => 120,
+        'invitation_lookups_per_minute' => 10,
     ],
 
     /*
