@@ -448,4 +448,4 @@ Staging them was refused because they are outside the group's file list.
 
 ### What is left
 
-The suite passes on the worktree, but not on the commit alone. The out-of-list source files and tests still import the old `Domains\Permission\Services\Authorizer`/`Resources`, which the commit deletes. Those changes need committing on the job branch; that decision is returned to the user. The arch test from criterion 33 is group 13's.
+The suite passes on the worktree, but not on the commit alone. The out-of-list source files and tests still import the old `Domains\Permission\Services\Authorizer`/`Resources`, which the commit deletes. Those changes need committing on the job branch; that decision is returned to the user. Until they are committed, 10.2 (every import updated) and 10.5 (suite green) stay unticked. 10.1, 10.3 and 10.4 are done. The arch test from criterion 33 is group 13's.
