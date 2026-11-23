@@ -101,3 +101,9 @@
 - Rationale: The user instructed to skip spec review and proceed.
 - Date: 2026-11-23
 - Raised by: write-spec; default chosen because the user asked to proceed without stopping
+
+## D-018: Five out-of-list files hold group 3's work; when are they committed?
+- Choice: Committed on the job branch as a group 3 follow-up (RosterPlugin, RosterServiceProvider, Authorization fixtures, OutputSchemaTest count 57, README rows). Group 5 drops the 'ui' parity entries.
+- Rationale: Recommended option.
+- Date: 2026-11-23
+- Raised by: factory build; default chosen because the user asked to proceed without stopping

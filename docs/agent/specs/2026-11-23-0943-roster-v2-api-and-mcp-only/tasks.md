@@ -32,7 +32,7 @@ criteria: 7, 9, 11, 12, 13
 - [x] 3.2 Move the status counting out of `RosterPlugin::statusCounts()` into `ShowUserStatsAction` (events, no transaction); rename `Users::STATUS_COUNTS_CACHE` to `roster:user-status-counts`; add `UserStatsResource`, `ShowUserStatsRequest`, `UserDirectoryController::stats`, route `stats/users` (`stats.users`)
 - [x] 3.3 Add `SearchUsersData`, `SearchUsersAction` (escaped LIKE, `Users::column()`), `SearchUsersRequest` answering `UserSummaryResource`, `UserDirectoryController::search`, route `search/users` (`search.users`)
 - [x] 3.4 Add `ShowUserStatsMcpRequest` + `ShowUserStatsTool` with `outputSchema()`, list it in `RosterServer`; add `SearchUsersAction => ['mcp']` with reason to `PARITY_EXCEPTIONS`
-- [ ] 3.5 Run vendor/bin/pest; all green
+- [x] 3.5 Run vendor/bin/pest; all green
 
 ## Group 4: Organization stats and organization search
 depends on: 3
