@@ -70,6 +70,7 @@ it('declares its Atrium front-end module, and no Atrium plugin', function (): vo
             'key' => 'roster',
             'scripts' => ['dist/atrium/atrium.js'],
             'styles' => ['dist/atrium/atrium.css'],
+            'integration' => 'dist/atrium/integration.json',
         ]);
 });
 

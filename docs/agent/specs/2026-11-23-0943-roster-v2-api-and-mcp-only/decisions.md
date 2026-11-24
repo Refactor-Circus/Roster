@@ -215,3 +215,9 @@
 - Rationale: The user's decision (2026-11-24): "move the vue files for each module back into their respective modules. modules need to register their js. js should be injected into the blade file. modules are responsible for their own frontend and cjs clients from now on". Kept on this v2 branch.
 - Date: 2026-11-24
 - Raised by: user (Atrium v2 phase 2)
+
+## D-037: Where does Roster's Atrium integration declaration (nav, widgets, search sources, screens) live?
+- Choice: In Roster, as a static JSON manifest: `atrium/src/integration.json` (version 1, key `roster`), validated and copied by the Atrium preset to the committed `dist/atrium/integration.json` and named by `composer.json`'s `extra.atrium.integration`. The SDK pin moves to Atrium commit 009b5bc5 (the first with the manifest, D-090 there). `atrium/test/integration.test.ts` checks the manifest with `expectIntegrationManifest()` and against the module (every screen in `screens`, every widget and search source registered, no hooks); `FrontendModuleTest` checks the built manifest exists with key `roster` and version 1, and `ComposerTest`'s exact `extra.atrium` includes the new key. No PHP and no Atrium dependency are added; the manifest reads no `$config`.
+- Rationale: The user's request ("move the php declarations"): Atrium deleted its `RosterIntegration` class and every package now declares its own integration. The manifest was generated from Atrium's PHP declaration and compared payload for payload there.
+- Date: 2026-11-24
+- Raised by: user (Atrium v2 phase B)

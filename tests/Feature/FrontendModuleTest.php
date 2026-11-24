@@ -5,7 +5,8 @@ declare(strict_types=1);
 /*
  * Roster ships its Atrium front-end module: JS only, built from `atrium/`
  * into the committed `dist/atrium/` and declared in composer.json's
- * `extra.atrium`, so hosts never run Node. The build writes `build.json`
+ * `extra.atrium` (with its integration manifest, `dist/atrium/integration.json`,
+ * copied from `atrium/src/integration.json`), so hosts never run Node. The build writes `build.json`
  * with the SHA-256 of the files it was built from; this recomputes it the
  * way the Vite preset does (`hashInputs()` in Atrium's ui/sdk/vite, mirrored
  * by Atrium's BuildFreshnessTest), so a source changed without a rebuild
@@ -92,6 +93,21 @@ it('ships every script and stylesheet composer.json declares, from dist/atrium',
     foreach ([...$module['scripts'], ...$module['styles']] as $file) {
         expect(rosterPackageRoot().'/'.$file)->toBeFile();
     }
+});
+
+it('ships the integration manifest composer.json declares, keyed roster at version 1', function (): void {
+    /** @var array{extra: array{atrium: array{integration?: string}}} $composer */
+    $composer = json_decode((string) file_get_contents(rosterPackageRoot().'/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+    $path = $composer['extra']['atrium']['integration'] ?? null;
+
+    expect($path)->toBe('dist/atrium/integration.json')
+        ->and(rosterPackageRoot().'/'.$path)->toBeFile();
+
+    /** @var array{version: int, key: string} $manifest */
+    $manifest = json_decode((string) file_get_contents(rosterPackageRoot().'/'.$path), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($manifest['key'])->toBe('roster')
+        ->and($manifest['version'])->toBe(1);
 });
 
 it('was built for the shared API 1.0 from the sources as they are now', function (): void {

@@ -4,14 +4,44 @@ import Roster, { screens } from '../src/atrium'
 import OrganizationsWidget from '../src/components/widgets/OrganizationsWidget.vue'
 import UserStatusWidget from '../src/components/widgets/UserStatusWidget.vue'
 import { searchRosterOrganizations, searchRosterUsers } from '../src/components/search/sources'
-import { missingI18nKeys } from '@refactor-circus/atrium/testing'
-import fixture from '@refactor-circus/atrium/fixtures/integrations/roster.json'
+import { expectIntegrationManifest, missingI18nKeys } from '@refactor-circus/atrium/testing'
 
 /*
- * Roster's `index.ts` (AC 49, 60, 62, 69) against what its PHP integration
- * declares in `fixtures/integrations/roster.json`: a route for every screen,
- * and a registration for every widget and search source.
+ * Roster's `atrium.ts` (AC 49, 60, 62, 69) against its integration manifest
+ * (`src/integration.json`, D-090): the manifest is valid as Atrium checks it,
+ * and the module has a route for every screen and a registration for every
+ * widget, search source and hook it declares.
  */
+const manifest = expectIntegrationManifest('src/integration.json', 'roster')
+
+/** A manifest list field, typed as the records it holds. */
+function listOf<T>(field: unknown): T[] {
+  return (field ?? []) as T[]
+}
+
+const declared = {
+  screens: manifest.screens ?? [],
+  widgets: listOf<{ key: string, component?: string }>(manifest.widgets).map(widget => ({ ...widget, component: widget.component ?? widget.key })),
+  search_sources: listOf<{ key: string }>(manifest.search_sources),
+  navigation: listOf<{ label: string, path: string }>(manifest.navigation),
+  hooks: listOf<{ tabs?: Record<string, unknown>, sections?: Record<string, unknown> }>(manifest.hooks),
+  settings: manifest.settings ?? null
+}
+
+describe('the roster integration manifest', () => {
+  it('is valid, keyed roster, behind the roster.atrium feature', () => {
+    expect(manifest.version).toBe(1)
+    expect(manifest.label).toBe('Roster')
+    expect(manifest.features).toEqual(['roster.atrium'])
+  })
+
+  it('declares the subject types other packages hook onto', () => {
+    expect(declared.screens.filter(screen => screen.subject_type !== undefined).map(screen => [screen.key, screen.subject_type])).toEqual([
+      ['roster.user', 'roster.user'],
+      ['roster.organization', 'roster.organization']
+    ])
+  })
+})
 
 /** The route name Roster gives the page at a declared path (Nuxt's file-based convention): `/roster/users/:user` is `roster-users-user`. */
 function routeNameFor(path: string): string {
@@ -19,15 +49,15 @@ function routeNameFor(path: string): string {
 }
 
 describe('the roster screens map', () => {
-  it('has an entry for every screen key in the fixture, and no other', () => {
-    const declared = fixture.screens.map(screen => screen.key)
+  it('has an entry for every screen key in the manifest, and no other', () => {
+    const keys = declared.screens.map(screen => screen.key)
 
-    expect(Object.keys(screens).sort()).toEqual([...declared].sort())
-    expect(declared).toHaveLength(11)
+    expect(Object.keys(screens).sort()).toEqual([...keys].sort())
+    expect(keys).toHaveLength(11)
   })
 
   it('names, for each screen, the page at its declared path', () => {
-    for (const screen of fixture.screens) {
+    for (const screen of declared.screens) {
       expect(screens[screen.key], screen.key).toBe(routeNameFor(screen.path))
     }
   })
@@ -65,10 +95,10 @@ function registryOf(definition: typeof Roster): AtriumRegistry {
 describe('the roster registrations', () => {
   const atrium = registryOf(Roster)
 
-  it('registers a component for every widget the fixture declares', () => {
-    expect(fixture.widgets.map(widget => widget.component)).toEqual(['roster.user-status', 'roster.organizations'])
+  it('registers a component for every widget the manifest declares', () => {
+    expect(declared.widgets.map(widget => widget.component)).toEqual(['roster.user-status', 'roster.organizations'])
 
-    for (const widget of fixture.widgets) {
+    for (const widget of declared.widgets) {
       expect(atrium.widgets.has(widget.component), widget.key).toBe(true)
     }
 
@@ -76,30 +106,40 @@ describe('the roster registrations', () => {
     expect(atrium.widgets.get('roster.organizations')).toBe(OrganizationsWidget)
   })
 
-  it('registers a resolver for every search source the fixture declares', () => {
-    expect(fixture.search_sources.map(source => source.key)).toEqual(['roster-users', 'roster-organizations'])
+  it('registers a resolver for every search source the manifest declares', () => {
+    expect(declared.search_sources.map(source => source.key)).toEqual(['roster-users', 'roster-organizations'])
 
     expect(atrium.searchSources.get('roster-users')).toBe(searchRosterUsers)
     expect(atrium.searchSources.get('roster-organizations')).toBe(searchRosterOrganizations)
   })
 
   it('registers no settings panel, extension or live resolver', () => {
-    expect(fixture.settings).toBeNull()
+    expect(declared.settings).toBeNull()
     expect(atrium.panels.size).toBe(0)
     expect(atrium.extensions.size).toBe(0)
     expect(atrium.liveResolvers.size).toBe(0)
   })
 
-  it('declares nav items with layer paths under /roster/ and no badge', () => {
-    expect(fixture.navigation.map(item => item.link?.path)).toEqual([
+  it('registers an extension for every hook tab and section the manifest declares (none)', () => {
+    const keys = declared.hooks.flatMap(hook => [...Object.keys(hook.tabs ?? {}), ...Object.keys(hook.sections ?? {})])
+
+    for (const key of keys) {
+      expect(atrium.extensions.has(key), key).toBe(true)
+    }
+
+    expect(keys).toEqual([])
+  })
+
+  it('declares nav items with layer paths under /roster/ and no live badge', () => {
+    expect(declared.navigation.map(item => item.path)).toEqual([
       '/roster/users',
       '/roster/organizations',
       '/roster/impersonations',
       '/roster/transfers'
     ])
 
-    for (const item of fixture.navigation) {
-      expect(item.badge, item.label).toBeNull()
+    for (const item of declared.navigation) {
+      expect(item, item.label).not.toHaveProperty('live')
     }
   })
 })

@@ -1,0 +1,132 @@
+{
+  "$schema": "../node_modules/@refactor-circus/atrium/schema/integration.schema.json",
+  "version": 1,
+  "key": "roster",
+  "label": "Roster",
+  "features": [
+    "roster.atrium"
+  ],
+  "navigation": [
+    {
+      "label": "Users",
+      "path": "/roster/users",
+      "icon": "i-lucide-users",
+      "group": "Roster",
+      "sort": 10
+    },
+    {
+      "label": "Organizations",
+      "path": "/roster/organizations",
+      "icon": "i-lucide-building-2",
+      "group": "Roster",
+      "sort": 20
+    },
+    {
+      "label": "Impersonations",
+      "path": "/roster/impersonations",
+      "icon": "i-lucide-eye",
+      "group": "Roster",
+      "sort": 45
+    },
+    {
+      "label": "Imports & exports",
+      "path": "/roster/transfers",
+      "icon": "i-lucide-arrow-up-down",
+      "group": "Roster",
+      "sort": 48
+    }
+  ],
+  "widgets": [
+    {
+      "key": "roster.user-status",
+      "label": "Users by status",
+      "description": "How many users are active, suspended and deactivated.",
+      "icon": "i-lucide-users",
+      "size": {
+        "width": 6,
+        "height": 2
+      }
+    },
+    {
+      "key": "roster.organizations",
+      "label": "Organizations",
+      "description": "How many organizations, teams and pending invitations exist.",
+      "icon": "i-lucide-building-2",
+      "size": {
+        "width": 6,
+        "height": 1
+      }
+    }
+  ],
+  "search_sources": [
+    {
+      "key": "roster-users",
+      "label": "Users",
+      "icon": "i-lucide-users"
+    },
+    {
+      "key": "roster-organizations",
+      "label": "Organizations",
+      "icon": "i-lucide-building-2"
+    }
+  ],
+  "screens": [
+    {
+      "key": "roster.users",
+      "kind": "list",
+      "path": "/roster/users"
+    },
+    {
+      "key": "roster.user-create",
+      "kind": "detail",
+      "path": "/roster/users/create"
+    },
+    {
+      "key": "roster.user",
+      "kind": "detail",
+      "path": "/roster/users/:user",
+      "subject_type": "roster.user"
+    },
+    {
+      "key": "roster.organizations",
+      "kind": "list",
+      "path": "/roster/organizations"
+    },
+    {
+      "key": "roster.organization-create",
+      "kind": "detail",
+      "path": "/roster/organizations/create"
+    },
+    {
+      "key": "roster.organization",
+      "kind": "detail",
+      "path": "/roster/organizations/:organization",
+      "subject_type": "roster.organization"
+    },
+    {
+      "key": "roster.team",
+      "kind": "detail",
+      "path": "/roster/organizations/:organization/teams/:team"
+    },
+    {
+      "key": "roster.impersonations",
+      "kind": "list",
+      "path": "/roster/impersonations"
+    },
+    {
+      "key": "roster.transfers",
+      "kind": "list",
+      "path": "/roster/transfers"
+    },
+    {
+      "key": "roster.transfer",
+      "kind": "detail",
+      "path": "/roster/transfers/:transfer"
+    },
+    {
+      "key": "roster.invitation",
+      "kind": "detail",
+      "path": "/roster/invitations/:token"
+    }
+  ]
+}

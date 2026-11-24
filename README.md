@@ -699,12 +699,15 @@ Roster ships its front end for Atrium v2 as an Atrium module: JavaScript only, n
     "atrium": {
         "key": "roster",
         "scripts": ["dist/atrium/atrium.js"],
-        "styles": ["dist/atrium/atrium.css"]
+        "styles": ["dist/atrium/atrium.css"],
+        "integration": "dist/atrium/integration.json"
     }
 }
 ```
 
 Atrium v2 finds it in `vendor/composer/installed.json` (`php artisan atrium:discover`) and injects it into its page while the Roster integration is active. Roster does not require Atrium, and Roster's PHP never names it.
+
+**The integration manifest.** What Atrium v2 shows of Roster is declared in a static JSON manifest, `atrium/src/integration.json` (no PHP): its label, the feature flag that turns it on, its four navigation items (Users, Organizations, Impersonations, Imports & exports), its two dashboard widgets (users by status, organizations), its two search sources (users, organizations) and its eleven screens with their paths, including the `roster.user` and `roster.organization` subject types that other packages' tabs and sections attach to. Roster declares no settings panel and no hooks on other packages' screens. The build validates it against Atrium's schema and copies it to `dist/atrium/integration.json`, which `extra.atrium.integration` names. To change what Atrium shows, edit `atrium/src/integration.json` (and the module, when you add a screen, widget or search source: `atrium/test/integration.test.ts` checks each has a page or registration) and rebuild as below.
 
 **Rebuilding.** After changing the module, or the TypeScript client it imports its types from, run in `atrium/` (pnpm 10):
 
@@ -713,7 +716,7 @@ pnpm install
 pnpm typecheck && pnpm test && pnpm build
 ```
 
-and commit `dist/atrium/` with the sources. The module builds against Atrium's SDK, `@refactor-circus/atrium` (a development dependency pinned to an Atrium commit). `tests/Feature/FrontendModuleTest.php` fails when `dist/atrium/build.json` no longer matches the sources, and CI's `ui` job rebuilds and fails on any diff in `dist/atrium`.
+and commit `dist/atrium/` (with `integration.json`) with the sources. The module builds against Atrium's SDK, `@refactor-circus/atrium` (a development dependency pinned to an Atrium commit). `tests/Feature/FrontendModuleTest.php` fails when `dist/atrium/build.json` no longer matches the sources, and CI's `ui` job rebuilds and fails on any diff in `dist/atrium`.
 
 ## Cortex
 
