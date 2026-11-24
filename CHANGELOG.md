@@ -4,7 +4,7 @@
 
 ## [v2.0.0](https://github.com/Refactor-Circus/Roster/compare/v0.1.0...v2.0.0) - Unreleased
 
-Roster is now a JSON API and MCP package only. Its Atrium dashboard is gone; its UI moves to [Atrium v2](https://github.com/Refactor-Circus/Atrium), whose Nuxt layer calls Roster's API through the committed `openapi.json` and the generated TypeScript client. Roles and permissions move to a role store such as refactor-circus/guardian, behind refactor-circus/keystone's authorization contract.
+Roster is now a JSON API and MCP package only. Its Atrium dashboard is gone; its UI moves to [Atrium v2](https://github.com/Refactor-Circus/Atrium), a prebuilt Vue app served by a Blade page, which loads Roster's own Atrium module (shipped in `dist/atrium/`); the module calls Roster's API through the committed `openapi.json` and the generated TypeScript client. Roles and permissions move to a role store such as refactor-circus/guardian, behind refactor-circus/keystone's authorization contract.
 
 ### Breaking
 
