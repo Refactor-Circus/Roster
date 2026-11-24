@@ -209,3 +209,9 @@
 - Rationale: These 17 tests errored on classes deleted in group 13 (`RoleModel`, `PermissionCatalogue`, `CreateRoleAction`, `roleWith()`) or on `grant()` with no role store. Pest's JSON summary reports them under `errors`, not `failed`, so the group 13 notes and D-034 ("green except DocsTest and OpenApiTest") understated what was red; groups 13 to 15 were not fully green either. Fixing them is required by criterion 46, and each fix follows the removal the spec already made.
 - Date: 2026-11-23
 - Raised by: direct build (found at the group 16 full-suite run)
+
+## D-036: Where does Roster's Atrium v2 front end live?
+- Choice: In Roster. The module staged in Atrium (`ui/modules/roster`) moves to `atrium/` (sources, pnpm, built with `@refactor-circus/atrium/vite` against the SDK pinned to Atrium commit ad559e4c, typed by Roster's own `client/`), its build is committed in `dist/atrium/` and declared in `composer.json`'s `extra.atrium` (`key` `roster`, `scripts`, `styles`); Atrium injects it into its Blade page. The "no Atrium" tests are narrowed, not dropped: `src/`, `config/`, `database/`, `lang/`, `resources/views/`, `workbench/` and `testbench.yaml` still may not name Atrium, Composer still may not require, suggest or conflict with it, and `extra.atrium` is the only Atrium key allowed. `tests/Feature/FrontendModuleTest.php` checks the declared files exist and that `build.json`'s source hash matches `atrium/`; CI's `ui` job type-checks, tests, rebuilds and diffs `dist/atrium`.
+- Rationale: The user's decision (2026-11-24): "move the vue files for each module back into their respective modules. modules need to register their js. js should be injected into the blade file. modules are responsible for their own frontend and cjs clients from now on". Kept on this v2 branch.
+- Date: 2026-11-24
+- Raised by: user (Atrium v2 phase 2)

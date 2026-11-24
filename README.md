@@ -11,7 +11,7 @@
     <a href="https://packagist.org/packages/refactor-circus/roster"><img src="https://img.shields.io/packagist/dt/refactor-circus/roster.svg?style=flat-square" alt="Total Downloads"></a>
 </p>
 
-Headless, Action-first user management for Laravel. Every operation is a single Action class, reachable from PHP, a JSON API and an MCP server. Roster ships no admin screens: its UI is optional, and comes from [Atrium v2](https://github.com/Refactor-Circus/Atrium), whose Nuxt layer calls the JSON API through the committed [OpenAPI document and TypeScript client](#openapi-document-and-typescript-client). Any other frontend can use the same client.
+Headless, Action-first user management for Laravel. Every operation is a single Action class, reachable from PHP, a JSON API and an MCP server. Roster's PHP ships no admin screens: its UI is optional, and comes from [Atrium v2](https://github.com/Refactor-Circus/Atrium), whose page loads Roster's own front-end module, which calls the JSON API through the committed [OpenAPI document and TypeScript client](#openapi-document-and-typescript-client). Any other frontend can use the same client.
 
 - User create, update, delete and listing on **your own** user model
 - Profiles (display name, avatar, timezone, locale, bio, meta) in a side table, so your `users` table is never altered
@@ -52,7 +52,7 @@ Every table name is configurable under `roster.tables`, keyed by what it holds (
 
 The views (the plain invitation page and the impersonation banner) and translations can be published with `roster-views` and `roster-lang`.
 
-Roster has no admin screens of its own. For a UI, use Atrium v2, which talks to Roster's [HTTP API](#http-api-and-mcp) and brings its own access gate; turn the API on first (it is off by default).
+Roster has no admin screens in PHP. For a UI, install Atrium v2: it loads [Roster's Atrium module](#atrium-module), which talks to Roster's [HTTP API](#http-api-and-mcp), and brings its own access gate; turn the API on first (it is off by default).
 
 Roster stands on [`refactor-circus/keystone`](https://github.com/Refactor-Circus/Keystone), the shared runtime of the Refactor Circus package suite, which Composer installs with it. Roster's Action events implement Keystone's `ActionStartingEvent` and `ActionFinishedEvent` contracts, so one listener hears every package of the suite.
 
@@ -663,7 +663,7 @@ The default API and MCP middleware include `throttle:roster`: 120 requests per m
 
 ## OpenAPI document and TypeScript client
 
-Roster commits an OpenAPI 3.1 document of its JSON API, `openapi.json` (title "Roster API", version 2.0.0), and a TypeScript client generated from it, in `client/`. Atrium v2's Nuxt layer uses them, and so can any frontend of yours.
+Roster commits an OpenAPI 3.1 document of its JSON API, `openapi.json` (title "Roster API", version 2.0.0), and a TypeScript client generated from it, in `client/`. Roster's own [Atrium v2 module](#atrium-module) uses them, and so can any frontend of yours.
 
 - **The document** has one operation per `roster.*` API route, the public invitation lookup included, and none for the web routes (the signed invitation page, impersonation and the signed transfer-file link). Each `operationId` is the route name (`roster.users.index`), and its single server is the relative `/roster`, so the paths are relative to your `roster.routes.prefix`. Response schemas are inferred by [Scramble](https://scramble.dedoc.co), so a few payloads are typed loosely (`object`) until resources export their schemas to it.
 - **The client** is the npm package `@refactor-circus/roster-client` (version 2.0.0), TypeScript source with no build step. `createRosterClient(options)` wraps [`openapi-fetch`](https://openapi-ts.dev/openapi-fetch/)'s `createClient<paths>()`, and the package re-exports the generated `paths` and `components` types:
@@ -689,6 +689,31 @@ composer client:generate
 ```
 
 It exports `openapi.json` from the Testbench workbench with Scramble (`php vendor/bin/testbench workbench:openapi openapi.json`: Scramble is a dev dependency configured in the workbench, and the file is pretty-printed with sorted keys, so diffs stay small), then runs `npm --prefix client ci` and `npm --prefix client run generate`, which writes `client/src/schema.d.ts` with the sha256 of `openapi.json` on its first line. Check the types with `npm --prefix client run typecheck`, and commit `openapi.json` and `client/` together. `tests/Feature/OpenApiTest.php` fails when a fresh export differs from the committed `openapi.json`, or the sha256 in `schema.d.ts` differs from the committed file's, and CI's `client` job fails on any diff the generator leaves in `client/`.
+
+## Atrium module
+
+Roster ships its front end for Atrium v2 as an Atrium module: JavaScript only, no PHP. Its Vue sources are in `atrium/` (left out of the Composer dist archive); the build is committed in `dist/atrium/` (`atrium.js`, `chunks/`, `atrium.css`, and `build.json`, the hash of the sources it was built from), so a host never runs Node. `composer.json` declares it:
+
+```json
+"extra": {
+    "atrium": {
+        "key": "roster",
+        "scripts": ["dist/atrium/atrium.js"],
+        "styles": ["dist/atrium/atrium.css"]
+    }
+}
+```
+
+Atrium v2 finds it in `vendor/composer/installed.json` (`php artisan atrium:discover`) and injects it into its page while the Roster integration is active. Roster does not require Atrium, and Roster's PHP never names it.
+
+**Rebuilding.** After changing the module, or the TypeScript client it imports its types from, run in `atrium/` (pnpm 10):
+
+```bash
+pnpm install
+pnpm typecheck && pnpm test && pnpm build
+```
+
+and commit `dist/atrium/` with the sources. The module builds against Atrium's SDK, `@refactor-circus/atrium` (a development dependency pinned to an Atrium commit). `tests/Feature/FrontendModuleTest.php` fails when `dist/atrium/build.json` no longer matches the sources, and CI's `ui` job rebuilds and fails on any diff in `dist/atrium`.
 
 ## Cortex
 
@@ -896,7 +921,7 @@ composer test             # static analysis, formatting, type coverage, Pest
 composer client:generate  # regenerate openapi.json and the TypeScript client after an API change
 ```
 
-`composer test` fails when `openapi.json` or `client/src/schema.d.ts` is out of date (`tests/Feature/OpenApiTest.php`); regenerate them as described under [OpenAPI document and TypeScript client](#openapi-document-and-typescript-client).
+`pnpm test` in `atrium/` runs the [Atrium module](#atrium-module)'s Vitest suite. `composer test` fails when `dist/atrium/` is older than `atrium/`, and when `openapi.json` or `client/src/schema.d.ts` is out of date (`tests/Feature/OpenApiTest.php`); regenerate them as described under [OpenAPI document and TypeScript client](#openapi-document-and-typescript-client).
 
 ## Changelog
 
