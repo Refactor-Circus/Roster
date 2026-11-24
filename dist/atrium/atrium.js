@@ -476,7 +476,7 @@ var w = {
 	{
 		path: "/roster/impersonations",
 		name: "roster-impersonations",
-		component: () => import("./chunks/impersonations-CtoL80CC.js")
+		component: () => import("./chunks/impersonations-CRucbfmN.js")
 	},
 	{
 		path: "/roster/invitations/:token",
@@ -487,47 +487,47 @@ var w = {
 	{
 		path: "/roster/organizations/:organization",
 		name: "roster-organizations-organization",
-		component: () => import("./chunks/_organization_-BZzmYx09.js")
+		component: () => import("./chunks/_organization_-Ch-6bU_J.js")
 	},
 	{
 		path: "/roster/organizations/:organization/teams/:team",
 		name: "roster-organizations-organization-teams-team",
-		component: () => import("./chunks/_team_-BOvmW-jT.js")
+		component: () => import("./chunks/_team_-CRQNcK9-.js")
 	},
 	{
 		path: "/roster/organizations/create",
 		name: "roster-organizations-create",
-		component: () => import("./chunks/create-Bmd6OJEB.js")
+		component: () => import("./chunks/create-wuqEAo2m.js")
 	},
 	{
 		path: "/roster/organizations",
 		name: "roster-organizations",
-		component: () => import("./chunks/organizations-DewQgiJN.js")
+		component: () => import("./chunks/organizations-DOV5rK71.js")
 	},
 	{
 		path: "/roster/transfers/:transfer",
 		name: "roster-transfers-transfer",
-		component: () => import("./chunks/_transfer_-BC3VTzzk.js")
+		component: () => import("./chunks/_transfer_-2cixUP2C.js")
 	},
 	{
 		path: "/roster/transfers",
 		name: "roster-transfers",
-		component: () => import("./chunks/transfers-B_zrr8Jb.js")
+		component: () => import("./chunks/transfers-C6iN9iZS.js")
 	},
 	{
 		path: "/roster/users/:user",
 		name: "roster-users-user",
-		component: () => import("./chunks/_user_-B2UODwrg.js")
+		component: () => import("./chunks/_user_-DK3LJFAw.js")
 	},
 	{
 		path: "/roster/users/create",
 		name: "roster-users-create",
-		component: () => import("./chunks/create-D9KKYoLq.js")
+		component: () => import("./chunks/create-BAGCYl4S.js")
 	},
 	{
 		path: "/roster/users",
 		name: "roster-users",
-		component: () => import("./chunks/users-CUXpZWAz.js")
+		component: () => import("./chunks/users-DT8eXj75.js")
 	}
 ], K = {
 	"roster.users": "roster-users",

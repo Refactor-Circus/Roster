@@ -10,6 +10,7 @@ import {
   type RosterTransfer
 } from '../../components/transfers/transfers'
 import RosterActionError from '../../components/users/RosterActionError.vue'
+import type { TableColumn } from '@nuxt/ui'
 import {
   formatDate,
   queryPage,
@@ -44,6 +45,15 @@ const { client, data, pending, failed, status, reload } = useRosterLoad(async ro
   })).data, source)
 
 const rows = computed(() => data.value?.rows ?? [])
+
+type TransferRow = typeof rows.value[number]
+
+const rowColumns = computed<TableColumn<TransferRow>[]>(() => [
+  { id: 'line', header: t('roster.transfers.fields.line'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'row', header: t('roster.transfers.fields.row') },
+  { id: 'planned', header: t('roster.transfers.fields.planned') },
+  { id: 'result', header: t('roster.transfers.fields.result') }
+])
 const rowsPaging = computed(() => ({ current: data.value?.rows_meta?.current_page ?? 1, last: data.value?.rows_meta?.last_page ?? 1 }))
 const summary = computed(() => Object.entries(data.value?.summary ?? {}))
 const results = computed(() => Object.entries(data.value?.results ?? {}))
@@ -90,31 +100,32 @@ async function download(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-transfer">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
+    <UPageHeader>
+      <template #title>
+        <span class="flex items-center gap-3">
+          <UButton
+            :to="transfersPath(data?.organization)"
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('roster.transfers.title')"
+            data-testid="roster-transfer-back"
+          />
+          <span v-if="data" class="truncate" data-testid="roster-transfer-title">{{ t(`roster.transfers.types.${data.type}`) }}</span>
+        </span>
+      </template>
+      <template v-if="data?.organization" #description>{{ data.organization }}</template>
+      <template v-if="data?.download_url" #links>
         <UButton
-          :to="transfersPath(data?.organization)"
-          icon="i-lucide-arrow-left"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('roster.transfers.title')"
-          data-testid="roster-transfer-back"
-        />
-        <div v-if="data">
-          <h1 class="text-xl font-semibold" data-testid="roster-transfer-title">{{ t(`roster.transfers.types.${data.type}`) }}</h1>
-          <p v-if="data.organization" class="text-sm text-muted">{{ data.organization }}</p>
-        </div>
-      </div>
-      <UButton
-        v-if="data?.download_url"
-        icon="i-lucide-download"
-        :loading="action.busy.value"
-        data-testid="roster-transfer-download"
-        @click="download"
-      >
-        {{ t('roster.transfers.download') }}
-      </UButton>
-    </div>
+          icon="i-lucide-download"
+          :loading="action.busy.value"
+          data-testid="roster-transfer-download"
+          @click="download"
+        >
+          {{ t('roster.transfers.download') }}
+        </UButton>
+      </template>
+    </UPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.transfer" :record="id">
       <AccessState :ready="!pending && data !== null" :failed="failed" :status="status" :not-found="t('roster.transfers.not_found')">
@@ -190,32 +201,24 @@ async function download(): Promise<void> {
           </UCard>
 
           <template v-if="rows.length > 0">
-            <table class="w-full text-left text-sm" data-testid="roster-transfer-rows">
-              <thead class="text-muted">
-                <tr>
-                  <th class="py-2 pr-3 font-medium">{{ t('roster.transfers.fields.line') }}</th>
-                  <th class="py-2 pr-3 font-medium">{{ t('roster.transfers.fields.row') }}</th>
-                  <th class="py-2 pr-3 font-medium">{{ t('roster.transfers.fields.planned') }}</th>
-                  <th class="py-2 font-medium">{{ t('roster.transfers.fields.result') }}</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-default">
-                <tr v-for="row in rows" :key="row.line" :data-testid="`roster-transfer-line-${row.line}`">
-                  <td class="py-2 pr-3">{{ row.line }}</td>
-                  <td class="py-2 pr-3 text-xs">{{ rowValues(row) }}</td>
-                  <td class="py-2 pr-3">
-                    <UBadge color="neutral" variant="subtle">{{ outcomeLabel(row.action ?? 'skip') }}</UBadge>
-                    <span class="ml-1 text-xs text-muted">{{ (row.reasons ?? []).join(' ') }}</span>
-                  </td>
-                  <td class="py-2">
-                    <template v-if="row.result">
-                      <UBadge color="neutral" variant="subtle">{{ outcomeLabel(row.result) }}</UBadge>
-                      <span class="ml-1 text-xs text-muted">{{ (row.result_reasons ?? []).join(' ') }}</span>
-                    </template>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <UTable :data="rows" :columns="rowColumns" class="text-sm" data-testid="roster-transfer-rows">
+              <template #line-cell="{ row: { original: row } }">
+                <span :data-testid="`roster-transfer-line-${row.line}`">{{ row.line }}</span>
+              </template>
+              <template #row-cell="{ row: { original: row } }">
+                <span class="text-xs">{{ rowValues(row) }}</span>
+              </template>
+              <template #planned-cell="{ row: { original: row } }">
+                <UBadge color="neutral" variant="subtle">{{ outcomeLabel(row.action ?? 'skip') }}</UBadge>
+                <span class="ml-1 text-xs text-muted">{{ (row.reasons ?? []).join(' ') }}</span>
+              </template>
+              <template #result-cell="{ row: { original: row } }">
+                <template v-if="row.result">
+                  <UBadge color="neutral" variant="subtle">{{ outcomeLabel(row.result) }}</UBadge>
+                  <span class="ml-1 text-xs text-muted">{{ (row.result_reasons ?? []).join(' ') }}</span>
+                </template>
+              </template>
+            </UTable>
 
             <div v-if="rowsPaging.last > 1" class="flex items-center gap-3 text-sm">
               <UButton

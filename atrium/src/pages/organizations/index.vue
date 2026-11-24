@@ -25,6 +25,7 @@ import OrganizationState from '../../components/organizations/OrganizationState.
 import { organizationPath, type RosterQueued } from '../../components/organizations/organizations'
 import RosterActionError from '../../components/users/RosterActionError.vue'
 import RosterPager from '../../components/users/RosterPager.vue'
+import RosterTabs from '../../components/users/RosterTabs.vue'
 import {
   pageOf,
   queryPage,
@@ -35,6 +36,7 @@ import {
   type RosterOrganization,
   type RosterPage
 } from '../../components/users/users'
+import type { TableColumn } from '@nuxt/ui'
 
 /**
  * `roster.organizations`: every organization (`roster.organizations.index`),
@@ -82,6 +84,20 @@ const organizations = computed(() => data.value?.data ?? [])
 const paging = computed(() => pageOf(data.value))
 
 const filters = reactive<Record<Filter, string>>({ search: '', source: '', external_id: '', account_number: '' })
+
+const tabs = computed(() => [
+  { key: 'active' as const, label: t('roster.organizations.tabs.active') },
+  { key: 'deleted' as const, label: t('roster.organizations.tabs.deleted') }
+])
+
+const columns = computed<TableColumn<RosterOrganization>[]>(() => [
+  { id: 'name', header: t('roster.organizations.fields.name') },
+  { accessorKey: 'slug', header: t('roster.organizations.fields.slug') },
+  { id: 'members', header: t('roster.organizations.fields.members'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'teams', header: t('roster.organizations.fields.teams'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'external', header: t('roster.organizations.fields.external') },
+  { id: 'actions', header: t('roster.organizations.fields.actions'), meta: { class: { th: 'text-right', td: 'text-right' } } }
+])
 
 watch(() => FILTERS.map(name => route.query[name]), () => {
   for (const name of FILTERS) {
@@ -135,98 +151,63 @@ async function purge(organization: RosterOrganization): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-organizations">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h1 class="text-xl font-semibold">{{ t('roster.organizations.title') }}</h1>
-      <div class="flex gap-2">
+    <UPageHeader :title="t('roster.organizations.title')">
+      <template #links>
         <UButton to="/roster/transfers" variant="outline" icon="i-lucide-arrow-up-down" data-testid="roster-organizations-transfers">{{ t('roster.organizations.import_export') }}</UButton>
         <UButton to="/roster/organizations/create" icon="i-lucide-plus" data-testid="roster-organizations-new">{{ t('roster.organizations.new') }}</UButton>
-      </div>
-    </div>
+      </template>
+    </UPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.organizations">
       <div class="space-y-4">
-        <nav class="flex gap-1 border-b border-default" :aria-label="t('roster.organizations.title')">
-          <button
-            type="button"
-            class="-mb-px border-b-2 px-3 py-2 text-sm font-medium"
-            :class="deleted ? 'border-transparent text-muted' : 'border-primary'"
-            :aria-current="deleted ? undefined : 'page'"
-            data-testid="roster-organizations-tab-active"
-            @click="showTab(false)"
-          >
-            {{ t('roster.organizations.tabs.active') }}
-          </button>
-          <button
-            type="button"
-            class="-mb-px border-b-2 px-3 py-2 text-sm font-medium"
-            :class="deleted ? 'border-primary' : 'border-transparent text-muted'"
-            :aria-current="deleted ? 'page' : undefined"
-            data-testid="roster-organizations-tab-deleted"
-            @click="showTab(true)"
-          >
-            {{ t('roster.organizations.tabs.deleted') }}
-          </button>
-        </nav>
+        <RosterTabs :tabs="tabs" :current="deleted ? 'deleted' : 'active'" :label="t('roster.organizations.title')" testid="roster-organizations-tab" @select="key => showTab(key === 'deleted')" />
 
-        <form class="atrium-querybar" data-testid="roster-organizations-filters" @submit.prevent="filter">
-          <UFormField :label="t('roster.organizations.filters.search')">
+        <UForm :state="filters" class="flex flex-wrap items-end gap-3" data-testid="roster-organizations-filters" @submit="filter">
+          <UFormField :label="t('roster.organizations.filters.search')" name="search">
             <UInput v-model="filters.search" name="search" class="w-64" data-testid="roster-organizations-search" />
           </UFormField>
-          <UFormField :label="t('roster.organizations.fields.source')">
+          <UFormField :label="t('roster.organizations.fields.source')" name="source">
             <UInput v-model="filters.source" name="source" class="w-40" data-testid="roster-organizations-source" />
           </UFormField>
-          <UFormField :label="t('roster.organizations.fields.external_id')">
+          <UFormField :label="t('roster.organizations.fields.external_id')" name="external_id">
             <UInput v-model="filters.external_id" name="external_id" class="w-48" data-testid="roster-organizations-external-id" />
           </UFormField>
-          <UFormField :label="t('roster.organizations.fields.account_number')">
+          <UFormField :label="t('roster.organizations.fields.account_number')" name="account_number">
             <UInput v-model="filters.account_number" name="account_number" class="w-48" data-testid="roster-organizations-account-number" />
           </UFormField>
           <UButton type="submit" icon="i-lucide-filter" data-testid="roster-organizations-filter">{{ t('roster.organizations.filters.filter') }}</UButton>
           <UButton variant="ghost" icon="i-lucide-x" data-testid="roster-organizations-clear" @click="clear">{{ t('roster.organizations.filters.clear') }}</UButton>
-        </form>
+        </UForm>
 
         <OrganizationState :ready="!pending && data !== null" :failed="failed" :status="status">
           <div class="space-y-4">
             <RosterActionError :action="action" />
             <UAlert v-if="notice" color="success" variant="subtle" :title="notice" data-testid="roster-organizations-notice" />
 
-            <p v-if="organizations.length === 0" class="atrium-empty" data-testid="roster-organizations-empty">{{ t('roster.organizations.empty') }}</p>
-            <table v-else class="w-full text-left text-sm" data-testid="roster-organizations-table">
-              <thead class="text-muted">
-                <tr>
-                  <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.name') }}</th>
-                  <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.slug') }}</th>
-                  <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.members') }}</th>
-                  <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.teams') }}</th>
-                  <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.external') }}</th>
-                  <th class="py-2 text-right font-medium">{{ t('roster.organizations.fields.actions') }}</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-default">
-                <tr v-for="organization in organizations" :key="organization.slug" :data-testid="`roster-organization-row-${organization.slug}`">
-                  <td class="py-2 pr-3">
-                    <RouterLink v-if="!deleted" :to="organizationPath(organization.slug)" class="font-medium hover:underline">{{ organization.name }}</RouterLink>
-                    <span v-else class="font-medium">{{ organization.name }}</span>
-                    <UBadge v-if="organization.personal" color="neutral" variant="subtle" class="ml-2">{{ t('roster.organizations.personal') }}</UBadge>
-                    <UBadge v-if="deleted" color="neutral" variant="subtle" class="ml-2">{{ t('roster.organizations.deleted') }}</UBadge>
-                  </td>
-                  <td class="py-2 pr-3">{{ organization.slug }}</td>
-                  <td class="py-2 pr-3">{{ organization.members_count ?? t('roster.organizations.none') }}</td>
-                  <td class="py-2 pr-3">{{ organization.teams_count ?? t('roster.organizations.none') }}</td>
-                  <td class="py-2 pr-3 text-xs">
-                    <div v-for="link in organization.links" :key="link.source">
-                      <code>{{ link.source }}</code> {{ link.external_id }}<template v-if="link.account_number"> · {{ link.account_number }}</template>
-                    </div>
-                  </td>
-                  <td class="py-2">
-                    <div v-if="deleted" class="flex justify-end gap-2">
-                      <UButton size="sm" icon="i-lucide-undo-2" :loading="action.busy.value" :data-testid="`roster-organization-restore-${organization.slug}`" @click="restore(organization)">{{ t('roster.organizations.restore') }}</UButton>
-                      <UButton size="sm" color="error" variant="outline" icon="i-lucide-trash-2" :loading="action.busy.value" :data-testid="`roster-organization-purge-${organization.slug}`" @click="purge(organization)">{{ t('roster.organizations.purge') }}</UButton>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <UEmpty v-if="organizations.length === 0" icon="i-lucide-building-2" :title="t('roster.organizations.empty')" data-testid="roster-organizations-empty" />
+            <UTable v-else :data="organizations" :columns="columns" class="text-sm" data-testid="roster-organizations-table">
+              <template #name-cell="{ row: { original: organization } }">
+                <span :data-testid="`roster-organization-row-${organization.slug}`">
+                  <ULink v-if="!deleted" :to="organizationPath(organization.slug)" class="font-medium text-default hover:underline">{{ organization.name }}</ULink>
+                  <span v-else class="font-medium">{{ organization.name }}</span>
+                  <UBadge v-if="organization.personal" color="neutral" variant="subtle" class="ml-2">{{ t('roster.organizations.personal') }}</UBadge>
+                  <UBadge v-if="deleted" color="neutral" variant="subtle" class="ml-2">{{ t('roster.organizations.deleted') }}</UBadge>
+                </span>
+              </template>
+              <template #members-cell="{ row: { original: organization } }">{{ organization.members_count ?? t('roster.organizations.none') }}</template>
+              <template #teams-cell="{ row: { original: organization } }">{{ organization.teams_count ?? t('roster.organizations.none') }}</template>
+              <template #external-cell="{ row: { original: organization } }">
+                <div v-for="link in organization.links" :key="link.source" class="text-xs">
+                  <code>{{ link.source }}</code> {{ link.external_id }}<template v-if="link.account_number"> · {{ link.account_number }}</template>
+                </div>
+              </template>
+              <template #actions-cell="{ row: { original: organization } }">
+                <div v-if="deleted" class="flex justify-end gap-2">
+                  <UButton size="sm" icon="i-lucide-undo-2" :loading="action.busy.value" :data-testid="`roster-organization-restore-${organization.slug}`" @click="restore(organization)">{{ t('roster.organizations.restore') }}</UButton>
+                  <UButton size="sm" color="error" variant="outline" icon="i-lucide-trash-2" :loading="action.busy.value" :data-testid="`roster-organization-purge-${organization.slug}`" @click="purge(organization)">{{ t('roster.organizations.purge') }}</UButton>
+                </div>
+              </template>
+            </UTable>
 
             <RosterPager :current="paging.current" :last="paging.last" testid="roster-organizations" />
           </div>

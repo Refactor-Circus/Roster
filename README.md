@@ -709,6 +709,8 @@ Atrium v2 finds it in `vendor/composer/installed.json` (`php artisan atrium:disc
 
 **The integration manifest.** What Atrium v2 shows of Roster is declared in a static JSON manifest, `atrium/src/integration.json` (no PHP): its label, the feature flag that turns it on, its four navigation items (Users, Organizations, Impersonations, Imports & exports), its two dashboard widgets (users by status, organizations), its two search sources (users, organizations) and its eleven screens with their paths, including the `roster.user` and `roster.organization` subject types that other packages' tabs and sections attach to. Roster declares no settings panel and no hooks on other packages' screens. The build validates it against Atrium's schema and copies it to `dist/atrium/integration.json`, which `extra.atrium.integration` names. To change what Atrium shows, edit `atrium/src/integration.json` (and the module, when you add a screen, widget or search source: `atrium/test/integration.test.ts` checks each has a page or registration) and rebuild as below.
 
+**Nuxt UI only.** The module's pages and components compose Nuxt UI (`UTable`, `UForm`, `USelect`, `UCheckbox`, `UEmpty`, `UPageHeader`, ...) and Atrium's SDK components, as Atrium's own do; a guard test (`atrium/test/nuxt-ui-guard.test.ts`) fails on a raw `<button>`, `<input>`, `<select>`, `<textarea>`, `<table>`, `<details>` or `<a href>`.
+
 **Rebuilding.** After changing the module, or the TypeScript client it imports its types from, run in `atrium/` (pnpm 10):
 
 ```bash

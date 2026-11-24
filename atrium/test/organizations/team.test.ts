@@ -5,6 +5,7 @@ import { mockPackageApi, reply, resetPackageApis, type PackageRoutes } from '@re
 import { confirmWith, mountRosterPage, page, resetRosterPages, rosterCalls, screensApi } from '../users/support'
 import { acmeDetail, linusMember, opsDetail, owner, pendingMember } from './support'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
+import { choices, choose } from '../ui'
 
 /*
  * `roster.team` (AC 54, 69): one team with its members; update
@@ -62,11 +63,11 @@ describe('roster.team', () => {
     rosterWith({ 'POST /organizations/{organization}/teams/{team}/members': reply(201, { data: opsDetail }) as never })
 
     const wrapper = await mountRosterPage(Page, PATH)
-    const options = wrapper.findAll('[data-testid="roster-team-member-candidate"] option').map(option => option.attributes('value'))
+    const options = choices(wrapper, 'roster-team-member-candidate')
 
     expect(options).toEqual(['8', '9'])
 
-    await wrapper.find('[data-testid="roster-team-member-candidate"]').setValue('9')
+    await choose(wrapper, 'roster-team-member-candidate', '9')
     await wrapper.find('[data-testid="roster-team-member-add-form"]').trigger('submit')
     await settle()
 
@@ -94,7 +95,7 @@ describe('roster.team', () => {
 
     const wrapper = await mountRosterPage(Page, PATH)
     await wrapper.find('[data-testid="roster-team-name"]').setValue('Operations')
-    await wrapper.find('[data-testid="roster-team-status"]').setValue('inactive')
+    await choose(wrapper, 'roster-team-status', 'inactive')
     await wrapper.find('[data-testid="roster-team-status-reason"]').setValue('Merged')
     await wrapper.find('[data-testid="roster-team-settings-form"]').trigger('submit')
     await settle()

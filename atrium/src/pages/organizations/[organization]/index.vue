@@ -12,6 +12,7 @@ import {
   type RosterQueued
 } from '../../../components/organizations/organizations'
 import RosterActionError from '../../../components/users/RosterActionError.vue'
+import RosterTabs from '../../../components/users/RosterTabs.vue'
 import {
   queryValue,
   rosterData,
@@ -36,6 +37,7 @@ const router = useRouter()
 
 const slug = computed(() => String(route.params.organization))
 const tab = computed(() => organizationTab(queryValue(route.query.tab)))
+const tabs = computed(() => ORGANIZATION_TABS.map(key => ({ key, label: t(`roster.organizations.tabs.${key}`) })))
 
 const { client, data: organization, pending, failed, status, reload } = useRosterLoad(async roster =>
   rosterData<RosterOne<RosterOrganization>>(await roster.GET('/organizations/{organization}', {
@@ -86,25 +88,26 @@ async function purge(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-organization">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <UButton to="/roster/organizations" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('roster.organizations.title')" />
-        <div class="min-w-0">
-          <h1 class="text-xl font-semibold" data-testid="roster-organization-title">{{ organization?.name ?? t('roster.organizations.organization') }}</h1>
-          <p v-if="organization" class="text-sm text-muted">{{ organization.slug }}</p>
-        </div>
-        <UBadge v-if="deleted" color="neutral" variant="subtle">{{ t('roster.organizations.deleted') }}</UBadge>
-      </div>
-      <UButton
-        v-if="transfers && organization && !deleted"
-        :to="{ path: '/roster/transfers', query: { organization: organization.slug } }"
-        variant="outline"
-        icon="i-lucide-arrow-up-down"
-        data-testid="roster-organization-transfers"
-      >
-        {{ t('roster.organizations.import_export') }}
-      </UButton>
-    </div>
+    <UPageHeader>
+      <template #title>
+        <span class="flex items-center gap-3">
+          <UButton to="/roster/organizations" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('roster.organizations.title')" />
+          <span class="truncate" data-testid="roster-organization-title">{{ organization?.name ?? t('roster.organizations.organization') }}</span>
+          <UBadge v-if="deleted" color="neutral" variant="subtle">{{ t('roster.organizations.deleted') }}</UBadge>
+        </span>
+      </template>
+      <template v-if="organization" #description>{{ organization.slug }}</template>
+      <template v-if="transfers && organization && !deleted" #links>
+        <UButton
+          :to="{ path: '/roster/transfers', query: { organization: organization.slug } }"
+          variant="outline"
+          icon="i-lucide-arrow-up-down"
+          data-testid="roster-organization-transfers"
+        >
+          {{ t('roster.organizations.import_export') }}
+        </UButton>
+      </template>
+    </UPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.organization" :record="slug">
       <OrganizationState :ready="!pending && organization !== null" :failed="failed" :status="status">
@@ -124,20 +127,7 @@ async function purge(): Promise<void> {
         </div>
 
         <div v-else-if="organization && client" class="space-y-4">
-          <nav class="flex flex-wrap gap-1 border-b border-default" :aria-label="organization.name" data-testid="roster-organization-tabs">
-            <button
-              v-for="key in ORGANIZATION_TABS"
-              :key="key"
-              type="button"
-              class="-mb-px border-b-2 px-3 py-2 text-sm font-medium"
-              :class="tab === key ? 'border-primary' : 'border-transparent text-muted'"
-              :aria-current="tab === key ? 'page' : undefined"
-              :data-testid="`roster-organization-tab-${key}`"
-              @click="open(key)"
-            >
-              {{ t(`roster.organizations.tabs.${key}`) }}
-            </button>
-          </nav>
+          <RosterTabs :tabs="tabs" :current="tab" :label="organization.name" testid="roster-organization-tab" data-testid="roster-organization-tabs" @select="open" />
 
           <OrganizationMembers v-if="tab === 'members'" :client="client" :organization="organization" @changed="reload" />
           <OrganizationTeams v-else-if="tab === 'teams'" :client="client" :organization="organization" @changed="reload" />

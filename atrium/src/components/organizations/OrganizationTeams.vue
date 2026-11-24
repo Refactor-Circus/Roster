@@ -16,6 +16,7 @@ import {
 } from '../users/users'
 import OrganizationState from './OrganizationState.vue'
 import { teamPath } from './organizations'
+import type { TableColumn } from '@nuxt/ui'
 
 /**
  * The organization page's Teams tab, as v1's: the new-team form (name and
@@ -38,6 +39,11 @@ const teams = useRosterLoad(async roster => rosterData<RosterPage<RosterTeam>>(a
 
 const list = computed(() => teams.data.value?.data ?? [])
 const paging = computed(() => pageOf(teams.data.value))
+
+const columns = computed<TableColumn<RosterTeam>[]>(() => [
+  { id: 'team', header: t('roster.organizations.teams.team') },
+  { id: 'members', header: t('roster.organizations.fields.members'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } }
+])
 
 const create = useRosterAction()
 const form = reactive({ name: '', slug: '' })
@@ -62,7 +68,7 @@ async function createTeam(): Promise<void> {
       <template #header>
         <h2 class="font-semibold">{{ t('roster.organizations.teams.new') }}</h2>
       </template>
-      <form class="flex flex-wrap items-end gap-2" data-testid="roster-team-create-form" @submit.prevent="createTeam">
+      <UForm :state="form" class="flex flex-wrap items-end gap-2" data-testid="roster-team-create-form" @submit="createTeam">
         <RosterActionError :action="create" />
         <UFormField :label="t('roster.organizations.fields.name')" :error="create.error('name')" required>
           <UInput v-model="form.name" class="w-64" data-testid="roster-team-create-name" />
@@ -71,28 +77,18 @@ async function createTeam(): Promise<void> {
           <UInput v-model="form.slug" class="w-64" data-testid="roster-team-create-slug" />
         </UFormField>
         <UButton type="submit" icon="i-lucide-plus" :loading="create.busy.value" data-testid="roster-team-create">{{ t('roster.organizations.create') }}</UButton>
-      </form>
+      </UForm>
     </UCard>
 
     <OrganizationState :ready="!teams.pending.value && teams.data.value !== null" :failed="teams.failed.value" :status="teams.status.value" compact>
       <div class="space-y-4">
-        <p v-if="list.length === 0" class="atrium-empty" data-testid="roster-teams-empty">{{ t('roster.organizations.teams.empty') }}</p>
-        <table v-else class="w-full text-left text-sm" data-testid="roster-teams-table">
-          <thead class="text-muted">
-            <tr>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.teams.team') }}</th>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.members') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-default">
-            <tr v-for="team in list" :key="team.slug" :data-testid="`roster-team-row-${team.slug}`">
-              <td class="py-2 pr-3">
-                <RouterLink :to="teamPath(organization.slug, team.slug)" class="font-medium hover:underline">{{ team.name }}</RouterLink>
-              </td>
-              <td class="py-2 pr-3">{{ team.members_count ?? t('roster.organizations.none') }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <UEmpty v-if="list.length === 0" icon="i-lucide-users-round" :title="t('roster.organizations.teams.empty')" data-testid="roster-teams-empty" />
+        <UTable v-else :data="list" :columns="columns" class="text-sm" data-testid="roster-teams-table">
+          <template #team-cell="{ row: { original: team } }">
+            <ULink :to="teamPath(organization.slug, team.slug)" class="font-medium text-default hover:underline" :data-testid="`roster-team-row-${team.slug}`">{{ team.name }}</ULink>
+          </template>
+          <template #members-cell="{ row: { original: team } }">{{ team.members_count ?? t('roster.organizations.none') }}</template>
+        </UTable>
 
         <RosterPager :current="paging.current" :last="paging.last" testid="roster-teams" />
       </div>

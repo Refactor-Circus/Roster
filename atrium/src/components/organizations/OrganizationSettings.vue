@@ -16,6 +16,7 @@ import {
   PROVISIONED_STATUSES,
   type RosterOrganizationLink
 } from './organizations'
+import type { TableColumn } from '@nuxt/ui'
 
 /**
  * The organization page's Settings tab, as v1's: the settings form (name,
@@ -57,6 +58,18 @@ watch(() => props.organization, (organization) => {
 
 const domainsError = computed(() => settings.error('domains')
   ?? Object.entries(settings.errors.value).find(([field]) => field.startsWith('domains.'))?.[1]?.[0])
+
+// Typed as strings: the form holds whatever status the organization has.
+const provisionedItems = computed(() => PROVISIONED_STATUSES.map((choice): { label: string, value: string } => ({ label: t(`roster.users.statuses.${choice}`), value: choice })))
+const statusItems = computed(() => ORGANIZATION_STATUSES.map((choice): { label: string, value: string } => ({ label: t(`roster.organizations.statuses.${choice}`), value: choice })))
+
+const linkColumns = computed<TableColumn<RosterOrganizationLink>[]>(() => [
+  { id: 'source', header: t('roster.organizations.fields.source') },
+  { accessorKey: 'external_id', header: t('roster.organizations.fields.external_id') },
+  { id: 'account_number', header: t('roster.organizations.fields.account_number') },
+  { id: 'synced', header: t('roster.organizations.links.synced') },
+  { id: 'actions', header: t('roster.organizations.fields.actions'), meta: { class: { th: 'text-right', td: 'text-right' } } }
+])
 
 const links = useRosterAction()
 const linkForm = reactive({ source: '', external_id: '', account_number: '' })
@@ -130,7 +143,7 @@ async function destroy(): Promise<void> {
       <template #header>
         <h2 class="font-semibold">{{ t('roster.organizations.settings.title') }}</h2>
       </template>
-      <form class="flex max-w-2xl flex-col gap-4" data-testid="roster-organization-settings-form" @submit.prevent="save">
+      <UForm :state="form" class="flex max-w-2xl flex-col gap-4" data-testid="roster-organization-settings-form" @submit="save">
         <RosterActionError :action="settings" />
         <UFormField :label="t('roster.organizations.fields.name')" :error="settings.error('name')" required>
           <UInput v-model="form.name" class="w-full" data-testid="roster-settings-name" />
@@ -141,20 +154,17 @@ async function destroy(): Promise<void> {
         <UFormField :label="t('roster.organizations.fields.domains')" :hint="t('roster.organizations.domains_hint')" :error="domainsError">
           <UTextarea v-model="form.domains" :rows="3" class="w-full" data-testid="roster-settings-domains" />
         </UFormField>
-        <label class="flex items-center gap-2 text-sm">
-          <input v-model="form.auto_join" type="checkbox" data-testid="roster-settings-auto-join">
-          {{ t('roster.organizations.fields.auto_join') }}
-        </label>
-        <p class="-mt-3 text-xs text-muted">{{ t('roster.organizations.settings.auto_join_hint') }}</p>
+        <UCheckbox
+          v-model="form.auto_join"
+          :label="t('roster.organizations.fields.auto_join')"
+          :description="t('roster.organizations.settings.auto_join_hint')"
+          data-testid="roster-settings-auto-join"
+        />
         <UFormField :label="t('roster.organizations.settings.provisioned_status')" :hint="t('roster.organizations.settings.provisioned_status_hint')" :error="settings.error('provisioned_status')">
-          <select v-model="form.provisioned_status" class="w-72 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-settings-provisioned-status">
-            <option v-for="choice in PROVISIONED_STATUSES" :key="choice" :value="choice">{{ t(`roster.users.statuses.${choice}`) }}</option>
-          </select>
+          <USelect v-model="form.provisioned_status" :items="provisionedItems" class="w-72" data-testid="roster-settings-provisioned-status" />
         </UFormField>
         <UFormField :label="t('roster.organizations.fields.status')" :error="settings.error('status')">
-          <select v-model="form.status" class="w-72 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-settings-status">
-            <option v-for="choice in ORGANIZATION_STATUSES" :key="choice" :value="choice">{{ t(`roster.organizations.statuses.${choice}`) }}</option>
-          </select>
+          <USelect v-model="form.status" :items="statusItems" class="w-72" data-testid="roster-settings-status" />
         </UFormField>
         <UFormField :label="t('roster.organizations.fields.reason')" :error="settings.error('status_reason')">
           <UInput v-model="form.status_reason" class="w-80" data-testid="roster-settings-status-reason" />
@@ -162,7 +172,7 @@ async function destroy(): Promise<void> {
         <div>
           <UButton type="submit" icon="i-lucide-check" :loading="settings.busy.value" data-testid="roster-settings-save">{{ t('roster.organizations.save') }}</UButton>
         </div>
-      </form>
+      </UForm>
     </UCard>
 
     <UCard data-testid="roster-organization-links">
@@ -172,34 +182,22 @@ async function destroy(): Promise<void> {
       <div class="flex flex-col gap-4">
         <RosterActionError :action="links" />
         <p v-if="organization.links.length === 0" class="text-sm" data-testid="roster-links-empty">{{ t('roster.organizations.links.empty') }}</p>
-        <table v-else class="w-full text-left text-sm">
-          <thead class="text-muted">
-            <tr>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.source') }}</th>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.external_id') }}</th>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.account_number') }}</th>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.links.synced') }}</th>
-              <th class="py-2 text-right font-medium">{{ t('roster.organizations.fields.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-default">
-            <tr v-for="item in organization.links" :key="item.source" :data-testid="`roster-link-${item.source}`">
-              <td class="py-2 pr-3"><code>{{ item.source }}</code></td>
-              <td class="py-2 pr-3">{{ item.external_id }}</td>
-              <td class="py-2 pr-3">{{ item.account_number ?? t('roster.organizations.none') }}</td>
-              <td class="py-2 pr-3">{{ formatDate(item.synced_at) ?? t('roster.organizations.links.never') }}</td>
-              <td class="py-2">
-                <div class="flex justify-end">
-                  <UButton size="sm" variant="ghost" icon="i-lucide-unlink" :loading="links.busy.value" :data-testid="`roster-unlink-${item.source}`" @click="unlink(item)">
-                    {{ t('roster.organizations.links.unlink') }}
-                  </UButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <UTable v-else :data="organization.links" :columns="linkColumns" class="text-sm" data-testid="roster-links-table">
+          <template #source-cell="{ row: { original: item } }">
+            <code :data-testid="`roster-link-${item.source}`">{{ item.source }}</code>
+          </template>
+          <template #account_number-cell="{ row: { original: item } }">{{ item.account_number ?? t('roster.organizations.none') }}</template>
+          <template #synced-cell="{ row: { original: item } }">{{ formatDate(item.synced_at) ?? t('roster.organizations.links.never') }}</template>
+          <template #actions-cell="{ row: { original: item } }">
+            <div class="flex justify-end">
+              <UButton size="sm" variant="ghost" icon="i-lucide-unlink" :loading="links.busy.value" :data-testid="`roster-unlink-${item.source}`" @click="unlink(item)">
+                {{ t('roster.organizations.links.unlink') }}
+              </UButton>
+            </div>
+          </template>
+        </UTable>
 
-        <form class="flex flex-wrap items-end gap-3" data-testid="roster-link-form" @submit.prevent="link">
+        <UForm :state="linkForm" class="flex flex-wrap items-end gap-3" data-testid="roster-link-form" @submit="link">
           <UFormField :label="t('roster.organizations.fields.source')" :hint="t('roster.organizations.links.source_hint')" :error="links.error('source')" required>
             <UInput v-model="linkForm.source" class="w-40" data-testid="roster-link-source" />
           </UFormField>
@@ -210,7 +208,7 @@ async function destroy(): Promise<void> {
             <UInput v-model="linkForm.account_number" class="w-48" data-testid="roster-link-account-number" />
           </UFormField>
           <UButton type="submit" icon="i-lucide-link" :loading="links.busy.value" data-testid="roster-link-submit">{{ t('roster.organizations.links.link') }}</UButton>
-        </form>
+        </UForm>
       </div>
     </UCard>
 

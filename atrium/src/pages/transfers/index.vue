@@ -38,6 +38,7 @@ import {
   type RosterOne,
   type RosterPage
 } from '../../components/users/users'
+import type { TableColumn } from '@nuxt/ui'
 
 /**
  * `roster.transfers`: the imports and exports (`roster.transfers.index`), a
@@ -83,9 +84,17 @@ watch(organization, (slug) => {
   exportForm.organization = slug ?? ''
 }, { immediate: true })
 
-function pickFile(event: Event): void {
-  importForm.file = (event.target as HTMLInputElement).files?.[0] ?? null
-}
+const importItems = computed(() => IMPORT_TYPES.map(type => ({ label: t(`roster.transfers.types.${type}`), value: type })))
+const exportItems = computed(() => EXPORT_TYPES.map(type => ({ label: t(`roster.transfers.types.${type}`), value: type })))
+
+const columns = computed<TableColumn<RosterTransfer>[]>(() => [
+  { id: 'type', header: t('roster.transfers.fields.type') },
+  { id: 'organization', header: t('roster.transfers.fields.organization') },
+  { id: 'requested_by', header: t('roster.transfers.fields.requested_by') },
+  { id: 'status', header: t('roster.transfers.fields.status') },
+  { id: 'rows', header: t('roster.transfers.fields.rows'), meta: { class: { th: 'text-right', td: 'text-right tabular-nums' } } },
+  { id: 'created', header: t('roster.transfers.fields.created') }
+])
 
 async function downloadTemplate(): Promise<void> {
   if (!client) {
@@ -154,10 +163,11 @@ async function startExport(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-transfers">
-    <div>
-      <h1 class="text-xl font-semibold">{{ t('roster.transfers.title') }}</h1>
-      <p v-if="organization" class="text-sm text-muted" data-testid="roster-transfers-organization">{{ organization }}</p>
-    </div>
+    <UPageHeader :title="t('roster.transfers.title')">
+      <template v-if="organization" #description>
+        <span data-testid="roster-transfers-organization">{{ organization }}</span>
+      </template>
+    </UPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.transfers">
       <AccessState :ready="!pending && data !== null" :failed="failed" :status="status">
@@ -170,9 +180,7 @@ async function startExport(): Promise<void> {
 
               <div class="mb-4 flex flex-wrap items-end gap-3" data-testid="roster-import-templates">
                 <UFormField :label="t('roster.transfers.import.template')">
-                  <select v-model="template" class="w-56 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-template-type">
-                    <option v-for="type in IMPORT_TYPES" :key="type" :value="type">{{ t(`roster.transfers.types.${type}`) }}</option>
-                  </select>
+                  <USelect v-model="template" :items="importItems" class="w-56" data-testid="roster-template-type" />
                 </UFormField>
                 <UButton variant="outline" icon="i-lucide-download" :loading="templating.busy.value" data-testid="roster-template-download" @click="downloadTemplate">
                   {{ t('roster.transfers.import.download_template') }}
@@ -180,23 +188,30 @@ async function startExport(): Promise<void> {
               </div>
               <RosterActionError :action="templating" />
 
-              <form class="flex flex-col gap-3" data-testid="roster-import-form" @submit.prevent="startImport">
+              <UForm :state="importForm" class="flex flex-col gap-3" data-testid="roster-import-form" @submit="startImport">
                 <RosterActionError :action="importing" />
                 <UFormField :label="t('roster.transfers.fields.type')" :error="importing.error('type')" required>
-                  <select v-model="importForm.type" class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-import-type">
-                    <option v-for="type in IMPORT_TYPES" :key="type" :value="type">{{ t(`roster.transfers.types.${type}`) }}</option>
-                  </select>
+                  <USelect v-model="importForm.type" :items="importItems" class="w-full" data-testid="roster-import-type" />
                 </UFormField>
                 <UFormField :label="t('roster.transfers.fields.organization')" :hint="t('roster.transfers.import.organization_hint')" :error="importing.error('organization')">
                   <UInput v-model="importForm.organization" class="w-full" data-testid="roster-import-organization" />
                 </UFormField>
                 <UFormField :label="t('roster.transfers.import.file')" :hint="t('roster.transfers.import.file_hint')" :error="importing.error('file')">
-                  <input type="file" accept=".csv,text/csv" class="block w-full text-sm" data-testid="roster-import-file" @change="pickFile">
+                  <UFileUpload
+                    v-model="importForm.file"
+                    accept=".csv,text/csv"
+                    icon="i-lucide-file-spreadsheet"
+                    :label="t('roster.transfers.import.file')"
+                    :description="t('roster.transfers.import.file_hint')"
+                    layout="list"
+                    class="min-h-24 w-full"
+                    data-testid="roster-import-file"
+                  />
                 </UFormField>
                 <div>
                   <UButton type="submit" icon="i-lucide-upload" :loading="importing.busy.value" data-testid="roster-import-submit">{{ t('roster.transfers.import.submit') }}</UButton>
                 </div>
-              </form>
+              </UForm>
             </UCard>
 
             <UCard data-testid="roster-export-card">
@@ -204,12 +219,10 @@ async function startExport(): Promise<void> {
                 <h2 class="font-medium">{{ t('roster.transfers.export.title') }}</h2>
               </template>
 
-              <form class="flex flex-col gap-3" data-testid="roster-export-form" @submit.prevent="startExport">
+              <UForm :state="exportForm" class="flex flex-col gap-3" data-testid="roster-export-form" @submit="startExport">
                 <RosterActionError :action="exporting" />
                 <UFormField :label="t('roster.transfers.fields.type')" :error="exporting.error('type')" required>
-                  <select v-model="exportForm.type" class="w-full rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-export-type">
-                    <option v-for="type in EXPORT_TYPES" :key="type" :value="type">{{ t(`roster.transfers.types.${type}`) }}</option>
-                  </select>
+                  <USelect v-model="exportForm.type" :items="exportItems" class="w-full" data-testid="roster-export-type" />
                 </UFormField>
                 <UFormField
                   v-if="exportForm.type === 'export_members'"
@@ -230,35 +243,21 @@ async function startExport(): Promise<void> {
                 <div>
                   <UButton type="submit" icon="i-lucide-download" :loading="exporting.busy.value" data-testid="roster-export-submit">{{ t('roster.transfers.export.submit') }}</UButton>
                 </div>
-              </form>
+              </UForm>
             </UCard>
           </div>
 
-          <p v-if="transfers.length === 0" class="atrium-empty" data-testid="roster-transfers-empty">{{ t('roster.transfers.empty') }}</p>
-          <table v-else class="w-full text-left text-sm" data-testid="roster-transfers-table">
-            <thead class="text-muted">
-              <tr>
-                <th class="py-2 pr-3 font-medium">{{ t('roster.transfers.fields.type') }}</th>
-                <th class="py-2 pr-3 font-medium">{{ t('roster.transfers.fields.organization') }}</th>
-                <th class="py-2 pr-3 font-medium">{{ t('roster.transfers.fields.requested_by') }}</th>
-                <th class="py-2 pr-3 font-medium">{{ t('roster.transfers.fields.status') }}</th>
-                <th class="py-2 pr-3 font-medium">{{ t('roster.transfers.fields.rows') }}</th>
-                <th class="py-2 font-medium">{{ t('roster.transfers.fields.created') }}</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-default">
-              <tr v-for="transfer in transfers" :key="transfer.id" :data-testid="`roster-transfer-row-${transfer.id}`">
-                <td class="py-2 pr-3">
-                  <RouterLink :to="transferPath(transfer.id)" class="font-medium hover:underline">{{ t(`roster.transfers.types.${transfer.type}`) }}</RouterLink>
-                </td>
-                <td class="py-2 pr-3">{{ transfer.organization ?? t('roster.transfers.none') }}</td>
-                <td class="py-2 pr-3">{{ transfer.requested_by?.name || transfer.requested_by?.email || t('roster.transfers.none') }}</td>
-                <td class="py-2 pr-3"><TransferStatusBadge :status="transfer.status" /></td>
-                <td class="py-2 pr-3">{{ transfer.row_count ?? 0 }}</td>
-                <td class="py-2">{{ formatDate(transfer.created_at) ?? t('roster.transfers.none') }}</td>
-              </tr>
-            </tbody>
-          </table>
+          <UEmpty v-if="transfers.length === 0" icon="i-lucide-arrow-up-down" :title="t('roster.transfers.empty')" data-testid="roster-transfers-empty" />
+          <UTable v-else :data="transfers" :columns="columns" class="text-sm" data-testid="roster-transfers-table">
+            <template #type-cell="{ row: { original: transfer } }">
+              <ULink :to="transferPath(transfer.id)" class="font-medium text-default hover:underline" :data-testid="`roster-transfer-row-${transfer.id}`">{{ t(`roster.transfers.types.${transfer.type}`) }}</ULink>
+            </template>
+            <template #organization-cell="{ row: { original: transfer } }">{{ transfer.organization ?? t('roster.transfers.none') }}</template>
+            <template #requested_by-cell="{ row: { original: transfer } }">{{ transfer.requested_by?.name || transfer.requested_by?.email || t('roster.transfers.none') }}</template>
+            <template #status-cell="{ row: { original: transfer } }"><TransferStatusBadge :status="transfer.status" /></template>
+            <template #rows-cell="{ row: { original: transfer } }">{{ transfer.row_count ?? 0 }}</template>
+            <template #created-cell="{ row: { original: transfer } }">{{ formatDate(transfer.created_at) ?? t('roster.transfers.none') }}</template>
+          </UTable>
 
           <RosterPager :current="paging.current" :last="paging.last" testid="roster-transfers" />
         </div>

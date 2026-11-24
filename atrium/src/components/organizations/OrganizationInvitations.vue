@@ -15,6 +15,7 @@ import {
 } from '../users/users'
 import OrganizationState from './OrganizationState.vue'
 import { recordStatusColor, type RosterInvitation } from './organizations'
+import type { TableColumn } from '@nuxt/ui'
 
 /**
  * The organization page's Invitations tab, as v1's: the invite form (email
@@ -37,6 +38,13 @@ const invitations = useRosterLoad(async roster => rosterData<RosterPage<RosterIn
 const list = computed(() => invitations.data.value?.data ?? [])
 const paging = computed(() => pageOf(invitations.data.value))
 const teams = useOrganizationTeams(() => slug.value)
+
+const columns = computed<TableColumn<RosterInvitation>[]>(() => [
+  { accessorKey: 'email', header: t('roster.organizations.fields.email') },
+  { id: 'status', header: t('roster.organizations.fields.status') },
+  { id: 'expires', header: t('roster.organizations.invitations.expires') },
+  { id: 'actions', header: t('roster.organizations.fields.actions'), meta: { class: { th: 'text-right', td: 'text-right' } } }
+])
 
 const invite = useRosterAction()
 const form = reactive<{ email: string, teams: string[] }>({ email: '', teams: [] })
@@ -72,71 +80,60 @@ async function revokeInvitation(invitation: RosterInvitation): Promise<void> {
       <template #header>
         <h2 class="font-semibold">{{ t('roster.organizations.invitations.invite') }}</h2>
       </template>
-      <form class="flex max-w-2xl flex-col gap-3" data-testid="roster-invite-form" @submit.prevent="send">
+      <UForm :state="form" class="flex max-w-2xl flex-col gap-3" data-testid="roster-invite-form" @submit="send">
         <RosterActionError :action="invite" />
         <UFormField :label="t('roster.organizations.fields.email')" :error="invite.error('email')" required>
           <UInput v-model="form.email" type="email" class="w-80" data-testid="roster-invite-email" />
         </UFormField>
-        <fieldset v-if="teams.length > 0" class="flex flex-wrap gap-4">
-          <legend class="mb-1 text-sm font-medium">{{ t('roster.organizations.fields.teams') }}</legend>
-          <label v-for="team in teams" :key="team.slug" class="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              :value="team.slug"
-              :checked="form.teams.includes(team.slug)"
+        <UFormField v-if="teams.length > 0" :label="t('roster.organizations.fields.teams')" :error="invite.error('teams')">
+          <div class="flex flex-wrap gap-4">
+            <UCheckbox
+              v-for="team in teams"
+              :key="team.slug"
+              :model-value="form.teams.includes(team.slug)"
+              :label="team.name"
               :data-testid="`roster-invite-team-${team.slug}`"
-              @change="toggleTeam(team.slug, ($event.target as HTMLInputElement).checked)"
-            >
-            {{ team.name }}
-          </label>
-        </fieldset>
+              @update:model-value="(checked: boolean | 'indeterminate') => toggleTeam(team.slug, checked === true)"
+            />
+          </div>
+        </UFormField>
         <div>
           <UButton type="submit" icon="i-lucide-send" :loading="invite.busy.value" data-testid="roster-invite-send">{{ t('roster.organizations.invitations.invite') }}</UButton>
         </div>
-      </form>
+      </UForm>
     </UCard>
 
     <RosterActionError :action="revoke" />
 
     <OrganizationState :ready="!invitations.pending.value && invitations.data.value !== null" :failed="invitations.failed.value" :status="invitations.status.value" compact>
       <div class="space-y-4">
-        <p v-if="list.length === 0" class="atrium-empty" data-testid="roster-invitations-empty">{{ t('roster.organizations.invitations.empty') }}</p>
-        <table v-else class="w-full text-left text-sm" data-testid="roster-invitations-table">
-          <thead class="text-muted">
-            <tr>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.email') }}</th>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.status') }}</th>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.invitations.expires') }}</th>
-              <th class="py-2 text-right font-medium">{{ t('roster.organizations.fields.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-default">
-            <tr v-for="invitation in list" :key="invitation.id" :data-testid="`roster-invitation-row-${invitation.id}`">
-              <td class="py-2 pr-3">{{ invitation.email }}</td>
-              <td class="py-2 pr-3">
-                <UBadge :color="recordStatusColor(invitation.status)" variant="subtle" :data-status="invitation.status">
-                  {{ te(`roster.organizations.invitations.statuses.${invitation.status}`) ? t(`roster.organizations.invitations.statuses.${invitation.status}`) : invitation.status }}
-                </UBadge>
-              </td>
-              <td class="py-2 pr-3">{{ formatDate(invitation.expires_at) }}</td>
-              <td class="py-2">
-                <div class="flex justify-end">
-                  <UButton
-                    v-if="invitation.status === 'pending'"
-                    size="sm"
-                    variant="ghost"
-                    icon="i-lucide-ban"
-                    :loading="revoke.busy.value"
-                    :data-testid="`roster-invitation-revoke-${invitation.id}`"
-                    @click="revokeInvitation(invitation)"
-                  >
-                    {{ t('roster.organizations.invitations.revoke') }}
-                  </UButton>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <UEmpty v-if="list.length === 0" icon="i-lucide-mail" :title="t('roster.organizations.invitations.empty')" data-testid="roster-invitations-empty" />
+        <UTable v-else :data="list" :columns="columns" class="text-sm" data-testid="roster-invitations-table">
+          <template #email-cell="{ row: { original: invitation } }">
+            <span :data-testid="`roster-invitation-row-${invitation.id}`">{{ invitation.email }}</span>
+          </template>
+          <template #status-cell="{ row: { original: invitation } }">
+            <UBadge :color="recordStatusColor(invitation.status)" variant="subtle" :data-status="invitation.status">
+              {{ te(`roster.organizations.invitations.statuses.${invitation.status}`) ? t(`roster.organizations.invitations.statuses.${invitation.status}`) : invitation.status }}
+            </UBadge>
+          </template>
+          <template #expires-cell="{ row: { original: invitation } }">{{ formatDate(invitation.expires_at) }}</template>
+          <template #actions-cell="{ row: { original: invitation } }">
+            <div class="flex justify-end">
+              <UButton
+                v-if="invitation.status === 'pending'"
+                size="sm"
+                variant="ghost"
+                icon="i-lucide-ban"
+                :loading="revoke.busy.value"
+                :data-testid="`roster-invitation-revoke-${invitation.id}`"
+                @click="revokeInvitation(invitation)"
+              >
+                {{ t('roster.organizations.invitations.revoke') }}
+              </UButton>
+            </div>
+          </template>
+        </UTable>
 
         <RosterPager :current="paging.current" :last="paging.last" testid="roster-invitations" />
       </div>

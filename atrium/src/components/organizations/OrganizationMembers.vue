@@ -15,6 +15,7 @@ import {
 } from '../users/users'
 import OrganizationState from './OrganizationState.vue'
 import { summaryName, type RosterMember } from './organizations'
+import type { TableColumn } from '@nuxt/ui'
 
 /**
  * The organization page's Members tab, as v1's: a warning while it has no
@@ -41,6 +42,14 @@ const members = useRosterLoad(async roster => rosterData<RosterPage<RosterMember
 
 const list = computed(() => members.data.value?.data ?? [])
 const paging = computed(() => pageOf(members.data.value))
+
+const columns = computed<TableColumn<RosterMember>[]>(() => [
+  { id: 'member', header: t('roster.organizations.members.member') },
+  { id: 'status', header: t('roster.organizations.fields.status') },
+  { id: 'teams', header: t('roster.organizations.fields.teams') },
+  { accessorKey: 'source', header: t('roster.organizations.members.source') },
+  { id: 'actions', header: t('roster.organizations.fields.actions'), meta: { class: { th: 'text-right', td: 'text-right' } } }
+])
 
 const add = useRosterAction()
 const newMember = ref('')
@@ -93,84 +102,72 @@ async function remove(member: RosterMember): Promise<void> {
       <template #header>
         <h2 class="font-semibold">{{ t('roster.organizations.members.add') }}</h2>
       </template>
-      <form class="flex flex-wrap items-end gap-2" data-testid="roster-member-add-form" @submit.prevent="addMember">
+      <UForm class="flex flex-wrap items-end gap-2" data-testid="roster-member-add-form" @submit="addMember">
         <RosterActionError :action="add" />
         <UFormField :label="t('roster.organizations.members.user')" :hint="t('roster.organizations.members.user_hint')" :error="add.error('user')" required>
           <UInput v-model="newMember" class="w-64" data-testid="roster-member-add-user" />
         </UFormField>
         <UButton type="submit" icon="i-lucide-user-plus" :loading="add.busy.value" data-testid="roster-member-add">{{ t('roster.organizations.members.add') }}</UButton>
-      </form>
+      </UForm>
     </UCard>
 
     <RosterActionError :action="action" />
 
     <OrganizationState :ready="!members.pending.value && members.data.value !== null" :failed="members.failed.value" :status="members.status.value" compact>
       <div class="space-y-4">
-        <p v-if="list.length === 0" class="atrium-empty" data-testid="roster-members-empty">{{ t('roster.organizations.members.empty') }}</p>
-        <table v-else class="w-full text-left text-sm" data-testid="roster-members-table">
-          <thead class="text-muted">
-            <tr>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.members.member') }}</th>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.status') }}</th>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.fields.teams') }}</th>
-              <th class="py-2 pr-3 font-medium">{{ t('roster.organizations.members.source') }}</th>
-              <th class="py-2 text-right font-medium">{{ t('roster.organizations.fields.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-default">
-            <tr v-for="member in list" :key="String(member.user?.id ?? member.joined_at)" :data-testid="`roster-member-row-${member.user?.id}`">
-              <td class="py-2 pr-3">
-                <template v-if="member.user">
-                  <RouterLink :to="userPath(member.user.id)" class="font-medium hover:underline">{{ summaryName(member.user) }}</RouterLink>
-                  <UBadge v-if="member.owner" variant="subtle" class="ml-2" data-testid="roster-member-owner">{{ t('roster.organizations.fields.owner') }}</UBadge>
-                </template>
-              </td>
-              <td class="py-2 pr-3">
-                <RosterStatusBadge v-if="member.status" :status="member.status" />
-              </td>
-              <td class="py-2 pr-3">{{ member.teams?.length ? member.teams.join(', ') : t('roster.organizations.none') }}</td>
-              <td class="py-2 pr-3">{{ member.source }}</td>
-              <td class="py-2">
-                <div v-if="member.user" class="flex justify-end gap-2">
-                  <UButton
-                    v-if="member.status === 'pending'"
-                    size="sm"
-                    icon="i-lucide-check"
-                    :loading="action.busy.value"
-                    :data-testid="`roster-member-approve-${member.user.id}`"
-                    @click="approve(member)"
-                  >
-                    {{ t('roster.organizations.members.approve') }}
-                  </UButton>
-                  <template v-if="!member.owner">
-                    <UButton
-                      v-if="!organization.personal"
-                      size="sm"
-                      variant="ghost"
-                      icon="i-lucide-key-round"
-                      :loading="action.busy.value"
-                      :data-testid="`roster-member-make-owner-${member.user.id}`"
-                      @click="makeOwner(member)"
-                    >
-                      {{ t('roster.organizations.members.make_owner') }}
-                    </UButton>
-                    <UButton
-                      size="sm"
-                      color="error"
-                      variant="outline"
-                      icon="i-lucide-user-minus"
-                      :loading="action.busy.value"
-                      :data-testid="`roster-member-remove-${member.user.id}`"
-                      @click="remove(member)"
-                    >
-                      {{ t('roster.organizations.members.remove') }}
-                    </UButton>
-                  </template>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <UEmpty v-if="list.length === 0" icon="i-lucide-users" :title="t('roster.organizations.members.empty')" data-testid="roster-members-empty" />
+        <UTable v-else :data="list" :columns="columns" class="text-sm" data-testid="roster-members-table">
+          <template #member-cell="{ row: { original: member } }">
+            <span :data-testid="`roster-member-row-${member.user?.id}`">
+              <template v-if="member.user">
+                <ULink :to="userPath(member.user.id)" class="font-medium text-default hover:underline">{{ summaryName(member.user) }}</ULink>
+                <UBadge v-if="member.owner" variant="subtle" class="ml-2" data-testid="roster-member-owner">{{ t('roster.organizations.fields.owner') }}</UBadge>
+              </template>
+            </span>
+          </template>
+          <template #status-cell="{ row: { original: member } }">
+            <RosterStatusBadge v-if="member.status" :status="member.status" />
+          </template>
+          <template #teams-cell="{ row: { original: member } }">{{ member.teams?.length ? member.teams.join(', ') : t('roster.organizations.none') }}</template>
+          <template #actions-cell="{ row: { original: member } }">
+            <div v-if="member.user" class="flex justify-end gap-2">
+              <UButton
+                v-if="member.status === 'pending'"
+                size="sm"
+                icon="i-lucide-check"
+                :loading="action.busy.value"
+                :data-testid="`roster-member-approve-${member.user.id}`"
+                @click="approve(member)"
+              >
+                {{ t('roster.organizations.members.approve') }}
+              </UButton>
+              <template v-if="!member.owner">
+                <UButton
+                  v-if="!organization.personal"
+                  size="sm"
+                  variant="ghost"
+                  icon="i-lucide-key-round"
+                  :loading="action.busy.value"
+                  :data-testid="`roster-member-make-owner-${member.user.id}`"
+                  @click="makeOwner(member)"
+                >
+                  {{ t('roster.organizations.members.make_owner') }}
+                </UButton>
+                <UButton
+                  size="sm"
+                  color="error"
+                  variant="outline"
+                  icon="i-lucide-user-minus"
+                  :loading="action.busy.value"
+                  :data-testid="`roster-member-remove-${member.user.id}`"
+                  @click="remove(member)"
+                >
+                  {{ t('roster.organizations.members.remove') }}
+                </UButton>
+              </template>
+            </div>
+          </template>
+        </UTable>
 
         <RosterPager :current="paging.current" :last="paging.last" testid="roster-members" />
       </div>

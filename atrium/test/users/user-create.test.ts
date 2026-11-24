@@ -4,6 +4,7 @@ import { settle } from '@refactor-circus/atrium/testing'
 import { mockPackageApi, reply, resetPackageApis } from '@refactor-circus/atrium/testing'
 import { ada, mountRosterPage, resetRosterPages, rosterCalls, screensApi } from './support'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
+import { choose, chosen } from '../ui'
 
 /*
  * `roster.user-create` (AC 54, 69): the v1 form (name, email, password,
@@ -44,7 +45,7 @@ describe('roster.user-create', () => {
 
     expect(api).toHaveBeenCalledWith('/screens/roster.user-create', { query: { record: undefined, tab: undefined } })
     expect(wrapper.find('[data-testid="roster-user-create-form"]').exists()).toBe(true)
-    expect((wrapper.find('[data-testid="roster-user-status"]').element as HTMLSelectElement).value).toBe('active')
+    expect(chosen(wrapper, 'roster-user-status')).toBe('active')
   })
 
   it('creates the user through roster.users.store, leaving out a blank password, then opens its page', async () => {
@@ -52,7 +53,7 @@ describe('roster.user-create', () => {
 
     const wrapper = await mountRosterPage(Page, '/roster/users/create')
     await fill(wrapper)
-    await wrapper.find('[data-testid="roster-user-status"]').setValue('pending')
+    await choose(wrapper, 'roster-user-status', 'pending')
     await wrapper.find('[data-testid="roster-user-create-form"]').trigger('submit')
     await settle()
 

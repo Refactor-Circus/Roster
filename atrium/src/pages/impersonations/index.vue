@@ -13,6 +13,7 @@ import {
   type RosterImpersonation,
   type RosterPage
 } from '../../components/users/users'
+import type { TableColumn } from '@nuxt/ui'
 
 /**
  * `roster.impersonations`: every impersonation the user may review
@@ -36,6 +37,14 @@ const { client, data, pending, failed, status, reload } = useRosterLoad(async ro
 const impersonations = computed(() => data.value?.data ?? [])
 const paging = computed(() => pageOf(data.value))
 
+const columns = computed<TableColumn<RosterImpersonation>[]>(() => [
+  { id: 'impersonator', header: t('roster.impersonations.impersonator') },
+  { id: 'user', header: t('roster.impersonations.user') },
+  { accessorKey: 'reason', header: t('roster.users.fields.reason') },
+  { id: 'status', header: t('roster.users.fields.status') },
+  { id: 'actions', header: t('roster.users.fields.actions'), meta: { class: { th: 'text-right', td: 'text-right' } } }
+])
+
 async function stop(impersonation: RosterImpersonation): Promise<void> {
   if (client && await action.run(async () => rosterData(await client.DELETE('/impersonations/{impersonation}', {
     params: { path: { impersonation: impersonation.id } }
@@ -47,52 +56,40 @@ async function stop(impersonation: RosterImpersonation): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-impersonations">
-    <h1 class="text-xl font-semibold">{{ t('roster.impersonations.title') }}</h1>
+    <UPageHeader :title="t('roster.impersonations.title')" />
 
     <AtriumIntegrationScreen screen-key="roster.impersonations">
       <RosterState :ready="!pending && data !== null" :failed="failed" :status="status">
         <div class="space-y-4">
           <RosterActionError :action="action" />
 
-          <p v-if="impersonations.length === 0" class="atrium-empty" data-testid="roster-impersonations-empty">{{ t('roster.impersonations.empty') }}</p>
-          <table v-else class="w-full text-left text-sm" data-testid="roster-impersonations-table">
-            <thead class="text-muted">
-              <tr>
-                <th class="py-2 pr-3 font-medium">{{ t('roster.impersonations.impersonator') }}</th>
-                <th class="py-2 pr-3 font-medium">{{ t('roster.impersonations.user') }}</th>
-                <th class="py-2 pr-3 font-medium">{{ t('roster.users.fields.reason') }}</th>
-                <th class="py-2 pr-3 font-medium">{{ t('roster.users.fields.status') }}</th>
-                <th class="py-2 text-right font-medium">{{ t('roster.users.fields.actions') }}</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-default">
-              <tr v-for="impersonation in impersonations" :key="impersonation.id" :data-testid="`roster-impersonation-${impersonation.id}`">
-                <td class="py-2 pr-3">{{ userName(impersonation.impersonator) ?? t('roster.users.none') }}</td>
-                <td class="py-2 pr-3">{{ userName(impersonation.user) ?? t('roster.users.none') }}</td>
-                <td class="py-2 pr-3">{{ impersonation.reason }}</td>
-                <td class="py-2 pr-3">
-                  <UBadge v-if="impersonation.active" color="warning" variant="subtle" data-testid="roster-impersonation-active">{{ t('roster.impersonations.active') }}</UBadge>
-                  <span v-else-if="impersonation.ended_at">{{ impersonation.end_reason ?? t('roster.impersonations.ended') }} · {{ formatDate(impersonation.ended_at) }}</span>
-                  <span v-else>{{ t('roster.impersonations.link_issued') }}</span>
-                </td>
-                <td class="py-2">
-                  <div class="flex justify-end">
-                    <UButton
-                      v-if="!impersonation.ended_at"
-                      size="sm"
-                      color="error"
-                      icon="i-lucide-square"
-                      :loading="action.busy.value"
-                      data-testid="roster-impersonation-stop"
-                      @click="stop(impersonation)"
-                    >
-                      {{ t('roster.impersonations.stop') }}
-                    </UButton>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <UEmpty v-if="impersonations.length === 0" icon="i-lucide-venetian-mask" :title="t('roster.impersonations.empty')" data-testid="roster-impersonations-empty" />
+          <UTable v-else :data="impersonations" :columns="columns" class="text-sm" data-testid="roster-impersonations-table">
+            <template #impersonator-cell="{ row: { original: impersonation } }">
+              <span :data-testid="`roster-impersonation-${impersonation.id}`">{{ userName(impersonation.impersonator) ?? t('roster.users.none') }}</span>
+            </template>
+            <template #user-cell="{ row: { original: impersonation } }">{{ userName(impersonation.user) ?? t('roster.users.none') }}</template>
+            <template #status-cell="{ row: { original: impersonation } }">
+              <UBadge v-if="impersonation.active" color="warning" variant="subtle" data-testid="roster-impersonation-active">{{ t('roster.impersonations.active') }}</UBadge>
+              <span v-else-if="impersonation.ended_at">{{ impersonation.end_reason ?? t('roster.impersonations.ended') }} · {{ formatDate(impersonation.ended_at) }}</span>
+              <span v-else>{{ t('roster.impersonations.link_issued') }}</span>
+            </template>
+            <template #actions-cell="{ row: { original: impersonation } }">
+              <div class="flex justify-end">
+                <UButton
+                  v-if="!impersonation.ended_at"
+                  size="sm"
+                  color="error"
+                  icon="i-lucide-square"
+                  :loading="action.busy.value"
+                  data-testid="roster-impersonation-stop"
+                  @click="stop(impersonation)"
+                >
+                  {{ t('roster.impersonations.stop') }}
+                </UButton>
+              </div>
+            </template>
+          </UTable>
 
           <RosterPager :current="paging.current" :last="paging.last" testid="roster-impersonations" />
         </div>

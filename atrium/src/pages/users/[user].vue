@@ -57,7 +57,7 @@ const approval = useRosterAction()
 const rejectReason = ref('')
 
 const statusAction = useRosterAction()
-const statusForm = reactive<{ status: RosterUserStatus | '', reason: string }>({ status: '', reason: '' })
+const statusForm = reactive<{ status: RosterUserStatus | undefined, reason: string }>({ status: undefined, reason: '' })
 
 const impersonate = useRosterAction()
 const impersonationReason = ref('')
@@ -71,6 +71,8 @@ const statusChoices = computed<RosterUserStatus[]>(() => {
   return (['active', 'suspended', 'deactivated'] as const).filter(choice => choice !== current && !(current === 'pending' && choice === 'active'))
 })
 
+const statusItems = computed(() => statusChoices.value.map(choice => ({ label: t(`roster.users.statuses.${choice}`), value: choice })))
+
 watch(user, (value) => {
   if (!value) {
     return
@@ -80,7 +82,7 @@ watch(user, (value) => {
   accountForm.email = value.email ?? ''
   accountForm.password = ''
   profileFields.value = profileForm(value.profile)
-  statusForm.status = statusChoices.value[0] ?? ''
+  statusForm.status = statusChoices.value[0]
   statusForm.reason = ''
 }, { immediate: true })
 
@@ -123,7 +125,7 @@ async function reject(): Promise<void> {
 
 /** v1's status form: the chosen status picks the route (Roster AC 6). */
 async function changeStatus(): Promise<void> {
-  if (!client || statusForm.status === '') {
+  if (!client || statusForm.status === undefined) {
     return
   }
 
@@ -199,14 +201,16 @@ async function purge(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-user">
-    <div class="flex flex-wrap items-center gap-3">
-      <UButton to="/roster/users" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('roster.users.title')" />
-      <div class="min-w-0">
-        <h1 class="text-xl font-semibold" data-testid="roster-user-title">{{ title }}</h1>
-        <p v-if="user?.email" class="text-sm text-muted">{{ user.email }}</p>
-      </div>
-      <RosterStatusBadge v-if="user && !deleted" :status="user.status" data-testid="roster-user-status-badge" />
-    </div>
+    <UPageHeader>
+      <template #title>
+        <span class="flex items-center gap-3">
+          <UButton to="/roster/users" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('roster.users.title')" />
+          <span class="truncate" data-testid="roster-user-title">{{ title }}</span>
+          <RosterStatusBadge v-if="user && !deleted" :status="user.status" data-testid="roster-user-status-badge" />
+        </span>
+      </template>
+      <template v-if="user?.email" #description>{{ user.email }}</template>
+    </UPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.user" :record="id">
       <RosterState :ready="!pending && user !== null" :failed="failed" :status="status">
@@ -230,7 +234,7 @@ async function purge(): Promise<void> {
             <template #header>
               <h2 class="font-semibold">{{ t('roster.users.account.title') }}</h2>
             </template>
-            <form class="flex flex-col gap-4" data-testid="roster-user-account-form" @submit.prevent="saveAccount">
+            <UForm :state="accountForm" class="flex flex-col gap-4" data-testid="roster-user-account-form" @submit="saveAccount">
               <RosterActionError :action="account" />
               <UFormField :label="t('roster.users.fields.name')" :error="account.error('name')">
                 <UInput v-model="accountForm.name" class="w-full" data-testid="roster-account-name" />
@@ -244,20 +248,20 @@ async function purge(): Promise<void> {
               <div>
                 <UButton type="submit" icon="i-lucide-check" :loading="account.busy.value" data-testid="roster-account-save">{{ t('roster.users.save') }}</UButton>
               </div>
-            </form>
+            </UForm>
           </UCard>
 
           <UCard>
             <template #header>
               <h2 class="font-semibold">{{ t('roster.users.profile.title') }}</h2>
             </template>
-            <form class="flex flex-col gap-4" data-testid="roster-user-profile-form" @submit.prevent="saveProfile">
+            <UForm class="flex flex-col gap-4" data-testid="roster-user-profile-form" @submit="saveProfile">
               <RosterActionError :action="profile" />
               <RosterProfileFields v-model="profileFields" :errors="profile.errors.value" />
               <div>
                 <UButton type="submit" icon="i-lucide-check" :loading="profile.busy.value" data-testid="roster-profile-save">{{ t('roster.users.save') }}</UButton>
               </div>
-            </form>
+            </UForm>
           </UCard>
 
           <UCard v-if="user.status === 'pending'" class="lg:col-span-2" data-testid="roster-user-approval">
@@ -269,12 +273,12 @@ async function purge(): Promise<void> {
               <RosterActionError :action="approval" />
               <div class="flex flex-wrap items-end gap-3">
                 <UButton icon="i-lucide-check" :loading="approval.busy.value" data-testid="roster-user-approve" @click="approve">{{ t('roster.users.approve') }}</UButton>
-                <form class="flex items-end gap-2" data-testid="roster-user-reject-form" @submit.prevent="reject">
+                <UForm class="flex items-end gap-2" data-testid="roster-user-reject-form" @submit="reject">
                   <UFormField :label="t('roster.users.fields.reason')" :error="approval.error('reason')">
                     <UInput v-model="rejectReason" class="w-64" data-testid="roster-user-reject-reason" />
                   </UFormField>
                   <UButton type="submit" color="error" icon="i-lucide-x" :loading="approval.busy.value" data-testid="roster-user-reject">{{ t('roster.users.approval.reject') }}</UButton>
-                </form>
+                </UForm>
               </div>
             </div>
           </UCard>
@@ -286,11 +290,9 @@ async function purge(): Promise<void> {
             <div class="flex flex-col gap-3">
               <p v-if="user.status_reason" class="text-sm">{{ t('roster.users.fields.reason') }}: {{ user.status_reason }}</p>
               <RosterActionError :action="statusAction" />
-              <form class="flex flex-wrap items-end gap-3" data-testid="roster-user-status-form" @submit.prevent="changeStatus">
+              <UForm :state="statusForm" class="flex flex-wrap items-end gap-3" data-testid="roster-user-status-form" @submit="changeStatus">
                 <UFormField :label="t('roster.users.status.change_to')">
-                  <select v-model="statusForm.status" class="w-56 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-user-new-status">
-                    <option v-for="choice in statusChoices" :key="choice" :value="choice">{{ t(`roster.users.statuses.${choice}`) }}</option>
-                  </select>
+                  <USelect v-model="statusForm.status" :items="statusItems" class="w-56" data-testid="roster-user-new-status" />
                 </UFormField>
                 <UFormField :label="t('roster.users.fields.reason')" :hint="t('roster.users.status.reason_hint')" :error="statusAction.error('reason')">
                   <UInput v-model="statusForm.reason" class="w-80" data-testid="roster-user-status-reason" />
@@ -298,7 +300,7 @@ async function purge(): Promise<void> {
                 <UButton type="submit" variant="outline" icon="i-lucide-refresh-cw" :loading="statusAction.busy.value" data-testid="roster-user-change-status">
                   {{ t('roster.users.status.update') }}
                 </UButton>
-              </form>
+              </UForm>
             </div>
           </UCard>
 
@@ -319,14 +321,14 @@ async function purge(): Promise<void> {
             </template>
             <div class="flex flex-col gap-3">
               <RosterActionError :action="impersonate" />
-              <form class="flex flex-wrap items-end gap-2" data-testid="roster-user-impersonate-form" @submit.prevent="startImpersonation">
+              <UForm class="flex flex-wrap items-end gap-2" data-testid="roster-user-impersonate-form" @submit="startImpersonation">
                 <UFormField :label="t('roster.users.fields.reason')" :hint="t('roster.users.impersonate.reason_hint')" :error="impersonate.error('reason')" required>
                   <UInput v-model="impersonationReason" class="w-80" data-testid="roster-user-impersonation-reason" />
                 </UFormField>
                 <UButton type="submit" color="warning" icon="i-lucide-eye" :loading="impersonate.busy.value" data-testid="roster-user-impersonate-submit">
                   {{ t('roster.users.impersonate.start') }}
                 </UButton>
-              </form>
+              </UForm>
             </div>
           </UCard>
 

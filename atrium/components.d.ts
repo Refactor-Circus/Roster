@@ -20,10 +20,18 @@ declare module 'vue' {
     UBadge: typeof import('@refactor-circus/atrium/ui')['UBadge']
     UButton: typeof import('@refactor-circus/atrium/ui')['UButton']
     UCard: typeof import('@refactor-circus/atrium/ui')['UCard']
+    UCheckbox: typeof import('@refactor-circus/atrium/ui')['UCheckbox']
+    UEmpty: typeof import('@refactor-circus/atrium/ui')['UEmpty']
+    UFileUpload: typeof import('@refactor-circus/atrium/ui')['UFileUpload']
+    UForm: typeof import('@refactor-circus/atrium/ui')['UForm']
     UFormField: typeof import('@refactor-circus/atrium/ui')['UFormField']
     UInput: typeof import('@refactor-circus/atrium/ui')['UInput']
+    ULink: typeof import('@refactor-circus/atrium/ui')['ULink']
+    UPageHeader: typeof import('@refactor-circus/atrium/ui')['UPageHeader']
     UProgress: typeof import('@refactor-circus/atrium/ui')['UProgress']
+    USelect: typeof import('@refactor-circus/atrium/ui')['USelect']
     USkeleton: typeof import('@refactor-circus/atrium/ui')['USkeleton']
+    UTable: typeof import('@refactor-circus/atrium/ui')['UTable']
     UTextarea: typeof import('@refactor-circus/atrium/ui')['UTextarea']
   }
 }

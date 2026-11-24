@@ -72,6 +72,8 @@ watch(candidates, (list) => {
 
 const settings = useRosterAction()
 const form = reactive({ name: '', slug: '', status: 'active', status_reason: '' })
+const statusItems = computed(() => TEAM_STATUSES.map((choice): { label: string, value: string } => ({ label: t(`roster.organizations.statuses.${choice}`), value: choice })))
+const candidateItems = computed(() => candidates.value.map(user => ({ label: summaryName(user) ?? String(user.id), value: String(user.id) })))
 
 watch(team, (value) => {
   if (!value) {
@@ -139,20 +141,24 @@ async function destroy(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-team">
-    <div class="flex flex-wrap items-center gap-3">
-      <UButton
-        :to="organizationPath(organizationSlug, 'teams')"
-        icon="i-lucide-arrow-left"
-        color="neutral"
-        variant="ghost"
-        :aria-label="organization.data.value?.name ?? organizationSlug"
-        data-testid="roster-team-back"
-      />
-      <div class="min-w-0">
-        <h1 class="text-xl font-semibold" data-testid="roster-team-title">{{ team?.name ?? t('roster.organizations.teams.team') }}</h1>
-        <p class="text-sm text-muted" data-testid="roster-team-organization">{{ organization.data.value?.name ?? organizationSlug }}</p>
-      </div>
-    </div>
+    <UPageHeader>
+      <template #title>
+        <span class="flex items-center gap-3">
+          <UButton
+            :to="organizationPath(organizationSlug, 'teams')"
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            :aria-label="organization.data.value?.name ?? organizationSlug"
+            data-testid="roster-team-back"
+          />
+          <span class="truncate" data-testid="roster-team-title">{{ team?.name ?? t('roster.organizations.teams.team') }}</span>
+        </span>
+      </template>
+      <template #description>
+        <span data-testid="roster-team-organization">{{ organization.data.value?.name ?? organizationSlug }}</span>
+      </template>
+    </UPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.team" :record="teamSlug">
       <OrganizationState :ready="!pending && team !== null" :failed="failed" :status="status" :not-found="t('roster.organizations.teams.not_found')">
@@ -163,7 +169,7 @@ async function destroy(): Promise<void> {
             </template>
             <div class="flex flex-col gap-4">
               <RosterActionError :action="memberAction" />
-              <p v-if="members.length === 0" class="text-sm" data-testid="roster-team-members-empty">{{ t('roster.organizations.members.empty') }}</p>
+              <p v-if="members.length === 0" class="text-sm text-muted" data-testid="roster-team-members-empty">{{ t('roster.organizations.members.empty') }}</p>
               <ul v-else class="flex flex-col gap-2">
                 <li v-for="member in members" :key="String(member.id)" class="flex items-center justify-between gap-2" :data-testid="`roster-team-member-${member.id}`">
                   <span>{{ summaryName(member) }}</span>
@@ -180,17 +186,21 @@ async function destroy(): Promise<void> {
                 </li>
               </ul>
 
-              <form class="flex flex-wrap items-end gap-2" data-testid="roster-team-member-add-form" @submit.prevent="addMember">
+              <UForm class="flex flex-wrap items-end gap-2" data-testid="roster-team-member-add-form" @submit="addMember">
                 <UFormField :label="t('roster.organizations.members.add')" :error="memberAction.error('user')">
-                  <select v-model="candidate" class="w-64 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-team-member-candidate">
-                    <option v-if="candidates.length === 0" value="" disabled>{{ t('roster.organizations.teams.no_candidates') }}</option>
-                    <option v-for="user in candidates" :key="String(user.id)" :value="String(user.id)">{{ summaryName(user) }}</option>
-                  </select>
+                  <USelect
+                    v-model="candidate"
+                    :items="candidateItems"
+                    :placeholder="t('roster.organizations.teams.no_candidates')"
+                    :disabled="candidates.length === 0"
+                    class="w-64"
+                    data-testid="roster-team-member-candidate"
+                  />
                 </UFormField>
                 <UButton type="submit" icon="i-lucide-user-plus" :disabled="candidate === ''" :loading="memberAction.busy.value" data-testid="roster-team-member-add">
                   {{ t('roster.organizations.members.add') }}
                 </UButton>
-              </form>
+              </UForm>
             </div>
           </UCard>
 
@@ -198,7 +208,7 @@ async function destroy(): Promise<void> {
             <template #header>
               <h2 class="font-semibold">{{ t('roster.organizations.settings.title') }}</h2>
             </template>
-            <form class="flex flex-col gap-4" data-testid="roster-team-settings-form" @submit.prevent="save">
+            <UForm :state="form" class="flex flex-col gap-4" data-testid="roster-team-settings-form" @submit="save">
               <RosterActionError :action="settings" />
               <UFormField :label="t('roster.organizations.fields.name')" :error="settings.error('name')" required>
                 <UInput v-model="form.name" class="w-full" data-testid="roster-team-name" />
@@ -207,9 +217,7 @@ async function destroy(): Promise<void> {
                 <UInput v-model="form.slug" class="w-full" data-testid="roster-team-slug" />
               </UFormField>
               <UFormField :label="t('roster.organizations.fields.status')" :error="settings.error('status')">
-                <select v-model="form.status" class="w-72 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-team-status">
-                  <option v-for="choice in TEAM_STATUSES" :key="choice" :value="choice">{{ t(`roster.organizations.statuses.${choice}`) }}</option>
-                </select>
+                <USelect v-model="form.status" :items="statusItems" class="w-72" data-testid="roster-team-status" />
               </UFormField>
               <UFormField :label="t('roster.organizations.fields.reason')" :error="settings.error('status_reason')">
                 <UInput v-model="form.status_reason" class="w-80" data-testid="roster-team-status-reason" />
@@ -217,7 +225,7 @@ async function destroy(): Promise<void> {
               <div>
                 <UButton type="submit" icon="i-lucide-check" :loading="settings.busy.value" data-testid="roster-team-save">{{ t('roster.organizations.save') }}</UButton>
               </div>
-            </form>
+            </UForm>
 
             <div class="mt-4 flex flex-col gap-2">
               <RosterActionError :action="danger" />

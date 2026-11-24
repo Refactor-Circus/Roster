@@ -5,6 +5,7 @@ import { mockPackageApi, reply, resetPackageApis, type PackageRoutes } from '@re
 import { mountRosterPage, resetRosterPages, rosterCalls, screensApi } from '../users/support'
 import { catchDownloads, CSV, failedImport, finishedExport, pendingImport, runningImport } from './support'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
+import { row } from '../ui'
 
 /*
  * `roster.transfer` (AC 54, 69): one transfer (`roster.transfers.show`) with
@@ -57,8 +58,8 @@ describe('roster.transfer', () => {
     expect(wrapper.text()).toContain('Ada Lovelace')
     expect(wrapper.find('[data-testid="roster-transfer-confirm-by"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="roster-transfer-summary"]').text()).toContain('Create: 1')
-    expect(wrapper.find('[data-testid="roster-transfer-line-2"]').text()).toContain('new@example.com')
-    expect(wrapper.find('[data-testid="roster-transfer-line-3"]').text()).toContain('Already a user.')
+    expect(row(wrapper, 'roster-transfer-line-2').text()).toContain('new@example.com')
+    expect(row(wrapper, 'roster-transfer-line-3').text()).toContain('Already a user.')
     expect(wrapper.find('[data-testid="roster-transfer-back"]').attributes('href')).toBe('/roster/transfers?organization=acme')
     expect(wrapper.find('[data-testid="roster-transfer-download"]').exists()).toBe(false)
   })

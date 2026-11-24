@@ -54,14 +54,18 @@ async function create(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-organization-create">
-    <div class="flex items-center gap-3">
-      <UButton to="/roster/organizations" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('roster.organizations.title')" />
-      <h1 class="text-xl font-semibold">{{ t('roster.organizations.new') }}</h1>
-    </div>
+    <UPageHeader>
+      <template #title>
+        <span class="flex items-center gap-3">
+          <UButton to="/roster/organizations" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('roster.organizations.title')" />
+          <span class="truncate">{{ t('roster.organizations.new') }}</span>
+        </span>
+      </template>
+    </UPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.organization-create">
       <UCard class="max-w-2xl">
-        <form class="flex flex-col gap-4" data-testid="roster-organization-create-form" @submit.prevent="create">
+        <UForm :state="form" class="flex flex-col gap-4" data-testid="roster-organization-create-form" @submit="create">
           <RosterActionError :action="action" />
           <UFormField :label="t('roster.organizations.fields.name')" :error="action.error('name')" required>
             <UInput v-model="form.name" class="w-full" data-testid="roster-organization-name" />
@@ -75,14 +79,11 @@ async function create(): Promise<void> {
           <UFormField :label="t('roster.organizations.fields.domains')" :hint="t('roster.organizations.domains_hint')" :error="domainsError">
             <UTextarea v-model="form.domains" :rows="3" class="w-full" data-testid="roster-organization-domains" />
           </UFormField>
-          <label class="flex items-center gap-2 text-sm">
-            <input v-model="form.auto_join" type="checkbox" data-testid="roster-organization-auto-join">
-            {{ t('roster.organizations.fields.auto_join') }}
-          </label>
+          <UCheckbox v-model="form.auto_join" :label="t('roster.organizations.fields.auto_join')" data-testid="roster-organization-auto-join" />
           <div>
             <UButton type="submit" icon="i-lucide-plus" :loading="action.busy.value" data-testid="roster-organization-create-submit">{{ t('roster.organizations.create') }}</UButton>
           </div>
-        </form>
+        </UForm>
       </UCard>
     </AtriumIntegrationScreen>
   </div>

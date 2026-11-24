@@ -17,6 +17,7 @@ import {
   rosterCalls,
   screensApi
 } from './support'
+import { choices, choose, chosen } from '../ui'
 
 /*
  * `roster.user` (AC 54, 69, 99): the user (`users.show`) and its memberships
@@ -154,7 +155,7 @@ describe('roster.user', () => {
     mockPackageApi('roster', routes({ 'POST /users/{user}/suspend': { data: ada as never } }))
 
     const wrapper = await mountUser()
-    await wrapper.find('[data-testid="roster-user-new-status"]').setValue('suspended')
+    await choose(wrapper, 'roster-user-new-status', 'suspended')
     await wrapper.find('[data-testid="roster-user-status-reason"]').setValue('Chargeback')
     await wrapper.find('[data-testid="roster-user-status-form"]').trigger('submit')
     await settle()
@@ -169,7 +170,7 @@ describe('roster.user', () => {
     mockPackageApi('roster', routes({ 'POST /users/{user}/deactivate': { data: ada as never } }))
 
     const wrapper = await mountUser()
-    await wrapper.find('[data-testid="roster-user-new-status"]').setValue('deactivated')
+    await choose(wrapper, 'roster-user-new-status', 'deactivated')
     await wrapper.find('[data-testid="roster-user-status-reason"]').setValue('Left the company')
     await wrapper.find('[data-testid="roster-user-status-form"]').trigger('submit')
     await settle()
@@ -188,10 +189,9 @@ describe('roster.user', () => {
     const wrapper = await mountUser()
 
     expect(wrapper.text()).toContain('Chargeback')
-    const choices = wrapper.findAll('[data-testid="roster-user-new-status"] option').map(option => option.attributes('value'))
-    expect(choices).toEqual(['active', 'deactivated'])
+    expect(choices(wrapper, 'roster-user-new-status')).toEqual(['active', 'deactivated'])
 
-    await wrapper.find('[data-testid="roster-user-new-status"]').setValue('active')
+    await choose(wrapper, 'roster-user-new-status', 'active')
     await wrapper.find('[data-testid="roster-user-status-form"]').trigger('submit')
     await settle()
 
@@ -205,10 +205,10 @@ describe('roster.user', () => {
 
     const wrapper = await mountUser()
 
-    expect((wrapper.find('[data-testid="roster-user-context-organization"]').element as HTMLSelectElement).value).toBe('acme')
+    expect(chosen(wrapper, 'roster-user-context-organization')).toBe('acme')
     expect(rosterCalls('GET', '/organizations/{organization}/teams')[0]?.path).toBe('/organizations/acme/teams')
 
-    await wrapper.find('[data-testid="roster-user-context-team"]').setValue('ops')
+    await choose(wrapper, 'roster-user-context-team', 'ops')
     await wrapper.find('[data-testid="roster-user-context-form"]').trigger('submit')
     await settle()
 
@@ -313,7 +313,7 @@ describe('roster.user', () => {
     mockPackageApi('roster', routes({ 'POST /users/{user}/suspend': reply(403) }))
 
     const wrapper = await mountUser()
-    await wrapper.find('[data-testid="roster-user-new-status"]').setValue('suspended')
+    await choose(wrapper, 'roster-user-new-status', 'suspended')
     await wrapper.find('[data-testid="roster-user-status-form"]').trigger('submit')
     await settle()
 

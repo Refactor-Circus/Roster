@@ -35,7 +35,7 @@ describe('roster.organization-create', () => {
     await wrapper.find('[data-testid="roster-organization-name"]').setValue('Acme')
     await wrapper.find('[data-testid="roster-organization-owner"]').setValue('ada@example.com')
     await wrapper.find('[data-testid="roster-organization-domains"]').setValue('acme.test\n\n acme.example ')
-    await wrapper.find('[data-testid="roster-organization-auto-join"]').setValue(true)
+    await wrapper.find('[data-testid="roster-organization-auto-join"]').trigger('click')
   }
 
   it('creates the organization with the old form\'s fields, then opens its page', async () => {

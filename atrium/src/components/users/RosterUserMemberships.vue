@@ -29,6 +29,19 @@ watch(() => [props.user.current_organization, props.user.current_team], () => {
 const teams = useOrganizationTeams(() => context.organization || null)
 const id = computed(() => String(props.user.id))
 
+// "No team": a select item's value cannot be empty.
+const NO_TEAM = '*'
+
+const organizationItems = computed(() => props.memberships.map(organization => ({ label: organization.name, value: organization.slug })))
+const teamItems = computed(() => [
+  { label: t('roster.users.memberships.no_team'), value: NO_TEAM },
+  ...teams.value.map(team => ({ label: team.name, value: team.slug }))
+])
+const teamChoice = computed({
+  get: () => context.team || NO_TEAM,
+  set: (value: string) => { context.team = value === NO_TEAM ? '' : value }
+})
+
 async function switchContext(): Promise<void> {
   notice.value = null
 
@@ -66,27 +79,22 @@ async function domainJoin(): Promise<void> {
       <p v-if="memberships.length === 0" class="text-sm text-muted">{{ t('roster.users.memberships.none') }}</p>
       <ul v-else class="flex flex-col gap-1 text-sm">
         <li v-for="organization in memberships" :key="organization.slug" :data-testid="`roster-membership-${organization.slug}`">
-          <RouterLink :to="`/roster/organizations/${encodeURIComponent(organization.slug)}`" class="font-medium hover:underline">{{ organization.name }}</RouterLink>
+          <ULink :to="`/roster/organizations/${encodeURIComponent(organization.slug)}`" class="font-medium text-default hover:underline">{{ organization.name }}</ULink>
           <UBadge v-if="organization.slug === user.current_organization" variant="subtle" class="ml-2">{{ t('roster.users.memberships.current') }}</UBadge>
         </li>
       </ul>
 
-      <form v-if="memberships.length > 0" class="flex flex-wrap items-end gap-2" data-testid="roster-user-context-form" @submit.prevent="switchContext">
+      <UForm v-if="memberships.length > 0" :state="context" class="flex flex-wrap items-end gap-2" data-testid="roster-user-context-form" @submit="switchContext">
         <UFormField :label="t('roster.users.memberships.organization')" :error="action.error('organization')">
-          <select v-model="context.organization" class="w-56 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-user-context-organization">
-            <option v-for="organization in memberships" :key="organization.slug" :value="organization.slug">{{ organization.name }}</option>
-          </select>
+          <USelect v-model="context.organization" :items="organizationItems" class="w-56" data-testid="roster-user-context-organization" />
         </UFormField>
         <UFormField :label="t('roster.users.memberships.team')" :error="action.error('team')">
-          <select v-model="context.team" class="w-56 rounded-md border border-default bg-default px-2.5 py-1.5 text-sm" data-testid="roster-user-context-team">
-            <option value="">{{ t('roster.users.memberships.no_team') }}</option>
-            <option v-for="team in teams" :key="team.slug" :value="team.slug">{{ team.name }}</option>
-          </select>
+          <USelect v-model="teamChoice" :items="teamItems" class="w-56" data-testid="roster-user-context-team" />
         </UFormField>
         <UButton type="submit" icon="i-lucide-arrow-left-right" :loading="action.busy.value" data-testid="roster-user-context-switch">
           {{ t('roster.users.memberships.switch') }}
         </UButton>
-      </form>
+      </UForm>
 
       <div>
         <UButton variant="ghost" icon="i-lucide-globe" :loading="action.busy.value" data-testid="roster-user-domain-join" @click="domainJoin">

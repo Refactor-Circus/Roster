@@ -5,6 +5,7 @@ import { mockPackageApi, reply, resetPackageApis, type PackageCall, type Package
 import { mountRosterPage, page, resetRosterPages, rosterCalls, screensApi } from '../users/support'
 import { catchDownloads, CSV, finishedExport, pendingImport } from './support'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
+import { choose, row as rowOf } from '../ui'
 
 /*
  * `roster.transfers` (AC 54, 69): the transfers (`roster.transfers.index`),
@@ -61,13 +62,13 @@ describe('roster.transfers', () => {
     expect(rosterCalls('GET', '/transfers')[0]?.query).toEqual({})
     expect(api).toHaveBeenCalledWith('/screens/roster.transfers', { query: { record: undefined, tab: undefined } })
 
-    const row = wrapper.find(`[data-testid="roster-transfer-row-${pendingImport.id}"]`)
+    const row = rowOf(wrapper, `roster-transfer-row-${pendingImport.id}`)
     expect(row.find('a').attributes('href')).toBe(`/roster/transfers/${pendingImport.id}`)
     expect(row.text()).toContain('Import users')
     expect(row.text()).toContain('acme')
     expect(row.text()).toContain('Ada Lovelace')
     expect(row.text()).toContain('Awaiting confirmation')
-    expect(wrapper.find(`[data-testid="roster-transfer-row-${finishedExport.id}"]`).text()).toContain('Export users')
+    expect(rowOf(wrapper, `roster-transfer-row-${finishedExport.id}`).text()).toContain('Export users')
   })
 
   it('filters by the organization in the URL, sent as the endpoint\'s query, and pages', async () => {
@@ -89,7 +90,7 @@ describe('roster.transfers', () => {
     rosterWith({ 'GET /imports/templates/{type}': CSV as never })
 
     const wrapper = await mountRosterPage(Page, '/roster/transfers')
-    await wrapper.find('[data-testid="roster-template-type"]').setValue('import_members')
+    await choose(wrapper, 'roster-template-type', 'import_members')
     await wrapper.find('[data-testid="roster-template-download"]').trigger('click')
     await settle()
 
@@ -103,7 +104,7 @@ describe('roster.transfers', () => {
     rosterWith({ 'POST /imports': reply(202, { data: pendingImport }) })
 
     const wrapper = await mountRosterPage(Page, '/roster/transfers')
-    await wrapper.find('[data-testid="roster-import-type"]').setValue('import_users')
+    await choose(wrapper, 'roster-import-type', 'import_users')
     await wrapper.find('[data-testid="roster-import-organization"]').setValue('acme')
     await pickFile(wrapper, new File([CSV], 'people.csv', { type: 'text/csv' }))
     await wrapper.find('[data-testid="roster-import-form"]').trigger('submit')
@@ -146,7 +147,7 @@ describe('roster.transfers', () => {
     rosterWith({ 'POST /exports': reply(202, { data: finishedExport }) })
 
     const wrapper = await mountRosterPage(Page, '/roster/transfers')
-    await wrapper.find('[data-testid="roster-export-type"]').setValue('export_members')
+    await choose(wrapper, 'roster-export-type', 'export_members')
     await wrapper.find('[data-testid="roster-export-organization"]').setValue('acme')
     await wrapper.find('[data-testid="roster-export-form"]').trigger('submit')
     await settle()
@@ -159,7 +160,7 @@ describe('roster.transfers', () => {
     rosterWith({ 'POST /exports': reply(202, { data: finishedExport }) })
 
     const wrapper = await mountRosterPage(Page, '/roster/transfers')
-    await wrapper.find('[data-testid="roster-export-type"]').setValue('export_organizations')
+    await choose(wrapper, 'roster-export-type', 'export_organizations')
 
     expect(wrapper.find('[data-testid="roster-export-organization"]').exists()).toBe(false)
 
@@ -174,7 +175,7 @@ describe('roster.transfers', () => {
     rosterWith({ 'POST /exports': reply(202, { data: finishedExport }) })
 
     const wrapper = await mountRosterPage(Page, '/roster/transfers')
-    await wrapper.find('[data-testid="roster-export-type"]').setValue('export_users')
+    await choose(wrapper, 'roster-export-type', 'export_users')
 
     expect(wrapper.find('[data-testid="roster-export-organization"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="roster-export-external-source"]').exists()).toBe(false)
@@ -189,7 +190,7 @@ describe('roster.transfers', () => {
     rosterWith({ 'POST /exports': reply(422, { message: 'Invalid.', errors: { organization: ['The organization field is required.'] } }) })
 
     const wrapper = await mountRosterPage(Page, '/roster/transfers')
-    await wrapper.find('[data-testid="roster-export-type"]').setValue('export_members')
+    await choose(wrapper, 'roster-export-type', 'export_members')
     await wrapper.find('[data-testid="roster-export-form"]').trigger('submit')
     await settle()
 
