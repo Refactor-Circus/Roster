@@ -136,7 +136,7 @@ var de = {
 								"onClick"
 							])], 8, N))), 128))])),
 							y(u, {
-								class: "flex flex-wrap items-end gap-2",
+								class: "flex flex-wrap items-start gap-2",
 								"data-testid": "roster-team-member-add-form",
 								onSubmit: ye
 							}, {
@@ -164,6 +164,7 @@ var de = {
 									icon: "i-lucide-user-plus",
 									disabled: T(Y) === "",
 									loading: T(J).busy.value,
+									class: "mt-field-label",
 									"data-testid": "roster-team-member-add"
 								}, {
 									default: D(() => [v(w(T(I)("roster.organizations.members.add")), 1)]),

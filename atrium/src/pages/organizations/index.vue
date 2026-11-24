@@ -160,7 +160,7 @@ async function purge(organization: RosterOrganization): Promise<void> {
       <div class="space-y-4">
         <RosterTabs :tabs="tabs" :current="deleted ? 'deleted' : 'active'" :label="t('roster.organizations.title')" testid="roster-organizations-tab" @select="key => showTab(key === 'deleted')" />
 
-        <UForm :state="filters" class="flex flex-wrap items-end gap-3" data-testid="roster-organizations-filters" @submit="filter">
+        <UForm :state="filters" class="flex flex-wrap items-start gap-3" data-testid="roster-organizations-filters" @submit="filter">
           <UFormField :label="t('roster.organizations.filters.search')" name="search">
             <UInput v-model="filters.search" name="search" class="w-64" data-testid="roster-organizations-search" />
           </UFormField>
@@ -173,8 +173,8 @@ async function purge(organization: RosterOrganization): Promise<void> {
           <UFormField :label="t('roster.organizations.fields.account_number')" name="account_number">
             <UInput v-model="filters.account_number" name="account_number" class="w-48" data-testid="roster-organizations-account-number" />
           </UFormField>
-          <UButton type="submit" icon="i-lucide-filter" data-testid="roster-organizations-filter">{{ t('roster.organizations.filters.filter') }}</UButton>
-          <UButton variant="ghost" icon="i-lucide-x" data-testid="roster-organizations-clear" @click="clear">{{ t('roster.organizations.filters.clear') }}</UButton>
+          <UButton type="submit" icon="i-lucide-filter" class="mt-field-label" data-testid="roster-organizations-filter">{{ t('roster.organizations.filters.filter') }}</UButton>
+          <UButton variant="ghost" icon="i-lucide-x" class="mt-field-label" data-testid="roster-organizations-clear" @click="clear">{{ t('roster.organizations.filters.clear') }}</UButton>
         </UForm>
 
         <OrganizationState :ready="!pending && data !== null" :failed="failed" :status="status">

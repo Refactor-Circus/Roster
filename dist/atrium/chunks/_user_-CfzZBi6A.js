@@ -87,7 +87,7 @@ var z = { class: "font-semibold" }, le = { class: "flex flex-col gap-4" }, ue = 
 					t.memberships.length > 0 ? (M(), w(A, {
 						key: 3,
 						state: L(d),
-						class: "flex flex-wrap items-end gap-2",
+						class: "flex flex-wrap items-start gap-2",
 						"data-testid": "roster-user-context-form",
 						onSubmit: _
 					}, {
@@ -127,6 +127,7 @@ var z = { class: "font-semibold" }, le = { class: "flex flex-col gap-4" }, ue = 
 								type: "submit",
 								icon: "i-lucide-arrow-left-right",
 								loading: L(s).busy.value,
+								class: "mt-field-label",
 								"data-testid": "roster-user-context-switch"
 							}, {
 								default: R(() => [O(I(L(a)("roster.users.memberships.switch")), 1)]),
@@ -163,7 +164,7 @@ var z = { class: "font-semibold" }, le = { class: "flex flex-col gap-4" }, ue = 
 }, ge = { class: "font-semibold" }, _e = { class: "mb-4 text-sm" }, ve = {
 	key: 1,
 	class: "grid gap-4 lg:grid-cols-2"
-}, ye = { class: "font-semibold" }, be = { class: "font-semibold" }, xe = { class: "font-semibold" }, Se = { class: "flex flex-col gap-3" }, Ce = { class: "text-sm" }, we = { class: "flex flex-wrap items-end gap-3" }, Te = { class: "font-semibold" }, Ee = { class: "flex flex-col gap-3" }, De = {
+}, ye = { class: "font-semibold" }, be = { class: "font-semibold" }, xe = { class: "font-semibold" }, Se = { class: "flex flex-col gap-3" }, Ce = { class: "text-sm" }, we = { class: "flex flex-wrap items-start gap-3" }, Te = { class: "font-semibold" }, Ee = { class: "flex flex-col gap-3" }, De = {
 	key: 0,
 	class: "text-sm"
 }, Oe = { class: "lg:col-span-2" }, ke = { class: "font-semibold" }, Ae = { class: "flex flex-col gap-3" }, je = { class: "font-semibold" }, Me = { class: "flex flex-col gap-3" }, Ne = { class: "text-sm" }, V = /* @__PURE__ */ A({
@@ -419,13 +420,14 @@ var z = { class: "font-semibold" }, le = { class: "flex flex-col gap-4" }, ue = 
 								D("div", we, [k(c, {
 									icon: "i-lucide-check",
 									loading: L(q).busy.value,
+									class: "mt-field-label",
 									"data-testid": "roster-user-approve",
 									onClick: ze
 								}, {
 									default: R(() => [O(I(L(h)("roster.users.approve")), 1)]),
 									_: 1
 								}, 8, ["loading"]), k(f, {
-									class: "flex items-end gap-2",
+									class: "flex items-start gap-2",
 									"data-testid": "roster-user-reject-form",
 									onSubmit: Be
 								}, {
@@ -445,6 +447,7 @@ var z = { class: "font-semibold" }, le = { class: "flex flex-col gap-4" }, ue = 
 										color: "error",
 										icon: "i-lucide-x",
 										loading: L(q).busy.value,
+										class: "mt-field-label",
 										"data-testid": "roster-user-reject"
 									}, {
 										default: R(() => [O(I(L(h)("roster.users.approval.reject")), 1)]),
@@ -462,7 +465,7 @@ var z = { class: "font-semibold" }, le = { class: "flex flex-col gap-4" }, ue = 
 								k(e, { action: L(Y) }, null, 8, ["action"]),
 								k(f, {
 									state: L(X),
-									class: "flex flex-wrap items-end gap-3",
+									class: "flex flex-wrap items-start gap-3",
 									"data-testid": "roster-user-status-form",
 									onSubmit: Ve
 								}, {
@@ -499,6 +502,7 @@ var z = { class: "font-semibold" }, le = { class: "flex flex-col gap-4" }, ue = 
 											variant: "outline",
 											icon: "i-lucide-refresh-cw",
 											loading: L(Y).busy.value,
+											class: "mt-field-label",
 											"data-testid": "roster-user-change-status"
 										}, {
 											default: R(() => [O(I(L(h)("roster.users.status.update")), 1)]),
@@ -530,7 +534,7 @@ var z = { class: "font-semibold" }, le = { class: "flex flex-col gap-4" }, ue = 
 						}, {
 							header: R(() => [D("h2", ke, I(L(h)("roster.users.impersonate.title")), 1)]),
 							default: R(() => [D("div", Ae, [k(e, { action: L(Z) }, null, 8, ["action"]), k(f, {
-								class: "flex flex-wrap items-end gap-2",
+								class: "flex flex-wrap items-start gap-2",
 								"data-testid": "roster-user-impersonate-form",
 								onSubmit: He
 							}, {
@@ -556,6 +560,7 @@ var z = { class: "font-semibold" }, le = { class: "flex flex-col gap-4" }, ue = 
 									color: "warning",
 									icon: "i-lucide-eye",
 									loading: L(Z).busy.value,
+									class: "mt-field-label",
 									"data-testid": "roster-user-impersonate-submit"
 								}, {
 									default: R(() => [O(I(L(h)("roster.users.impersonate.start")), 1)]),

@@ -138,15 +138,15 @@ async function purge(user: RosterUser): Promise<void> {
       <div class="space-y-4">
         <RosterTabs :tabs="tabs" :current="deleted ? 'deleted' : 'active'" :label="t('roster.users.title')" testid="roster-users-tab" @select="key => showTab(key === 'deleted')" />
 
-        <UForm :state="filters" class="flex flex-wrap items-end gap-3" data-testid="roster-users-filters" @submit="filter">
+        <UForm :state="filters" class="flex flex-wrap items-start gap-3" data-testid="roster-users-filters" @submit="filter">
           <UFormField :label="t('roster.users.filters.search')" name="search">
             <UInput v-model="filters.search" name="search" class="w-64" data-testid="roster-users-search" />
           </UFormField>
           <UFormField :label="t('roster.users.fields.status')" name="status">
             <AtriumSelect v-model="filters.status" :items="statusItems" :blank="t('roster.users.filters.all_statuses')" class="w-48" data-testid="roster-users-status" />
           </UFormField>
-          <UButton type="submit" icon="i-lucide-filter" data-testid="roster-users-filter">{{ t('roster.users.filters.filter') }}</UButton>
-          <UButton variant="ghost" icon="i-lucide-x" data-testid="roster-users-clear" @click="clear">{{ t('roster.users.filters.clear') }}</UButton>
+          <UButton type="submit" icon="i-lucide-filter" class="mt-field-label" data-testid="roster-users-filter">{{ t('roster.users.filters.filter') }}</UButton>
+          <UButton variant="ghost" icon="i-lucide-x" class="mt-field-label" data-testid="roster-users-clear" @click="clear">{{ t('roster.users.filters.clear') }}</UButton>
         </UForm>
 
         <RosterState :ready="!pending && data !== null" :failed="failed" :status="status">

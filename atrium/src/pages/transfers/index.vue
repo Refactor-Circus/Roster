@@ -178,11 +178,11 @@ async function startExport(): Promise<void> {
                 <h2 class="font-medium">{{ t('roster.transfers.import.title') }}</h2>
               </template>
 
-              <div class="mb-4 flex flex-wrap items-end gap-3" data-testid="roster-import-templates">
+              <div class="mb-4 flex flex-wrap items-start gap-3" data-testid="roster-import-templates">
                 <UFormField :label="t('roster.transfers.import.template')">
                   <USelect v-model="template" :items="importItems" class="w-56" data-testid="roster-template-type" />
                 </UFormField>
-                <UButton variant="outline" icon="i-lucide-download" :loading="templating.busy.value" data-testid="roster-template-download" @click="downloadTemplate">
+                <UButton variant="outline" icon="i-lucide-download" :loading="templating.busy.value" class="mt-field-label" data-testid="roster-template-download" @click="downloadTemplate">
                   {{ t('roster.transfers.import.download_template') }}
                 </UButton>
               </div>

@@ -487,12 +487,12 @@ var w = {
 	{
 		path: "/roster/organizations/:organization",
 		name: "roster-organizations-organization",
-		component: () => import("./chunks/_organization_-DqnMRyOo.js")
+		component: () => import("./chunks/_organization_-DKs77PPj.js")
 	},
 	{
 		path: "/roster/organizations/:organization/teams/:team",
 		name: "roster-organizations-organization-teams-team",
-		component: () => import("./chunks/_team_-DP0qKrNX.js")
+		component: () => import("./chunks/_team_-BcQPje98.js")
 	},
 	{
 		path: "/roster/organizations/create",
@@ -502,7 +502,7 @@ var w = {
 	{
 		path: "/roster/organizations",
 		name: "roster-organizations",
-		component: () => import("./chunks/organizations-CbsWH3Ms.js")
+		component: () => import("./chunks/organizations-qgOO--LL.js")
 	},
 	{
 		path: "/roster/transfers/:transfer",
@@ -512,12 +512,12 @@ var w = {
 	{
 		path: "/roster/transfers",
 		name: "roster-transfers",
-		component: () => import("./chunks/transfers-BCqdB9kW.js")
+		component: () => import("./chunks/transfers-CY0nKxkA.js")
 	},
 	{
 		path: "/roster/users/:user",
 		name: "roster-users-user",
-		component: () => import("./chunks/_user_-BceZxBlJ.js")
+		component: () => import("./chunks/_user_-CfzZBi6A.js")
 	},
 	{
 		path: "/roster/users/create",
@@ -527,7 +527,7 @@ var w = {
 	{
 		path: "/roster/users",
 		name: "roster-users",
-		component: () => import("./chunks/users-D2FmdciT.js")
+		component: () => import("./chunks/users-B3PMLJpe.js")
 	}
 ], K = {
 	"roster.users": "roster-users",

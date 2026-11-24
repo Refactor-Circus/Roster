@@ -135,7 +135,7 @@ var I = {
 					]),
 					T(b, {
 						state: A($),
-						class: "flex flex-wrap items-end gap-3",
+						class: "flex flex-wrap items-start gap-3",
 						"data-testid": "roster-users-filters",
 						onSubmit: he
 					}, {
@@ -174,6 +174,7 @@ var I = {
 							T(s, {
 								type: "submit",
 								icon: "i-lucide-filter",
+								class: "mt-field-label",
 								"data-testid": "roster-users-filter"
 							}, {
 								default: M(() => [w(k(A(H)("roster.users.filters.filter")), 1)]),
@@ -182,6 +183,7 @@ var I = {
 							T(s, {
 								variant: "ghost",
 								icon: "i-lucide-x",
+								class: "mt-field-label",
 								"data-testid": "roster-users-clear",
 								onClick: ge
 							}, {

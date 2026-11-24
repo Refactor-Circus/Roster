@@ -158,7 +158,7 @@ var N = {
 					]),
 					S(g, {
 						state: O(Q),
-						class: "flex flex-wrap items-end gap-3",
+						class: "flex flex-wrap items-start gap-3",
 						"data-testid": "roster-organizations-filters",
 						onSubmit: me
 					}, {
@@ -218,6 +218,7 @@ var N = {
 							S(s, {
 								type: "submit",
 								icon: "i-lucide-filter",
+								class: "mt-field-label",
 								"data-testid": "roster-organizations-filter"
 							}, {
 								default: A(() => [x(D(O(z)("roster.organizations.filters.filter")), 1)]),
@@ -226,6 +227,7 @@ var N = {
 							S(s, {
 								variant: "ghost",
 								icon: "i-lucide-x",
+								class: "mt-field-label",
 								"data-testid": "roster-organizations-clear",
 								onClick: he
 							}, {

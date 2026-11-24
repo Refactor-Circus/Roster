@@ -264,7 +264,7 @@ var se = {
 				G(f, null, {
 					header: Z(() => [U("h2", he, Y(X(d)("roster.organizations.members.add")), 1)]),
 					default: Z(() => [G(u, {
-						class: "flex flex-wrap items-end gap-2",
+						class: "flex flex-wrap items-start gap-2",
 						"data-testid": "roster-member-add-form",
 						onSubmit: E
 					}, {
@@ -292,6 +292,7 @@ var se = {
 								type: "submit",
 								icon: "i-lucide-user-plus",
 								loading: X(S).busy.value,
+								class: "mt-field-label",
 								"data-testid": "roster-member-add"
 							}, {
 								default: Z(() => [W(Y(X(d)("roster.organizations.members.add")), 1)]),
@@ -660,7 +661,7 @@ var se = {
 						}, 8, ["data", "columns"])),
 						G(f, {
 							state: X(C),
-							class: "flex flex-wrap items-end gap-3",
+							class: "flex flex-wrap items-start gap-3",
 							"data-testid": "roster-link-form",
 							onSubmit: O
 						}, {
@@ -712,6 +713,7 @@ var se = {
 									type: "submit",
 									icon: "i-lucide-link",
 									loading: X(S).busy.value,
+									class: "mt-field-label",
 									"data-testid": "roster-link-submit"
 								}, {
 									default: Z(() => [W(Y(X(o)("roster.organizations.links.link")), 1)]),
@@ -795,7 +797,7 @@ var se = {
 				header: Z(() => [U("h2", je, Y(X(m)("roster.organizations.teams.new")), 1)]),
 				default: Z(() => [G(c, {
 					state: X(w),
-					class: "flex flex-wrap items-end gap-2",
+					class: "flex flex-wrap items-start gap-2",
 					"data-testid": "roster-team-create-form",
 					onSubmit: T
 				}, {
@@ -835,6 +837,7 @@ var se = {
 							type: "submit",
 							icon: "i-lucide-plus",
 							loading: X(C).busy.value,
+							class: "mt-field-label",
 							"data-testid": "roster-team-create"
 						}, {
 							default: Z(() => [W(Y(X(m)("roster.organizations.create")), 1)]),

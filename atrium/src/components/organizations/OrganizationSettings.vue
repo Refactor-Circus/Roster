@@ -197,7 +197,7 @@ async function destroy(): Promise<void> {
           </template>
         </UTable>
 
-        <UForm :state="linkForm" class="flex flex-wrap items-end gap-3" data-testid="roster-link-form" @submit="link">
+        <UForm :state="linkForm" class="flex flex-wrap items-start gap-3" data-testid="roster-link-form" @submit="link">
           <UFormField :label="t('roster.organizations.fields.source')" :hint="t('roster.organizations.links.source_hint')" :error="links.error('source')" required>
             <UInput v-model="linkForm.source" class="w-40" data-testid="roster-link-source" />
           </UFormField>
@@ -207,7 +207,7 @@ async function destroy(): Promise<void> {
           <UFormField :label="t('roster.organizations.fields.account_number')" :error="links.error('account_number')">
             <UInput v-model="linkForm.account_number" class="w-48" data-testid="roster-link-account-number" />
           </UFormField>
-          <UButton type="submit" icon="i-lucide-link" :loading="links.busy.value" data-testid="roster-link-submit">{{ t('roster.organizations.links.link') }}</UButton>
+          <UButton type="submit" icon="i-lucide-link" :loading="links.busy.value" class="mt-field-label" data-testid="roster-link-submit">{{ t('roster.organizations.links.link') }}</UButton>
         </UForm>
       </div>
     </UCard>

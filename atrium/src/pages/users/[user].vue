@@ -267,13 +267,13 @@ async function purge(): Promise<void> {
             <div class="flex flex-col gap-3">
               <p class="text-sm">{{ t('roster.users.approval.hint') }}</p>
               <RosterActionError :action="approval" />
-              <div class="flex flex-wrap items-end gap-3">
-                <UButton icon="i-lucide-check" :loading="approval.busy.value" data-testid="roster-user-approve" @click="approve">{{ t('roster.users.approve') }}</UButton>
-                <UForm class="flex items-end gap-2" data-testid="roster-user-reject-form" @submit="reject">
+              <div class="flex flex-wrap items-start gap-3">
+                <UButton icon="i-lucide-check" :loading="approval.busy.value" class="mt-field-label" data-testid="roster-user-approve" @click="approve">{{ t('roster.users.approve') }}</UButton>
+                <UForm class="flex items-start gap-2" data-testid="roster-user-reject-form" @submit="reject">
                   <UFormField :label="t('roster.users.fields.reason')" :error="approval.error('reason')">
                     <UInput v-model="rejectReason" class="w-64" data-testid="roster-user-reject-reason" />
                   </UFormField>
-                  <UButton type="submit" color="error" icon="i-lucide-x" :loading="approval.busy.value" data-testid="roster-user-reject">{{ t('roster.users.approval.reject') }}</UButton>
+                  <UButton type="submit" color="error" icon="i-lucide-x" :loading="approval.busy.value" class="mt-field-label" data-testid="roster-user-reject">{{ t('roster.users.approval.reject') }}</UButton>
                 </UForm>
               </div>
             </div>
@@ -286,14 +286,14 @@ async function purge(): Promise<void> {
             <div class="flex flex-col gap-3">
               <p v-if="user.status_reason" class="text-sm">{{ t('roster.users.fields.reason') }}: {{ user.status_reason }}</p>
               <RosterActionError :action="statusAction" />
-              <UForm :state="statusForm" class="flex flex-wrap items-end gap-3" data-testid="roster-user-status-form" @submit="changeStatus">
+              <UForm :state="statusForm" class="flex flex-wrap items-start gap-3" data-testid="roster-user-status-form" @submit="changeStatus">
                 <UFormField :label="t('roster.users.status.change_to')">
                   <USelect v-model="statusForm.status" :items="statusItems" class="w-56" data-testid="roster-user-new-status" />
                 </UFormField>
                 <UFormField :label="t('roster.users.fields.reason')" :hint="t('roster.users.status.reason_hint')" :error="statusAction.error('reason')">
                   <UInput v-model="statusForm.reason" class="w-80" data-testid="roster-user-status-reason" />
                 </UFormField>
-                <UButton type="submit" variant="outline" icon="i-lucide-refresh-cw" :loading="statusAction.busy.value" data-testid="roster-user-change-status">
+                <UButton type="submit" variant="outline" icon="i-lucide-refresh-cw" :loading="statusAction.busy.value" class="mt-field-label" data-testid="roster-user-change-status">
                   {{ t('roster.users.status.update') }}
                 </UButton>
               </UForm>
@@ -317,11 +317,11 @@ async function purge(): Promise<void> {
             </template>
             <div class="flex flex-col gap-3">
               <RosterActionError :action="impersonate" />
-              <UForm class="flex flex-wrap items-end gap-2" data-testid="roster-user-impersonate-form" @submit="startImpersonation">
+              <UForm class="flex flex-wrap items-start gap-2" data-testid="roster-user-impersonate-form" @submit="startImpersonation">
                 <UFormField :label="t('roster.users.fields.reason')" :hint="t('roster.users.impersonate.reason_hint')" :error="impersonate.error('reason')" required>
                   <UInput v-model="impersonationReason" class="w-80" data-testid="roster-user-impersonation-reason" />
                 </UFormField>
-                <UButton type="submit" color="warning" icon="i-lucide-eye" :loading="impersonate.busy.value" data-testid="roster-user-impersonate-submit">
+                <UButton type="submit" color="warning" icon="i-lucide-eye" :loading="impersonate.busy.value" class="mt-field-label" data-testid="roster-user-impersonate-submit">
                   {{ t('roster.users.impersonate.start') }}
                 </UButton>
               </UForm>

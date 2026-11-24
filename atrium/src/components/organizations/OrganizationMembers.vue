@@ -102,12 +102,12 @@ async function remove(member: RosterMember): Promise<void> {
       <template #header>
         <h2 class="font-semibold">{{ t('roster.organizations.members.add') }}</h2>
       </template>
-      <UForm class="flex flex-wrap items-end gap-2" data-testid="roster-member-add-form" @submit="addMember">
+      <UForm class="flex flex-wrap items-start gap-2" data-testid="roster-member-add-form" @submit="addMember">
         <RosterActionError :action="add" />
         <UFormField :label="t('roster.organizations.members.user')" :hint="t('roster.organizations.members.user_hint')" :error="add.error('user')" required>
           <UInput v-model="newMember" class="w-64" data-testid="roster-member-add-user" />
         </UFormField>
-        <UButton type="submit" icon="i-lucide-user-plus" :loading="add.busy.value" data-testid="roster-member-add">{{ t('roster.organizations.members.add') }}</UButton>
+        <UButton type="submit" icon="i-lucide-user-plus" :loading="add.busy.value" class="mt-field-label" data-testid="roster-member-add">{{ t('roster.organizations.members.add') }}</UButton>
       </UForm>
     </UCard>
 

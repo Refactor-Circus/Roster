@@ -74,14 +74,14 @@ async function domainJoin(): Promise<void> {
         </li>
       </ul>
 
-      <UForm v-if="memberships.length > 0" :state="context" class="flex flex-wrap items-end gap-2" data-testid="roster-user-context-form" @submit="switchContext">
+      <UForm v-if="memberships.length > 0" :state="context" class="flex flex-wrap items-start gap-2" data-testid="roster-user-context-form" @submit="switchContext">
         <UFormField :label="t('roster.users.memberships.organization')" :error="action.error('organization')">
           <USelect v-model="context.organization" :items="organizationItems" class="w-56" data-testid="roster-user-context-organization" />
         </UFormField>
         <UFormField :label="t('roster.users.memberships.team')" :error="action.error('team')">
           <AtriumSelect v-model="context.team" :items="teamItems" :blank="t('roster.users.memberships.no_team')" class="w-56" data-testid="roster-user-context-team" />
         </UFormField>
-        <UButton type="submit" icon="i-lucide-arrow-left-right" :loading="action.busy.value" data-testid="roster-user-context-switch">
+        <UButton type="submit" icon="i-lucide-arrow-left-right" :loading="action.busy.value" class="mt-field-label" data-testid="roster-user-context-switch">
           {{ t('roster.users.memberships.switch') }}
         </UButton>
       </UForm>

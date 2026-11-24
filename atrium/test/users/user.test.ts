@@ -151,6 +151,17 @@ describe('roster.user', () => {
     expect(wrapper.find('[data-testid="roster-user-approval"]').exists()).toBe(false)
   })
 
+  it('lines the status fields up on their labels, the button with the inputs', async () => {
+    mockPackageApi('roster', routes({}))
+
+    const wrapper = await mountUser()
+
+    // The reason's hint sits under its input, so the row aligns to the top
+    // and the label-less button drops by the label row.
+    expect(wrapper.find('[data-testid="roster-user-status-form"]').classes()).toContain('items-start')
+    expect(wrapper.find('[data-testid="roster-user-change-status"]').classes()).toContain('mt-field-label')
+  })
+
   it('suspends the user with a reason, through users.suspend', async () => {
     mockPackageApi('roster', routes({ 'POST /users/{user}/suspend': { data: ada as never } }))
 

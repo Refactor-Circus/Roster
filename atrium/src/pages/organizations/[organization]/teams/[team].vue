@@ -176,7 +176,7 @@ async function destroy(): Promise<void> {
                 </li>
               </ul>
 
-              <UForm class="flex flex-wrap items-end gap-2" data-testid="roster-team-member-add-form" @submit="addMember">
+              <UForm class="flex flex-wrap items-start gap-2" data-testid="roster-team-member-add-form" @submit="addMember">
                 <UFormField :label="t('roster.organizations.members.add')" :error="memberAction.error('user')">
                   <USelect
                     v-model="candidate"
@@ -187,7 +187,7 @@ async function destroy(): Promise<void> {
                     data-testid="roster-team-member-candidate"
                   />
                 </UFormField>
-                <UButton type="submit" icon="i-lucide-user-plus" :disabled="candidate === ''" :loading="memberAction.busy.value" data-testid="roster-team-member-add">
+                <UButton type="submit" icon="i-lucide-user-plus" :disabled="candidate === ''" :loading="memberAction.busy.value" class="mt-field-label" data-testid="roster-team-member-add">
                   {{ t('roster.organizations.members.add') }}
                 </UButton>
               </UForm>

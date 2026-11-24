@@ -12,7 +12,7 @@ var N = {
 	class: "space-y-4",
 	"data-testid": "roster-transfers"
 }, P = { "data-testid": "roster-transfers-organization" }, F = { class: "space-y-4" }, I = { class: "grid gap-4 lg:grid-cols-2" }, L = { class: "font-medium" }, _e = {
-	class: "mb-4 flex flex-wrap items-end gap-3",
+	class: "mb-4 flex flex-wrap items-start gap-3",
 	"data-testid": "roster-import-templates"
 }, ve = { class: "font-medium" }, R = /* @__PURE__ */ C({
 	__name: "index",
@@ -132,6 +132,7 @@ var N = {
 									variant: "outline",
 									icon: "i-lucide-download",
 									loading: D(B).busy.value,
+									class: "mt-field-label",
 									"data-testid": "roster-template-download",
 									onClick: Te
 								}, {

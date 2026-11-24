@@ -68,7 +68,7 @@ async function createTeam(): Promise<void> {
       <template #header>
         <h2 class="font-semibold">{{ t('roster.organizations.teams.new') }}</h2>
       </template>
-      <UForm :state="form" class="flex flex-wrap items-end gap-2" data-testid="roster-team-create-form" @submit="createTeam">
+      <UForm :state="form" class="flex flex-wrap items-start gap-2" data-testid="roster-team-create-form" @submit="createTeam">
         <RosterActionError :action="create" />
         <UFormField :label="t('roster.organizations.fields.name')" :error="create.error('name')" required>
           <UInput v-model="form.name" class="w-64" data-testid="roster-team-create-name" />
@@ -76,7 +76,7 @@ async function createTeam(): Promise<void> {
         <UFormField :label="t('roster.organizations.fields.slug')" :hint="t('roster.organizations.slug_hint')" :error="create.error('slug')">
           <UInput v-model="form.slug" class="w-64" data-testid="roster-team-create-slug" />
         </UFormField>
-        <UButton type="submit" icon="i-lucide-plus" :loading="create.busy.value" data-testid="roster-team-create">{{ t('roster.organizations.create') }}</UButton>
+        <UButton type="submit" icon="i-lucide-plus" :loading="create.busy.value" class="mt-field-label" data-testid="roster-team-create">{{ t('roster.organizations.create') }}</UButton>
       </UForm>
     </UCard>
 
