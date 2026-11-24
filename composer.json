@@ -123,6 +123,15 @@
                 "Roster": "RefactorCircus\\Roster\\Facades\\Roster"
             }
         },
+        "atrium": {
+            "key": "roster",
+            "scripts": [
+                "dist/atrium/atrium.js"
+            ],
+            "styles": [
+                "dist/atrium/atrium.css"
+            ]
+        },
         "branch-alias": {
             "dev-main": "2.0.x-dev"
         }

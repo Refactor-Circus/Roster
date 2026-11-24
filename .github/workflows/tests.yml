@@ -93,6 +93,50 @@ jobs:
         run: git diff --exit-code client/
         working-directory: .
 
+  # The Atrium module (atrium/) must type-check, pass its suite and build to
+  # exactly the committed dist/atrium; tests/Feature/FrontendModuleTest.php
+  # checks the build hash without Node.
+  ui:
+    runs-on: ubuntu-latest
+
+    name: Atrium module
+
+    defaults:
+      run:
+        working-directory: atrium
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: atrium/package.json
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: atrium/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: No uncommitted changes
+        run: git diff --exit-code -- dist/atrium
+        working-directory: .
+
   tests:
     runs-on: ${{ matrix.os }}
 

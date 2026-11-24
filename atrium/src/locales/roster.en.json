@@ -1,0 +1,20 @@
+{
+  "roster": {
+    "widgets": {
+      "user_status": {
+        "total": "Users",
+        "statuses": {
+          "active": "Active",
+          "pending": "Pending approval",
+          "suspended": "Suspended",
+          "deactivated": "Deactivated"
+        }
+      },
+      "organizations": {
+        "organizations": "Organizations",
+        "teams": "Teams",
+        "pending_invitations": "Pending invitations"
+      }
+    }
+  }
+}

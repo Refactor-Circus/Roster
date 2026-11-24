@@ -131,7 +131,8 @@ const ATRIUM_V1_TERMS = [
     'composer require refactor-circus/atrium', 'atrium.roster.', 'ScreenAccess', 'rosterCan', 'viewAtrium', 'atrium.view',
     'RosterSupportFeature', 'RosterPlugin', 'AuthorizesScreens', 'Atrium::screens()', 'x-atrium', 'atrium.disabled',
     'roster.atrium', 'rosterUsesAtrium', 'withoutAtrium', 'AtriumUnavailable', 'without-atrium', 'test:browser',
-    'pennantplus', 'ResetsScreenExtensions', '/atrium',
+    // The v1 dashboard's URL (`/atrium`), not the Atrium v2 module's `dist/atrium/` build.
+    'pennantplus', 'ResetsScreenExtensions', '`/atrium`', ' /atrium',
 ];
 
 it('reads a section up to the next heading of the same or a higher level', function (): void {
@@ -307,10 +308,12 @@ it('lists what v2.0.0 added in the CHANGELOG', function (): void {
 it('keeps the agent guides free of Atrium architecture and documents the v2 API', function (string $file): void {
     $guide = packageFile($file);
 
-    // Atrium may only be named as Atrium v2, the optional UI on the API.
+    // Atrium may only be named as Atrium v2, the optional UI on the API, or
+    // as Roster's own front-end module for it (`atrium/`, `dist/atrium/`,
+    // `extra.atrium`).
     $atriumLines = array_values(array_filter(
         preg_grep('/atrium/i', preg_split('/\R/', $guide) ?: []) ?: [],
-        fn (string $line): bool => ! str_contains($line, 'Atrium v2'),
+        fn (string $line): bool => ! str_contains($line, 'Atrium v2') && ! preg_match('#`(dist/)?atrium/`|`extra\.atrium`#', $line),
     ));
 
     expect($atriumLines)->toBe([]);

@@ -350,8 +350,10 @@ function rosterAtriumMentions(array $paths, string $root = __DIR__.'/..'): array
 }
 
 /**
- * Every `composer.json` dependency section key that names Atrium:
- * `refactor-circus/atrium` or any key containing `atrium`.
+ * Every `composer.json` key that names Atrium, as `section.key`: any
+ * dependency (`refactor-circus/atrium` or any key containing `atrium`), and
+ * any `extra` key but `atrium`, the front-end module's declaration (a plain
+ * JSON block Atrium reads, not a dependency on it).
  *
  * @return array<int, string>
  */
@@ -363,7 +365,7 @@ function rosterComposerAtriumKeys(): array
 
     foreach (['require', 'require-dev', 'suggest', 'conflict', 'extra'] as $section) {
         foreach (array_keys((array) ($composer[$section] ?? [])) as $key) {
-            if (stripos((string) $key, 'atrium') !== false) {
+            if (stripos((string) $key, 'atrium') !== false && ! ($section === 'extra' && $key === 'atrium')) {
                 $found[] = $section.'.'.$key;
             }
         }
@@ -372,11 +374,13 @@ function rosterComposerAtriumKeys(): array
     return $found;
 }
 
+// Roster's PHP never names Atrium. Its Atrium front-end module (JS only) lives
+// in `atrium/` (sources) and `dist/atrium/` (the build), outside these paths.
 arch('nothing Roster ships names Atrium')
     ->expect(fn (): array => rosterAtriumMentions(['src', 'config', 'database', 'lang', 'resources/views', 'workbench', 'testbench.yaml']))
     ->toBeEmpty();
 
-arch('composer.json neither requires, suggests, conflicts with nor configures Atrium')
+arch('composer.json neither requires, suggests nor conflicts with Atrium, and declares only the module')
     ->expect(fn (): array => rosterComposerAtriumKeys())
     ->toBeEmpty();
 

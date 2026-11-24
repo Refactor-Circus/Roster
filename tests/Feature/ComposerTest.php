@@ -62,8 +62,15 @@ it('no longer needs the SSO vendor libraries for its own tests', function (): vo
         ->not->toHaveKeys(['laravel/socialite', 'socialiteproviders/saml2', 'firebase/php-jwt', 'socialiteproviders/microsoft-azure']);
 });
 
-it('declares no Atrium plugin', function (): void {
-    expect((array) rosterComposer()['extra'])->toHaveKey('laravel')->not->toHaveKey('atrium');
+it('declares its Atrium front-end module, and no Atrium plugin', function (): void {
+    // `extra.atrium` is the JS module's declaration Atrium reads from
+    // installed.json; it is not a dependency on Atrium.
+    expect((array) rosterComposer()['extra'])->toHaveKey('laravel')
+        ->and(rosterComposer()['extra']['atrium'] ?? null)->toBe([
+            'key' => 'roster',
+            'scripts' => ['dist/atrium/atrium.js'],
+            'styles' => ['dist/atrium/atrium.css'],
+        ]);
 });
 
 it('neither requires nor suggests PennantPlus', function (): void {

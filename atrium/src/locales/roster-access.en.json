@@ -1,0 +1,74 @@
+{
+  "roster": {
+    "access": {
+      "not_found": "This record was not found.",
+      "load_failed": "Roster could not be loaded."
+    },
+    "transfers": {
+      "title": "Imports & exports",
+      "empty": "No imports or exports yet.",
+      "not_found": "This transfer was not found.",
+      "none": "—",
+      "download": "Download CSV",
+      "confirm": "Confirm import",
+      "cancel": "Cancel",
+      "confirm_by": "Confirm by",
+      "finished": "Finished",
+      "rows_applied": "{done} of {total} rows applied",
+      "fields": {
+        "type": "Type",
+        "organization": "Organization",
+        "requested_by": "Requested by",
+        "status": "Status",
+        "rows": "Rows",
+        "created": "Created",
+        "line": "Line",
+        "row": "Row",
+        "planned": "Planned",
+        "result": "Result"
+      },
+      "import": {
+        "title": "New import",
+        "template": "Template",
+        "download_template": "Download template",
+        "organization_hint": "Organization slug; required for member and team imports.",
+        "file": "CSV file",
+        "file_hint": "Members: email, name, display_name, teams, role. Users: email, name, display_name. Teams: name, slug, members. Separate lists with ; or |.",
+        "submit": "Upload and preview"
+      },
+      "export": {
+        "title": "New export",
+        "organization_hint": "Organization slug; required for member exports.",
+        "external_source": "Source",
+        "external_source_hint": "Organizations export: only records from this system, e.g. erp.",
+        "submit": "Start export"
+      },
+      "types": {
+        "import_members": "Import members",
+        "import_users": "Import users",
+        "import_teams": "Import teams",
+        "import_organizations": "Import organizations",
+        "export_members": "Export members",
+        "export_users": "Export users",
+        "export_organizations": "Export organizations"
+      },
+      "statuses": {
+        "validating": "Validating",
+        "awaiting_confirmation": "Awaiting confirmation",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled",
+        "expired": "Expired"
+      },
+      "outcomes": {
+        "create": "Create",
+        "link": "Link",
+        "invite": "Invite",
+        "update": "Update",
+        "skip": "Skip",
+        "error": "Error"
+      }
+    }
+  }
+}

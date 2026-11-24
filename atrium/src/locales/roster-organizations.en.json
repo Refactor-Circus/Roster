@@ -1,0 +1,138 @@
+{
+  "roster": {
+    "organizations": {
+      "title": "Organizations",
+      "organization": "Organization",
+      "new": "New organization",
+      "create": "Create",
+      "save": "Save",
+      "import_export": "Import & export",
+      "empty": "No organizations found.",
+      "none": "—",
+      "deleted": "Deleted",
+      "personal": "Personal",
+      "restore": "Restore",
+      "purge": "Delete permanently",
+      "slug_hint": "Leave blank to derive it from the name.",
+      "owner_hint": "The owner's user ID or email. Leave blank for none.",
+      "domains_hint": "One domain per line.",
+      "tabs": {
+        "active": "Active",
+        "deleted": "Deleted",
+        "members": "Members",
+        "teams": "Teams",
+        "invitations": "Invitations",
+        "settings": "Settings"
+      },
+      "filters": {
+        "search": "Search",
+        "filter": "Filter",
+        "clear": "Clear"
+      },
+      "fields": {
+        "name": "Name",
+        "slug": "Slug",
+        "owner": "Owner",
+        "domains": "Domains",
+        "auto_join": "Users with a matching email domain join automatically",
+        "email": "Email",
+        "members": "Members",
+        "teams": "Teams",
+        "status": "Status",
+        "reason": "Reason",
+        "source": "Source",
+        "external": "External records",
+        "external_id": "External ID",
+        "account_number": "Account number",
+        "actions": "Actions"
+      },
+      "statuses": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "state": {
+        "not_found": "This organization was not found.",
+        "load_failed": "Roster could not be loaded."
+      },
+      "members": {
+        "add": "Add member",
+        "user": "User",
+        "user_hint": "The user's ID or email.",
+        "member": "Member",
+        "source": "Source",
+        "empty": "No members yet.",
+        "no_owner": "This organization has no owner.",
+        "approve": "Approve",
+        "make_owner": "Make owner",
+        "remove": "Remove"
+      },
+      "teams": {
+        "team": "Team",
+        "new": "New team",
+        "empty": "No teams yet.",
+        "delete": "Delete team",
+        "confirm_delete": "Delete this team? Its members stay in the organization.",
+        "no_candidates": "Every member is already in this team.",
+        "not_found": "This team was not found."
+      },
+      "invitations": {
+        "invite": "Invite",
+        "empty": "No invitations yet.",
+        "expires": "Expires",
+        "revoke": "Revoke",
+        "statuses": {
+          "pending": "Pending",
+          "accepted": "Accepted",
+          "declined": "Declined",
+          "revoked": "Revoked",
+          "expired": "Expired"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "auto_join_hint": "Matched against the domains above.",
+        "provisioned_status": "Status of provisioned accounts",
+        "provisioned_status_hint": "The status a user created by a sync or an import starts with."
+      },
+      "links": {
+        "title": "External links",
+        "empty": "No external links.",
+        "synced": "Last synced",
+        "never": "Never",
+        "link": "Link",
+        "unlink": "Unlink",
+        "source_hint": "The external system, e.g. crm.",
+        "source_required": "Enter a source."
+      },
+      "danger": {
+        "title": "Danger zone",
+        "delete": "Delete organization",
+        "delete_title": "Delete this organization",
+        "delete_warning": "It can be restored from the Deleted tab until it is deleted permanently.",
+        "confirm_delete": "Delete this organization?",
+        "confirm_purge": "Delete this organization permanently? This cannot be undone.",
+        "purge_queued": "The organization will be deleted permanently shortly.",
+        "purge_warning": "Deleting permanently removes the organization, its teams, memberships and invitations. This cannot be undone.",
+        "deleted": "This organization is deleted.",
+        "deleted_hint": "Restore it, or delete it permanently."
+      },
+      "invitation": {
+        "title": "Invitation",
+        "heading": "Join {organization}",
+        "prompt": "You have been invited to join {organization}.",
+        "organization": "Organization",
+        "expires": "Expires",
+        "accept": "Accept",
+        "decline": "Decline",
+        "accepted": "You have joined {organization}.",
+        "declined": "You declined the invitation.",
+        "unavailable": "This invitation is not available.",
+        "unavailable_hint": "It may have expired or already been used. Ask for a new invitation.",
+        "throttled": "Too many attempts.",
+        "throttled_hint": "Wait a moment, then try again.",
+        "failed": "The invitation could not be loaded.",
+        "answer_failed": "That did not work. Try again."
+      }
+    }
+  }
+}

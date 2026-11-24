@@ -20,3 +20,4 @@ composer.local.lock
 /.claude/agents/ring-master-*.md
 /.agents/skills/ring-master-*/
 /.agents/agents/ring-master-*.md
+/atrium/node_modules
