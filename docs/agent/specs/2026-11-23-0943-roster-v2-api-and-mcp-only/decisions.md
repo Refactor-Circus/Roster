@@ -221,3 +221,9 @@
 - Rationale: The user's request ("move the php declarations"): Atrium deleted its `RosterIntegration` class and every package now declares its own integration. The manifest was generated from Atrium's PHP declaration and compared payload for payload there.
 - Date: 2026-11-24
 - Raised by: user (Atrium v2 phase B)
+
+## D-038: Which type and identifier do Roster's screens give other packages' hooks?
+- Choice: The user and organization screens keep `subject_type` `roster.user` / `roster.organization` (the suite's names, which hook placements and Guardian's `$subject_scope` read) and add `subject_model` (Atrium D-092): the user's is `{"$config": "roster.users.model", "default": "App\\Models\\User"}`, the organization's `OrganizationModel`. Atrium sends hooks that model's morph type in the host's morph map (`App\Models\User` in a host that aliases its user model so, else the class), so Cortex's and Keen's hooks name a record the host stores. Roster registers no morph alias of its own: that would change the type already stored in polymorphic columns. The record each page passes stays its route parameter, the model's route key (an organization's slug, a user's id); the hook APIs resolve it by route key. The SDK pin moves to Atrium f6d6f83, whose manifest rules refuse a dotted `subject_type` without its model. `AtriumSubjectsTest` checks each subject screen names a real model and routes by that model's route key.
+- Rationale: In a real host Cortex's redirect domains 404'd on `owner_type=roster.organization` and Guardian's access tab 422'd on the slug: the manifest declared a label where hooks needed the morph type, and nothing said the record was a route key. Only Roster knows its models, and only the host knows their morph type.
+- Date: 2026-11-24
+- Raised by: user (bugs found in a real host); choices made by the implementing agent without a user available

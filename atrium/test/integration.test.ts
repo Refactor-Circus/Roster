@@ -41,6 +41,15 @@ describe('the roster integration manifest', () => {
       ['roster.organization', 'roster.organization']
     ])
   })
+
+  it('names the model each subject is stored as, so hooks get the host\'s morph type (D-092)', () => {
+    // `roster.user` is the suite's name, which no host's morph map holds:
+    // Atrium sends hooks the morph type of the model named here instead.
+    expect(declared.screens.filter(screen => screen.subject_model !== undefined).map(screen => [screen.key, screen.subject_model])).toEqual([
+      ['roster.user', { $config: 'roster.users.model', type: 'string', default: 'App\\Models\\User' }],
+      ['roster.organization', 'RefactorCircus\\Roster\\Domains\\Organization\\Models\\OrganizationModel']
+    ])
+  })
 })
 
 /** The route name Roster gives the page at a declared path (Nuxt's file-based convention): `/roster/users/:user` is `roster-users-user`. */

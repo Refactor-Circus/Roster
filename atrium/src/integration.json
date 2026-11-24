@@ -85,7 +85,12 @@
       "key": "roster.user",
       "kind": "detail",
       "path": "/roster/users/:user",
-      "subject_type": "roster.user"
+      "subject_type": "roster.user",
+      "subject_model": {
+        "$config": "roster.users.model",
+        "type": "string",
+        "default": "App\\Models\\User"
+      }
     },
     {
       "key": "roster.organizations",
@@ -101,7 +106,8 @@
       "key": "roster.organization",
       "kind": "detail",
       "path": "/roster/organizations/:organization",
-      "subject_type": "roster.organization"
+      "subject_type": "roster.organization",
+      "subject_model": "RefactorCircus\\Roster\\Domains\\Organization\\Models\\OrganizationModel"
     },
     {
       "key": "roster.team",
