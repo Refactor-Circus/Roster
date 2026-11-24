@@ -5,7 +5,7 @@ import { mockPackageApi, reply, resetPackageApis, type PackageRoutes } from '@re
 import { confirmWith, mountRosterPage, page, resetRosterPages, rosterCalls, screensApi } from '../users/support'
 import { acmeDetail, linusMember, opsDetail, owner, pendingMember } from './support'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
-import { choices, choose } from '../ui'
+import { chooseOption, selectValues } from '@refactor-circus/atrium/testing'
 
 /*
  * `roster.team` (AC 54, 69): one team with its members; update
@@ -56,18 +56,18 @@ describe('roster.team', () => {
     expect(wrapper.find('[data-testid="roster-team-title"]').text()).toBe('Ops')
     expect(wrapper.find('[data-testid="roster-team-organization"]').text()).toBe('Acme')
     expect(wrapper.find('[data-testid="roster-team-member-7"]').text()).toContain('Ada Lovelace')
-    expect(wrapper.find('[data-testid="roster-team-back"]').attributes('href')).toBe('/roster/organizations/acme?tab=teams')
+    expect(wrapper.find('[data-testid="atrium-page-header-back"]').attributes('href')).toBe('/roster/organizations/acme?tab=teams')
   })
 
   it('adds one of the organization\'s members who is not in the team yet, then reloads', async () => {
     rosterWith({ 'POST /organizations/{organization}/teams/{team}/members': reply(201, { data: opsDetail }) as never })
 
     const wrapper = await mountRosterPage(Page, PATH)
-    const options = choices(wrapper, 'roster-team-member-candidate')
+    const options = selectValues(wrapper, 'roster-team-member-candidate')
 
     expect(options).toEqual(['8', '9'])
 
-    await choose(wrapper, 'roster-team-member-candidate', '9')
+    await chooseOption(wrapper, 'roster-team-member-candidate', '9')
     await wrapper.find('[data-testid="roster-team-member-add-form"]').trigger('submit')
     await settle()
 
@@ -95,7 +95,7 @@ describe('roster.team', () => {
 
     const wrapper = await mountRosterPage(Page, PATH)
     await wrapper.find('[data-testid="roster-team-name"]').setValue('Operations')
-    await choose(wrapper, 'roster-team-status', 'inactive')
+    await chooseOption(wrapper, 'roster-team-status', 'inactive')
     await wrapper.find('[data-testid="roster-team-status-reason"]').setValue('Merged')
     await wrapper.find('[data-testid="roster-team-settings-form"]').trigger('submit')
     await settle()

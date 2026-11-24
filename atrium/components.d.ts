@@ -11,9 +11,12 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AtriumDetails: typeof import('@refactor-circus/atrium')['AtriumDetails']
     AtriumErrorCard: typeof import('@refactor-circus/atrium')['AtriumErrorCard']
     AtriumIntegrationScreen: typeof import('@refactor-circus/atrium')['AtriumIntegrationScreen']
     AtriumNoAccess: typeof import('@refactor-circus/atrium')['AtriumNoAccess']
+    AtriumPageHeader: typeof import('@refactor-circus/atrium')['AtriumPageHeader']
+    AtriumSelect: typeof import('@refactor-circus/atrium')['AtriumSelect']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     UAlert: typeof import('@refactor-circus/atrium/ui')['UAlert']
@@ -27,7 +30,6 @@ declare module 'vue' {
     UFormField: typeof import('@refactor-circus/atrium/ui')['UFormField']
     UInput: typeof import('@refactor-circus/atrium/ui')['UInput']
     ULink: typeof import('@refactor-circus/atrium/ui')['ULink']
-    UPageHeader: typeof import('@refactor-circus/atrium/ui')['UPageHeader']
     UProgress: typeof import('@refactor-circus/atrium/ui')['UProgress']
     USelect: typeof import('@refactor-circus/atrium/ui')['USelect']
     USkeleton: typeof import('@refactor-circus/atrium/ui')['USkeleton']

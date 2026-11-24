@@ -2,8 +2,8 @@ import { t as e } from "./RosterActionError-DqFXfLSN.js";
 import { t } from "./RosterPager-CFRR10Qn.js";
 import { t as n } from "./RosterState-4BrqaETn.js";
 import { g as r, h as i, i as a, l as o, m as s, r as c, s as l } from "./users-JqW-WBif.js";
-import { AtriumIntegrationScreen as u } from "@refactor-circus/atrium";
-import { UBadge as d, UButton as f, UEmpty as p, UPageHeader as m, UTable as h } from "@refactor-circus/atrium/ui";
+import { AtriumIntegrationScreen as u, AtriumPageHeader as d } from "@refactor-circus/atrium";
+import { UBadge as f, UButton as p, UEmpty as m, UTable as h } from "@refactor-circus/atrium/ui";
 import { computed as g, createBlock as _, createCommentVNode as v, createElementBlock as y, createElementVNode as b, createTextVNode as x, createVNode as S, defineComponent as C, openBlock as w, toDisplayString as T, unref as E, withCtx as D } from "vue";
 import { useI18n as O } from "vue-i18n";
 import { useRoute as k } from "vue-router";
@@ -47,7 +47,7 @@ var A = {
 			B && await R.run(async () => o(await B.DELETE("/impersonations/{impersonation}", { params: { path: { impersonation: e.id } } }))) && await G();
 		}
 		return (i, a) => {
-			let o = m, s = p, l = d, g = f, C = h, O = u;
+			let o = d, s = m, l = f, g = p, C = h, O = u;
 			return w(), y("div", A, [S(o, { title: E(I)("roster.impersonations.title") }, null, 8, ["title"]), S(O, { "screen-key": "roster.impersonations" }, {
 				default: D(() => [S(n, {
 					ready: !E(H) && E(V) !== null,
@@ -65,7 +65,6 @@ var A = {
 							key: 1,
 							data: E(K),
 							columns: E(J),
-							class: "text-sm",
 							"data-testid": "roster-impersonations-table"
 						}, {
 							"impersonator-cell": D(({ row: { original: e } }) => [b("span", { "data-testid": `roster-impersonation-${e.id}` }, T(E(r)(e.impersonator) ?? E(I)("roster.users.none")), 9, M)]),

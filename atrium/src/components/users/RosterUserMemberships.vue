@@ -29,18 +29,8 @@ watch(() => [props.user.current_organization, props.user.current_team], () => {
 const teams = useOrganizationTeams(() => context.organization || null)
 const id = computed(() => String(props.user.id))
 
-// "No team": a select item's value cannot be empty.
-const NO_TEAM = '*'
-
 const organizationItems = computed(() => props.memberships.map(organization => ({ label: organization.name, value: organization.slug })))
-const teamItems = computed(() => [
-  { label: t('roster.users.memberships.no_team'), value: NO_TEAM },
-  ...teams.value.map(team => ({ label: team.name, value: team.slug }))
-])
-const teamChoice = computed({
-  get: () => context.team || NO_TEAM,
-  set: (value: string) => { context.team = value === NO_TEAM ? '' : value }
-})
+const teamItems = computed(() => teams.value.map(team => ({ label: team.name, value: team.slug })))
 
 async function switchContext(): Promise<void> {
   notice.value = null
@@ -89,7 +79,7 @@ async function domainJoin(): Promise<void> {
           <USelect v-model="context.organization" :items="organizationItems" class="w-56" data-testid="roster-user-context-organization" />
         </UFormField>
         <UFormField :label="t('roster.users.memberships.team')" :error="action.error('team')">
-          <USelect v-model="teamChoice" :items="teamItems" class="w-56" data-testid="roster-user-context-team" />
+          <AtriumSelect v-model="context.team" :items="teamItems" :blank="t('roster.users.memberships.no_team')" class="w-56" data-testid="roster-user-context-team" />
         </UFormField>
         <UButton type="submit" icon="i-lucide-arrow-left-right" :loading="action.busy.value" data-testid="roster-user-context-switch">
           {{ t('roster.users.memberships.switch') }}

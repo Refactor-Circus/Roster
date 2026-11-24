@@ -7,7 +7,7 @@ import {
 import { formatDate, rosterData } from '../../components/users/users'
 import { useAtrium } from '@refactor-circus/atrium'
 import { AtriumIntegrationError } from '@refactor-circus/atrium'
-import { atriumStatus } from '@refactor-circus/atrium'
+import { atriumStatus, type AtriumDetailsItem } from '@refactor-circus/atrium'
 
 /**
  * `roster.invitation`: the public invitation page (AC 70, D-038), ported
@@ -44,6 +44,16 @@ const message = ref<string | null>(null)
 /** The token, read from the route each time it is needed rather than kept. */
 function token(): string {
   return String(route.params.token ?? '')
+}
+
+/** The invitation's facts: the email, the organization, its teams (when it names any) and the expiry. */
+function details(found: RosterInvitationLookup): AtriumDetailsItem[] {
+  return [
+    { label: t('roster.organizations.fields.email'), value: found.email, testid: 'roster-invitation-email' },
+    { label: t('roster.organizations.invitation.organization'), value: found.organization.name, testid: 'roster-invitation-organization' },
+    ...(found.teams.length > 0 ? [{ label: t('roster.organizations.fields.teams'), value: found.teams.join(', '), testid: 'roster-invitation-teams' }] : []),
+    { label: t('roster.organizations.invitation.expires'), value: formatDate(found.expires_at), testid: 'roster-invitation-expires' }
+  ]
 }
 
 /** The state a failed request leaves the page in, or null to stay and show `message`. */
@@ -167,18 +177,7 @@ onMounted(lookup)
 
     <div v-else-if="invitation" class="flex flex-col gap-4" data-testid="roster-invitation-details">
       <p>{{ t('roster.organizations.invitation.prompt', { organization: invitation.organization.name }) }}</p>
-      <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt class="text-muted">{{ t('roster.organizations.fields.email') }}</dt>
-        <dd data-testid="roster-invitation-email">{{ invitation.email }}</dd>
-        <dt class="text-muted">{{ t('roster.organizations.invitation.organization') }}</dt>
-        <dd data-testid="roster-invitation-organization">{{ invitation.organization.name }}</dd>
-        <template v-if="invitation.teams.length > 0">
-          <dt class="text-muted">{{ t('roster.organizations.fields.teams') }}</dt>
-          <dd data-testid="roster-invitation-teams">{{ invitation.teams.join(', ') }}</dd>
-        </template>
-        <dt class="text-muted">{{ t('roster.organizations.invitation.expires') }}</dt>
-        <dd data-testid="roster-invitation-expires">{{ formatDate(invitation.expires_at) }}</dd>
-      </dl>
+      <AtriumDetails :items="details(invitation)" />
 
       <UAlert v-if="message" color="error" variant="subtle" :title="message" data-testid="roster-invitation-error" />
 

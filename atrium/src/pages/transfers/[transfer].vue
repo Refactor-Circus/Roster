@@ -10,7 +10,8 @@ import {
   type RosterTransfer
 } from '../../components/transfers/transfers'
 import RosterActionError from '../../components/users/RosterActionError.vue'
-import type { TableColumn } from '@nuxt/ui'
+import type { AtriumDetailsItem } from '@refactor-circus/atrium'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 import {
   formatDate,
   queryPage,
@@ -59,6 +60,25 @@ const summary = computed(() => Object.entries(data.value?.summary ?? {}))
 const results = computed(() => Object.entries(data.value?.results ?? {}))
 const fieldErrors = computed(() => Object.values(action.errors.value).flat())
 
+/** The transfer's facts: its status (a badge, in the slot), who asked, its rows, when to confirm by and when it finished. */
+const details = computed<AtriumDetailsItem[]>(() => {
+  const transfer = data.value
+
+  if (!transfer) {
+    return []
+  }
+
+  return [
+    { key: 'status', label: t('roster.transfers.fields.status') },
+    { label: t('roster.transfers.fields.requested_by'), value: transfer.requested_by?.name || transfer.requested_by?.email || t('roster.transfers.none') },
+    { label: t('roster.transfers.fields.rows'), value: transfer.row_count ?? 0 },
+    ...(transfer.expires_at && transfer.status === 'awaiting_confirmation'
+      ? [{ label: t('roster.transfers.confirm_by'), value: formatDate(transfer.expires_at), testid: 'roster-transfer-confirm-by' }]
+      : []),
+    ...(transfer.finished_at ? [{ label: t('roster.transfers.finished'), value: formatDate(transfer.finished_at) }] : [])
+  ]
+})
+
 /** A row outcome's label (`create`, `skip`, …); a key the layer does not know, such as an export's `exported`, shows as sent. */
 function outcomeLabel(outcome: string): string {
   const key = `roster.transfers.outcomes.${outcome}`
@@ -100,22 +120,11 @@ async function download(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-transfer">
-    <UPageHeader>
+    <AtriumPageHeader :back="transfersPath(data?.organization)" :back-label="t('roster.transfers.title')" :description="data?.organization">
       <template #title>
-        <span class="flex items-center gap-3">
-          <UButton
-            :to="transfersPath(data?.organization)"
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-            :aria-label="t('roster.transfers.title')"
-            data-testid="roster-transfer-back"
-          />
-          <span v-if="data" class="truncate" data-testid="roster-transfer-title">{{ t(`roster.transfers.types.${data.type}`) }}</span>
-        </span>
+        <span v-if="data" class="truncate" data-testid="roster-transfer-title">{{ t(`roster.transfers.types.${data.type}`) }}</span>
       </template>
-      <template v-if="data?.organization" #description>{{ data.organization }}</template>
-      <template v-if="data?.download_url" #links>
+      <template v-if="data?.download_url">
         <UButton
           icon="i-lucide-download"
           :loading="action.busy.value"
@@ -125,7 +134,7 @@ async function download(): Promise<void> {
           {{ t('roster.transfers.download') }}
         </UButton>
       </template>
-    </UPageHeader>
+    </AtriumPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.transfer" :record="id">
       <AccessState :ready="!pending && data !== null" :failed="failed" :status="status" :not-found="t('roster.transfers.not_found')">
@@ -140,28 +149,11 @@ async function download(): Promise<void> {
           />
 
           <UCard>
-            <dl class="grid gap-3 text-sm sm:grid-cols-2">
-              <div>
-                <dt class="text-muted">{{ t('roster.transfers.fields.status') }}</dt>
-                <dd><TransferStatusBadge :status="data.status" testid="roster-transfer-status" /></dd>
-              </div>
-              <div>
-                <dt class="text-muted">{{ t('roster.transfers.fields.requested_by') }}</dt>
-                <dd>{{ data.requested_by?.name || data.requested_by?.email || t('roster.transfers.none') }}</dd>
-              </div>
-              <div>
-                <dt class="text-muted">{{ t('roster.transfers.fields.rows') }}</dt>
-                <dd>{{ data.row_count ?? 0 }}</dd>
-              </div>
-              <div v-if="data.expires_at && data.status === 'awaiting_confirmation'" data-testid="roster-transfer-confirm-by">
-                <dt class="text-muted">{{ t('roster.transfers.confirm_by') }}</dt>
-                <dd>{{ formatDate(data.expires_at) }}</dd>
-              </div>
-              <div v-if="data.finished_at">
-                <dt class="text-muted">{{ t('roster.transfers.finished') }}</dt>
-                <dd>{{ formatDate(data.finished_at) }}</dd>
-              </div>
-            </dl>
+            <AtriumDetails :items="details" :columns="2">
+              <template #status>
+                <TransferStatusBadge :status="data.status" testid="roster-transfer-status" />
+              </template>
+            </AtriumDetails>
 
             <UAlert v-if="data.error" class="mt-4" color="error" variant="subtle" :title="data.error" data-testid="roster-transfer-error" />
 
@@ -201,7 +193,7 @@ async function download(): Promise<void> {
           </UCard>
 
           <template v-if="rows.length > 0">
-            <UTable :data="rows" :columns="rowColumns" class="text-sm" data-testid="roster-transfer-rows">
+            <UTable :data="rows" :columns="rowColumns" data-testid="roster-transfer-rows">
               <template #line-cell="{ row: { original: row } }">
                 <span :data-testid="`roster-transfer-line-${row.line}`">{{ row.line }}</span>
               </template>

@@ -16,7 +16,7 @@ import {
 } from '../users/users'
 import OrganizationState from './OrganizationState.vue'
 import { teamPath } from './organizations'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 
 /**
  * The organization page's Teams tab, as v1's: the new-team form (name and
@@ -83,7 +83,7 @@ async function createTeam(): Promise<void> {
     <OrganizationState :ready="!teams.pending.value && teams.data.value !== null" :failed="teams.failed.value" :status="teams.status.value" compact>
       <div class="space-y-4">
         <UEmpty v-if="list.length === 0" icon="i-lucide-users-round" :title="t('roster.organizations.teams.empty')" data-testid="roster-teams-empty" />
-        <UTable v-else :data="list" :columns="columns" class="text-sm" data-testid="roster-teams-table">
+        <UTable v-else :data="list" :columns="columns" data-testid="roster-teams-table">
           <template #team-cell="{ row: { original: team } }">
             <ULink :to="teamPath(organization.slug, team.slug)" class="font-medium text-default hover:underline" :data-testid="`roster-team-row-${team.slug}`">{{ team.name }}</ULink>
           </template>

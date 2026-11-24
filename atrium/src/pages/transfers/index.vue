@@ -38,7 +38,7 @@ import {
   type RosterOne,
   type RosterPage
 } from '../../components/users/users'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 
 /**
  * `roster.transfers`: the imports and exports (`roster.transfers.index`), a
@@ -163,11 +163,11 @@ async function startExport(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-transfers">
-    <UPageHeader :title="t('roster.transfers.title')">
+    <AtriumPageHeader :title="t('roster.transfers.title')">
       <template v-if="organization" #description>
         <span data-testid="roster-transfers-organization">{{ organization }}</span>
       </template>
-    </UPageHeader>
+    </AtriumPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.transfers">
       <AccessState :ready="!pending && data !== null" :failed="failed" :status="status">
@@ -248,7 +248,7 @@ async function startExport(): Promise<void> {
           </div>
 
           <UEmpty v-if="transfers.length === 0" icon="i-lucide-arrow-up-down" :title="t('roster.transfers.empty')" data-testid="roster-transfers-empty" />
-          <UTable v-else :data="transfers" :columns="columns" class="text-sm" data-testid="roster-transfers-table">
+          <UTable v-else :data="transfers" :columns="columns" data-testid="roster-transfers-table">
             <template #type-cell="{ row: { original: transfer } }">
               <ULink :to="transferPath(transfer.id)" class="font-medium text-default hover:underline" :data-testid="`roster-transfer-row-${transfer.id}`">{{ t(`roster.transfers.types.${transfer.type}`) }}</ULink>
             </template>

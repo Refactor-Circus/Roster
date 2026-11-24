@@ -15,7 +15,7 @@ import {
 } from '../users/users'
 import OrganizationState from './OrganizationState.vue'
 import { recordStatusColor, type RosterInvitation } from './organizations'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 
 /**
  * The organization page's Invitations tab, as v1's: the invite form (email
@@ -108,7 +108,7 @@ async function revokeInvitation(invitation: RosterInvitation): Promise<void> {
     <OrganizationState :ready="!invitations.pending.value && invitations.data.value !== null" :failed="invitations.failed.value" :status="invitations.status.value" compact>
       <div class="space-y-4">
         <UEmpty v-if="list.length === 0" icon="i-lucide-mail" :title="t('roster.organizations.invitations.empty')" data-testid="roster-invitations-empty" />
-        <UTable v-else :data="list" :columns="columns" class="text-sm" data-testid="roster-invitations-table">
+        <UTable v-else :data="list" :columns="columns" data-testid="roster-invitations-table">
           <template #email-cell="{ row: { original: invitation } }">
             <span :data-testid="`roster-invitation-row-${invitation.id}`">{{ invitation.email }}</span>
           </template>

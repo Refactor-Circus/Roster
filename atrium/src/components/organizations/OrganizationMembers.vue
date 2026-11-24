@@ -15,7 +15,7 @@ import {
 } from '../users/users'
 import OrganizationState from './OrganizationState.vue'
 import { summaryName, type RosterMember } from './organizations'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 
 /**
  * The organization page's Members tab, as v1's: a warning while it has no
@@ -116,7 +116,7 @@ async function remove(member: RosterMember): Promise<void> {
     <OrganizationState :ready="!members.pending.value && members.data.value !== null" :failed="members.failed.value" :status="members.status.value" compact>
       <div class="space-y-4">
         <UEmpty v-if="list.length === 0" icon="i-lucide-users" :title="t('roster.organizations.members.empty')" data-testid="roster-members-empty" />
-        <UTable v-else :data="list" :columns="columns" class="text-sm" data-testid="roster-members-table">
+        <UTable v-else :data="list" :columns="columns" data-testid="roster-members-table">
           <template #member-cell="{ row: { original: member } }">
             <span :data-testid="`roster-member-row-${member.user?.id}`">
               <template v-if="member.user">

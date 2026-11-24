@@ -2,8 +2,8 @@ import { c as e, i as t, n, r, s as i, t as ee, u as te } from "./TransferStatus
 import { t as a } from "./RosterActionError-DqFXfLSN.js";
 import { t as ne } from "./RosterPager-CFRR10Qn.js";
 import { c as o, d as s, h as c, i as l, l as u, m as d, n as f, r as re, s as p } from "./users-JqW-WBif.js";
-import { AtriumIntegrationScreen as ie } from "@refactor-circus/atrium";
-import { UButton as ae, UCard as oe, UEmpty as se, UFileUpload as ce, UForm as m, UFormField as le, UInput as ue, ULink as h, UPageHeader as de, USelect as fe, UTable as pe } from "@refactor-circus/atrium/ui";
+import { AtriumIntegrationScreen as ie, AtriumPageHeader as ae } from "@refactor-circus/atrium";
+import { UButton as oe, UCard as se, UEmpty as ce, UFileUpload as m, UForm as le, UFormField as ue, UInput as h, ULink as de, USelect as fe, UTable as pe } from "@refactor-circus/atrium/ui";
 import { computed as g, createBlock as _, createCommentVNode as v, createElementBlock as y, createElementVNode as b, createSlots as me, createTextVNode as x, createVNode as S, defineComponent as C, isRef as he, openBlock as w, reactive as T, ref as ge, toDisplayString as E, unref as D, watch as O, withCtx as k } from "vue";
 import { useI18n as A } from "vue-i18n";
 import { useRoute as j, useRouter as M } from "vue-router";
@@ -104,7 +104,7 @@ var N = {
 			Z.type === "export_members" && (e.organization = f(Z.organization)), Z.type === "export_organizations" && (e.filters = { external_source: f(Z.externalSource) }), await $(async () => u(await G.POST("/exports", { body: e })).data, H);
 		}
 		return (t, n) => {
-			let r = de, i = fe, o = le, s = ae, c = ue, l = ce, u = m, d = oe, f = se, p = h, g = pe, C = ie;
+			let r = ae, i = fe, o = ue, s = oe, c = h, l = m, u = le, d = se, f = ce, p = de, g = pe, C = ie;
 			return w(), y("div", N, [S(r, { title: D(R)("roster.transfers.title") }, me({ _: 2 }, [D(U) ? {
 				name: "description",
 				fn: k(() => [b("span", P, E(D(U)), 1)]),
@@ -301,7 +301,6 @@ var N = {
 							key: 1,
 							data: D(q),
 							columns: D(we),
-							class: "text-sm",
 							"data-testid": "roster-transfers-table"
 						}, {
 							"type-cell": k(({ row: { original: t } }) => [S(p, {

@@ -201,16 +201,12 @@ async function purge(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-user">
-    <UPageHeader>
+    <AtriumPageHeader back="/roster/users" :back-label="t('roster.users.title')" :description="user?.email">
       <template #title>
-        <span class="flex items-center gap-3">
-          <UButton to="/roster/users" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('roster.users.title')" />
-          <span class="truncate" data-testid="roster-user-title">{{ title }}</span>
-          <RosterStatusBadge v-if="user && !deleted" :status="user.status" data-testid="roster-user-status-badge" />
-        </span>
+        <span class="truncate" data-testid="roster-user-title">{{ title }}</span>
+        <RosterStatusBadge v-if="user && !deleted" :status="user.status" data-testid="roster-user-status-badge" />
       </template>
-      <template v-if="user?.email" #description>{{ user.email }}</template>
-    </UPageHeader>
+    </AtriumPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.user" :record="id">
       <RosterState :ready="!pending && user !== null" :failed="failed" :status="status">

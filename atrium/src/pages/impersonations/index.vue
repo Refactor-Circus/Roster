@@ -13,7 +13,7 @@ import {
   type RosterImpersonation,
   type RosterPage
 } from '../../components/users/users'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 
 /**
  * `roster.impersonations`: every impersonation the user may review
@@ -56,7 +56,7 @@ async function stop(impersonation: RosterImpersonation): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-impersonations">
-    <UPageHeader :title="t('roster.impersonations.title')" />
+    <AtriumPageHeader :title="t('roster.impersonations.title')" />
 
     <AtriumIntegrationScreen screen-key="roster.impersonations">
       <RosterState :ready="!pending && data !== null" :failed="failed" :status="status">
@@ -64,7 +64,7 @@ async function stop(impersonation: RosterImpersonation): Promise<void> {
           <RosterActionError :action="action" />
 
           <UEmpty v-if="impersonations.length === 0" icon="i-lucide-venetian-mask" :title="t('roster.impersonations.empty')" data-testid="roster-impersonations-empty" />
-          <UTable v-else :data="impersonations" :columns="columns" class="text-sm" data-testid="roster-impersonations-table">
+          <UTable v-else :data="impersonations" :columns="columns" data-testid="roster-impersonations-table">
             <template #impersonator-cell="{ row: { original: impersonation } }">
               <span :data-testid="`roster-impersonation-${impersonation.id}`">{{ userName(impersonation.impersonator) ?? t('roster.users.none') }}</span>
             </template>

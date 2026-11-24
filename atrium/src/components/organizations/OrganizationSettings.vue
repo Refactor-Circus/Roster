@@ -16,7 +16,7 @@ import {
   PROVISIONED_STATUSES,
   type RosterOrganizationLink
 } from './organizations'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 
 /**
  * The organization page's Settings tab, as v1's: the settings form (name,
@@ -182,7 +182,7 @@ async function destroy(): Promise<void> {
       <div class="flex flex-col gap-4">
         <RosterActionError :action="links" />
         <p v-if="organization.links.length === 0" class="text-sm" data-testid="roster-links-empty">{{ t('roster.organizations.links.empty') }}</p>
-        <UTable v-else :data="organization.links" :columns="linkColumns" class="text-sm" data-testid="roster-links-table">
+        <UTable v-else :data="organization.links" :columns="linkColumns" data-testid="roster-links-table">
           <template #source-cell="{ row: { original: item } }">
             <code :data-testid="`roster-link-${item.source}`">{{ item.source }}</code>
           </template>

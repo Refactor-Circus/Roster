@@ -35,7 +35,7 @@ import {
   type RosterUser,
   type RosterUserStatus
 } from '../../components/users/users'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 
 /**
  * `roster.users`: every user (`roster.users.index`), ported from v1's
@@ -72,18 +72,7 @@ const paging = computed(() => pageOf(data.value))
 
 const filters = reactive({ status: '', search: '' })
 
-// The "all statuses" choice: a select item's value cannot be empty.
-const ALL = '*'
-
-const statusFilter = computed({
-  get: () => filters.status || ALL,
-  set: (value: string) => { filters.status = value === ALL ? '' : value }
-})
-
-const statusItems = computed(() => [
-  { label: t('roster.users.filters.all_statuses'), value: ALL },
-  ...USER_STATUSES.map(choice => ({ label: t(`roster.users.statuses.${choice}`), value: choice }))
-])
+const statusItems = computed(() => USER_STATUSES.map(choice => ({ label: t(`roster.users.statuses.${choice}`), value: choice })))
 
 const tabs = computed(() => [
   { key: 'active' as const, label: t('roster.users.tabs.active') },
@@ -140,12 +129,10 @@ async function purge(user: RosterUser): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-users">
-    <UPageHeader :title="t('roster.users.title')">
-      <template #links>
-        <UButton to="/roster/transfers" variant="outline" icon="i-lucide-arrow-up-down" data-testid="roster-users-transfers">{{ t('roster.users.import_export') }}</UButton>
-        <UButton to="/roster/users/create" icon="i-lucide-plus" data-testid="roster-users-new">{{ t('roster.users.new') }}</UButton>
-      </template>
-    </UPageHeader>
+    <AtriumPageHeader :title="t('roster.users.title')">
+      <UButton to="/roster/transfers" variant="outline" icon="i-lucide-arrow-up-down" data-testid="roster-users-transfers">{{ t('roster.users.import_export') }}</UButton>
+      <UButton to="/roster/users/create" icon="i-lucide-plus" data-testid="roster-users-new">{{ t('roster.users.new') }}</UButton>
+    </AtriumPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.users">
       <div class="space-y-4">
@@ -156,7 +143,7 @@ async function purge(user: RosterUser): Promise<void> {
             <UInput v-model="filters.search" name="search" class="w-64" data-testid="roster-users-search" />
           </UFormField>
           <UFormField :label="t('roster.users.fields.status')" name="status">
-            <USelect v-model="statusFilter" :items="statusItems" class="w-48" data-testid="roster-users-status" />
+            <AtriumSelect v-model="filters.status" :items="statusItems" :blank="t('roster.users.filters.all_statuses')" class="w-48" data-testid="roster-users-status" />
           </UFormField>
           <UButton type="submit" icon="i-lucide-filter" data-testid="roster-users-filter">{{ t('roster.users.filters.filter') }}</UButton>
           <UButton variant="ghost" icon="i-lucide-x" data-testid="roster-users-clear" @click="clear">{{ t('roster.users.filters.clear') }}</UButton>
@@ -167,7 +154,7 @@ async function purge(user: RosterUser): Promise<void> {
             <RosterActionError :action="action" />
 
             <UEmpty v-if="users.length === 0" icon="i-lucide-users" :title="t('roster.users.empty')" data-testid="roster-users-empty" />
-            <UTable v-else :data="users" :columns="columns" class="text-sm" data-testid="roster-users-table">
+            <UTable v-else :data="users" :columns="columns" data-testid="roster-users-table">
               <template #name-cell="{ row: { original: user } }">
                 <span :data-testid="`roster-user-row-${user.id}`">
                   <ULink v-if="!deleted" :to="userPath(user.id)" class="font-medium text-default hover:underline">{{ userName(user) ?? t('roster.users.none') }}</ULink>

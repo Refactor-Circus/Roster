@@ -4,7 +4,7 @@ import { settle } from '@refactor-circus/atrium/testing'
 import { mockPackageApi, reply, resetPackageApis } from '@refactor-circus/atrium/testing'
 import { endedImpersonation, impersonation, mountRosterPage, page, resetRosterPages, rosterCalls, screensApi } from './support'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
-import { row } from '../ui'
+import { tableRow } from '@refactor-circus/atrium/testing'
 
 /*
  * `roster.impersonations` (AC 54, 69): the list (`roster.impersonations.index`,
@@ -39,13 +39,13 @@ describe('roster.impersonations', () => {
     expect(rosterCalls('GET', '/impersonations')[0]?.query).toEqual({})
     expect(api).toHaveBeenCalledWith('/screens/roster.impersonations', { query: { record: undefined, tab: undefined } })
 
-    const active = row(wrapper, 'roster-impersonation-01JIMPERSONATION')
+    const active = tableRow(wrapper, 'roster-impersonation-01JIMPERSONATION')
     expect(active.text()).toContain('Root')
     expect(active.text()).toContain('Ada Lovelace')
     expect(active.text()).toContain('Ticket 42')
     expect(active.find('[data-testid="roster-impersonation-active"]').exists()).toBe(true)
 
-    const ended = row(wrapper, 'roster-impersonation-01JENDED')
+    const ended = tableRow(wrapper, 'roster-impersonation-01JENDED')
     expect(ended.text()).toContain('stopped')
     expect(ended.find('[data-testid="roster-impersonation-stop"]').exists()).toBe(false)
   })
@@ -67,7 +67,7 @@ describe('roster.impersonations', () => {
     })
 
     const wrapper = await mountRosterPage(Page, '/roster/impersonations')
-    await row(wrapper, 'roster-impersonation-01JIMPERSONATION').find('[data-testid="roster-impersonation-stop"]').trigger('click')
+    await tableRow(wrapper, 'roster-impersonation-01JIMPERSONATION').find('[data-testid="roster-impersonation-stop"]').trigger('click')
     await settle()
 
     const [call] = rosterCalls('DELETE', '/impersonations/{impersonation}')

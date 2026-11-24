@@ -88,16 +88,12 @@ async function purge(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-organization">
-    <UPageHeader>
+    <AtriumPageHeader back="/roster/organizations" :back-label="t('roster.organizations.title')" :description="organization?.slug">
       <template #title>
-        <span class="flex items-center gap-3">
-          <UButton to="/roster/organizations" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('roster.organizations.title')" />
-          <span class="truncate" data-testid="roster-organization-title">{{ organization?.name ?? t('roster.organizations.organization') }}</span>
-          <UBadge v-if="deleted" color="neutral" variant="subtle">{{ t('roster.organizations.deleted') }}</UBadge>
-        </span>
+        <span class="truncate" data-testid="roster-organization-title">{{ organization?.name ?? t('roster.organizations.organization') }}</span>
+        <UBadge v-if="deleted" color="neutral" variant="subtle">{{ t('roster.organizations.deleted') }}</UBadge>
       </template>
-      <template v-if="organization" #description>{{ organization.slug }}</template>
-      <template v-if="transfers && organization && !deleted" #links>
+      <template v-if="transfers && organization && !deleted">
         <UButton
           :to="{ path: '/roster/transfers', query: { organization: organization.slug } }"
           variant="outline"
@@ -107,7 +103,7 @@ async function purge(): Promise<void> {
           {{ t('roster.organizations.import_export') }}
         </UButton>
       </template>
-    </UPageHeader>
+    </AtriumPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.organization" :record="slug">
       <OrganizationState :ready="!pending && organization !== null" :failed="failed" :status="status">

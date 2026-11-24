@@ -4,7 +4,7 @@ import { settle } from '@refactor-circus/atrium/testing'
 import { mockPackageApi, reply, resetPackageApis } from '@refactor-circus/atrium/testing'
 import { ada, confirmWith, grace, mountRosterPage, page, resetRosterPages, rosterCalls, screensApi } from './support'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
-import { choose, row } from '../ui'
+import { chooseOption, selectItems, tableRow } from '@refactor-circus/atrium/testing'
 
 /*
  * `roster.users` (AC 54, 69): the active and deleted tabs (`trashed=only`),
@@ -38,9 +38,9 @@ describe('roster.users', () => {
 
     expect(rosterCalls('GET', '/users')[0]?.query).toEqual({})
     expect(api).toHaveBeenCalledWith('/screens/roster.users', { query: { record: undefined, tab: undefined } })
-    expect(row(wrapper, 'roster-user-row-7').text()).toContain('Ada L.')
-    expect(row(wrapper, 'roster-user-row-7').find('a').attributes('href')).toBe('/roster/users/7')
-    expect(row(wrapper, 'roster-user-row-8').text()).toContain('grace@example.com')
+    expect(tableRow(wrapper, 'roster-user-row-7').text()).toContain('Ada L.')
+    expect(tableRow(wrapper, 'roster-user-row-7').find('a').attributes('href')).toBe('/roster/users/7')
+    expect(tableRow(wrapper, 'roster-user-row-8').text()).toContain('grace@example.com')
     expect(wrapper.find('[data-testid="roster-users-tab-active"]').attributes('aria-current')).toBe('page')
   })
 
@@ -64,12 +64,20 @@ describe('roster.users', () => {
 
     expect(rosterCalls('GET', '/users')[0]?.query).toEqual({ status: 'suspended', search: 'ada' })
 
-    await choose(wrapper, 'roster-users-status', 'pending')
+    await chooseOption(wrapper, 'roster-users-status', 'pending')
     await wrapper.find('[data-testid="roster-users-search"]').setValue('grace')
     await wrapper.find('[data-testid="roster-users-filters"]').trigger('submit')
     await settle()
 
     expect(rosterCalls('GET', '/users').at(-1)?.query).toEqual({ status: 'pending', search: 'grace' })
+
+    // "All statuses" holds '' and sends no status.
+    expect(selectItems(wrapper, 'roster-users-status')[0]).toEqual({ value: '', label: 'All statuses' })
+    await chooseOption(wrapper, 'roster-users-status', '')
+    await wrapper.find('[data-testid="roster-users-filters"]').trigger('submit')
+    await settle()
+
+    expect(rosterCalls('GET', '/users').at(-1)?.query).toEqual({ search: 'grace' })
 
     await wrapper.find('[data-testid="roster-users-clear"]').trigger('click')
     await settle()

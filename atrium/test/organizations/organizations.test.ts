@@ -1,4 +1,4 @@
-import { row as rowOf } from '../ui'
+import { tableRow } from '@refactor-circus/atrium/testing'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Page from '../../src/pages/organizations/index.vue'
 import { settle } from '@refactor-circus/atrium/testing'
@@ -40,7 +40,7 @@ describe('roster.organizations', () => {
     expect(rosterCalls('GET', '/organizations')[0]?.query).toEqual({})
     expect(api).toHaveBeenCalledWith('/screens/roster.organizations', { query: { record: undefined, tab: undefined } })
 
-    const row = rowOf(wrapper, 'roster-organization-row-acme')
+    const row = tableRow(wrapper, 'roster-organization-row-acme')
     expect(row.text()).toContain('Acme')
     expect(row.text()).toContain('crm')
     expect(row.text()).toContain('C-1')
@@ -60,7 +60,7 @@ describe('roster.organizations', () => {
     expect(useRouter().currentRoute.value.query).toEqual({ trashed: 'only' })
     expect(rosterCalls('GET', '/organizations').at(-1)?.query).toEqual({ trashed: 'only' })
     expect(wrapper.find('[data-testid="roster-organizations-tab-deleted"]').attributes('aria-current')).toBe('page')
-    expect(rowOf(wrapper, 'roster-organization-row-umbrella').find('a').exists()).toBe(false)
+    expect(tableRow(wrapper, 'roster-organization-row-umbrella').find('a').exists()).toBe(false)
     expect(wrapper.find('[data-testid="roster-organization-restore-umbrella"]').exists()).toBe(true)
   })
 

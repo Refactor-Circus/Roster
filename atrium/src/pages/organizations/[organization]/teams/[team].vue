@@ -141,24 +141,14 @@ async function destroy(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-team">
-    <UPageHeader>
+    <AtriumPageHeader :back="organizationPath(organizationSlug, 'teams')" :back-label="organization.data.value?.name ?? organizationSlug">
       <template #title>
-        <span class="flex items-center gap-3">
-          <UButton
-            :to="organizationPath(organizationSlug, 'teams')"
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-            :aria-label="organization.data.value?.name ?? organizationSlug"
-            data-testid="roster-team-back"
-          />
-          <span class="truncate" data-testid="roster-team-title">{{ team?.name ?? t('roster.organizations.teams.team') }}</span>
-        </span>
+        <span class="truncate" data-testid="roster-team-title">{{ team?.name ?? t('roster.organizations.teams.team') }}</span>
       </template>
       <template #description>
         <span data-testid="roster-team-organization">{{ organization.data.value?.name ?? organizationSlug }}</span>
       </template>
-    </UPageHeader>
+    </AtriumPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.team" :record="teamSlug">
       <OrganizationState :ready="!pending && team !== null" :failed="failed" :status="status" :not-found="t('roster.organizations.teams.not_found')">

@@ -4,7 +4,7 @@ import { settle } from '@refactor-circus/atrium/testing'
 import { mockPackageApi, reply, resetPackageApis, type PackageRoutes } from '@refactor-circus/atrium/testing'
 import { confirmWith, mountRosterPage, page, resetRosterPages, rosterCalls, screensApi } from '../users/support'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
-import { choose, row } from '../ui'
+import { chooseOption, tableRow } from '@refactor-circus/atrium/testing'
 import {
   acceptedInvitation,
   acmeDetail,
@@ -68,9 +68,9 @@ describe('roster.organization', () => {
       expect(api).toHaveBeenCalledWith('/screens/roster.organization', expect.objectContaining({ query: expect.objectContaining({ record: 'acme' }) }))
       expect(wrapper.find('[data-testid="roster-organization-title"]').text()).toBe('Acme')
       expect(wrapper.find('[data-testid="roster-organization-tab-members"]').attributes('aria-current')).toBe('page')
-      expect(row(wrapper, 'roster-member-row-7').text()).toContain('Ada Lovelace')
-      expect(row(wrapper, 'roster-member-row-7').find('[data-testid="roster-member-owner"]').exists()).toBe(true)
-      expect(row(wrapper, 'roster-member-row-7').text()).toContain('ops')
+      expect(tableRow(wrapper, 'roster-member-row-7').text()).toContain('Ada Lovelace')
+      expect(tableRow(wrapper, 'roster-member-row-7').find('[data-testid="roster-member-owner"]').exists()).toBe(true)
+      expect(tableRow(wrapper, 'roster-member-row-7').text()).toContain('ops')
       expect(wrapper.find('[data-testid="roster-member-remove-7"]').exists()).toBe(false)
       expect(wrapper.find('[data-testid="roster-organization-no-owner"]').exists()).toBe(false)
     })
@@ -162,7 +162,7 @@ describe('roster.organization', () => {
 
       expect(useRouter().currentRoute.value.query).toEqual({ tab: 'teams' })
       expect(rosterCalls('GET', '/organizations/{organization}/teams')[0]?.path).toBe('/organizations/acme/teams')
-      expect(row(wrapper, 'roster-team-row-ops').find('a').attributes('href')).toBe('/roster/organizations/acme/teams/ops')
+      expect(tableRow(wrapper, 'roster-team-row-ops').find('a').attributes('href')).toBe('/roster/organizations/acme/teams/ops')
     })
 
     it('creates a team, then reloads', async () => {
@@ -187,7 +187,7 @@ describe('roster.organization', () => {
       const wrapper = await mountRosterPage(Page, '/roster/organizations/acme?tab=invitations')
 
       expect(rosterCalls('GET', '/organizations/{organization}/invitations')[0]?.path).toBe('/organizations/acme/invitations')
-      expect(row(wrapper, `roster-invitation-row-${invitation.id}`).text()).toContain('new@example.com')
+      expect(tableRow(wrapper, `roster-invitation-row-${invitation.id}`).text()).toContain('new@example.com')
       expect(wrapper.find(`[data-testid="roster-invitation-revoke-${invitation.id}"]`).exists()).toBe(true)
       expect(wrapper.find(`[data-testid="roster-invitation-revoke-${acceptedInvitation.id}"]`).exists()).toBe(false)
     })
@@ -227,7 +227,7 @@ describe('roster.organization', () => {
       const wrapper = await mountRosterPage(Page, '/roster/organizations/acme?tab=settings')
       await wrapper.find('[data-testid="roster-settings-name"]').setValue('Acme Inc')
       await wrapper.find('[data-testid="roster-settings-domains"]').setValue('acme.test\nacme.example')
-      await choose(wrapper, 'roster-settings-status', 'inactive')
+      await chooseOption(wrapper, 'roster-settings-status', 'inactive')
       await wrapper.find('[data-testid="roster-settings-status-reason"]').setValue('Closed')
       await wrapper.find('[data-testid="roster-organization-settings-form"]').trigger('submit')
       await settle()

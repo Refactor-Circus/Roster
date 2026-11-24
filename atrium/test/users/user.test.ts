@@ -17,7 +17,7 @@ import {
   rosterCalls,
   screensApi
 } from './support'
-import { choices, choose, chosen } from '../ui'
+import { chooseOption, selectValue, selectValues } from '@refactor-circus/atrium/testing'
 
 /*
  * `roster.user` (AC 54, 69, 99): the user (`users.show`) and its memberships
@@ -155,7 +155,7 @@ describe('roster.user', () => {
     mockPackageApi('roster', routes({ 'POST /users/{user}/suspend': { data: ada as never } }))
 
     const wrapper = await mountUser()
-    await choose(wrapper, 'roster-user-new-status', 'suspended')
+    await chooseOption(wrapper, 'roster-user-new-status', 'suspended')
     await wrapper.find('[data-testid="roster-user-status-reason"]').setValue('Chargeback')
     await wrapper.find('[data-testid="roster-user-status-form"]').trigger('submit')
     await settle()
@@ -170,7 +170,7 @@ describe('roster.user', () => {
     mockPackageApi('roster', routes({ 'POST /users/{user}/deactivate': { data: ada as never } }))
 
     const wrapper = await mountUser()
-    await choose(wrapper, 'roster-user-new-status', 'deactivated')
+    await chooseOption(wrapper, 'roster-user-new-status', 'deactivated')
     await wrapper.find('[data-testid="roster-user-status-reason"]').setValue('Left the company')
     await wrapper.find('[data-testid="roster-user-status-form"]').trigger('submit')
     await settle()
@@ -189,9 +189,9 @@ describe('roster.user', () => {
     const wrapper = await mountUser()
 
     expect(wrapper.text()).toContain('Chargeback')
-    expect(choices(wrapper, 'roster-user-new-status')).toEqual(['active', 'deactivated'])
+    expect(selectValues(wrapper, 'roster-user-new-status')).toEqual(['active', 'deactivated'])
 
-    await choose(wrapper, 'roster-user-new-status', 'active')
+    await chooseOption(wrapper, 'roster-user-new-status', 'active')
     await wrapper.find('[data-testid="roster-user-status-form"]').trigger('submit')
     await settle()
 
@@ -205,10 +205,10 @@ describe('roster.user', () => {
 
     const wrapper = await mountUser()
 
-    expect(chosen(wrapper, 'roster-user-context-organization')).toBe('acme')
+    expect(selectValue(wrapper, 'roster-user-context-organization')).toBe('acme')
     expect(rosterCalls('GET', '/organizations/{organization}/teams')[0]?.path).toBe('/organizations/acme/teams')
 
-    await choose(wrapper, 'roster-user-context-team', 'ops')
+    await chooseOption(wrapper, 'roster-user-context-team', 'ops')
     await wrapper.find('[data-testid="roster-user-context-form"]').trigger('submit')
     await settle()
 
@@ -216,6 +216,13 @@ describe('roster.user', () => {
     expect(call?.path).toBe('/users/7/context')
     expect(call?.body).toEqual({ organization: 'acme', team: 'ops' })
     expect(rosterCalls('GET', '/users/{user}')).toHaveLength(2)
+
+    // "No team" holds '' and sends a null team.
+    await chooseOption(wrapper, 'roster-user-context-team', '')
+    await wrapper.find('[data-testid="roster-user-context-form"]').trigger('submit')
+    await settle()
+
+    expect(rosterCalls('PUT', '/users/{user}/context').at(-1)?.body).toEqual({ organization: 'acme', team: null })
   })
 
   it('runs the domain join and says how many organizations it joined', async () => {
@@ -313,7 +320,7 @@ describe('roster.user', () => {
     mockPackageApi('roster', routes({ 'POST /users/{user}/suspend': reply(403) }))
 
     const wrapper = await mountUser()
-    await choose(wrapper, 'roster-user-new-status', 'suspended')
+    await chooseOption(wrapper, 'roster-user-new-status', 'suspended')
     await wrapper.find('[data-testid="roster-user-status-form"]').trigger('submit')
     await settle()
 

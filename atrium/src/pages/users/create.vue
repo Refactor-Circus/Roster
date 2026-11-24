@@ -62,14 +62,7 @@ async function create(): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-user-create">
-    <UPageHeader>
-      <template #title>
-        <span class="flex items-center gap-3">
-          <UButton to="/roster/users" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :aria-label="t('roster.users.title')" />
-          <span class="truncate">{{ t('roster.users.new') }}</span>
-        </span>
-      </template>
-    </UPageHeader>
+    <AtriumPageHeader :title="t('roster.users.new')" back="/roster/users" :back-label="t('roster.users.title')" />
 
     <AtriumIntegrationScreen screen-key="roster.user-create">
       <UCard class="max-w-2xl">

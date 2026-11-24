@@ -5,7 +5,7 @@ import { mockPackageApi, reply, resetPackageApis, type PackageRoutes } from '@re
 import { mountRosterPage, resetRosterPages, rosterCalls, screensApi } from '../users/support'
 import { catchDownloads, CSV, failedImport, finishedExport, pendingImport, runningImport } from './support'
 import { clearAtriumData, mockAtriumApi, useRouter } from '@refactor-circus/atrium/testing'
-import { row } from '../ui'
+import { tableRow } from '@refactor-circus/atrium/testing'
 
 /*
  * `roster.transfer` (AC 54, 69): one transfer (`roster.transfers.show`) with
@@ -58,9 +58,9 @@ describe('roster.transfer', () => {
     expect(wrapper.text()).toContain('Ada Lovelace')
     expect(wrapper.find('[data-testid="roster-transfer-confirm-by"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="roster-transfer-summary"]').text()).toContain('Create: 1')
-    expect(row(wrapper, 'roster-transfer-line-2').text()).toContain('new@example.com')
-    expect(row(wrapper, 'roster-transfer-line-3').text()).toContain('Already a user.')
-    expect(wrapper.find('[data-testid="roster-transfer-back"]').attributes('href')).toBe('/roster/transfers?organization=acme')
+    expect(tableRow(wrapper, 'roster-transfer-line-2').text()).toContain('new@example.com')
+    expect(tableRow(wrapper, 'roster-transfer-line-3').text()).toContain('Already a user.')
+    expect(wrapper.find('[data-testid="atrium-page-header-back"]').attributes('href')).toBe('/roster/transfers?organization=acme')
     expect(wrapper.find('[data-testid="roster-transfer-download"]').exists()).toBe(false)
   })
 
@@ -134,7 +134,7 @@ describe('roster.transfer', () => {
 
     expect(rosterCalls('GET', '/transfers/{transfer}/download')[0]?.path).toBe(`/transfers/${finishedExport.id}/download`)
     expect(saved).toEqual([{ href: 'blob:roster-1', download: `roster-export_users-${finishedExport.id}.csv` }])
-    expect(wrapper.find('[data-testid="roster-transfer-back"]').attributes('href')).toBe('/roster/transfers')
+    expect(wrapper.find('[data-testid="atrium-page-header-back"]').attributes('href')).toBe('/roster/transfers')
   })
 
   it('shows Roster\'s message when confirming answers 422', async () => {

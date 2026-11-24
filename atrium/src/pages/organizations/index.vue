@@ -36,7 +36,7 @@ import {
   type RosterOrganization,
   type RosterPage
 } from '../../components/users/users'
-import type { TableColumn } from '@nuxt/ui'
+import type { TableColumn } from '@refactor-circus/atrium/ui'
 
 /**
  * `roster.organizations`: every organization (`roster.organizations.index`),
@@ -151,12 +151,10 @@ async function purge(organization: RosterOrganization): Promise<void> {
 
 <template>
   <div class="space-y-4" data-testid="roster-organizations">
-    <UPageHeader :title="t('roster.organizations.title')">
-      <template #links>
-        <UButton to="/roster/transfers" variant="outline" icon="i-lucide-arrow-up-down" data-testid="roster-organizations-transfers">{{ t('roster.organizations.import_export') }}</UButton>
-        <UButton to="/roster/organizations/create" icon="i-lucide-plus" data-testid="roster-organizations-new">{{ t('roster.organizations.new') }}</UButton>
-      </template>
-    </UPageHeader>
+    <AtriumPageHeader :title="t('roster.organizations.title')">
+      <UButton to="/roster/transfers" variant="outline" icon="i-lucide-arrow-up-down" data-testid="roster-organizations-transfers">{{ t('roster.organizations.import_export') }}</UButton>
+      <UButton to="/roster/organizations/create" icon="i-lucide-plus" data-testid="roster-organizations-new">{{ t('roster.organizations.new') }}</UButton>
+    </AtriumPageHeader>
 
     <AtriumIntegrationScreen screen-key="roster.organizations">
       <div class="space-y-4">
@@ -185,7 +183,7 @@ async function purge(organization: RosterOrganization): Promise<void> {
             <UAlert v-if="notice" color="success" variant="subtle" :title="notice" data-testid="roster-organizations-notice" />
 
             <UEmpty v-if="organizations.length === 0" icon="i-lucide-building-2" :title="t('roster.organizations.empty')" data-testid="roster-organizations-empty" />
-            <UTable v-else :data="organizations" :columns="columns" class="text-sm" data-testid="roster-organizations-table">
+            <UTable v-else :data="organizations" :columns="columns" data-testid="roster-organizations-table">
               <template #name-cell="{ row: { original: organization } }">
                 <span :data-testid="`roster-organization-row-${organization.slug}`">
                   <ULink v-if="!deleted" :to="organizationPath(organization.slug)" class="font-medium text-default hover:underline">{{ organization.name }}</ULink>

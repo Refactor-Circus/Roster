@@ -4,8 +4,8 @@ import { t as n } from "./RosterActionError-DqFXfLSN.js";
 import { t as r } from "./RosterPager-CFRR10Qn.js";
 import { t as i } from "./RosterTabs-C9EsVdM2.js";
 import { c as a, h as o, i as s, l as c, m as l, s as u } from "./users-JqW-WBif.js";
-import { AtriumIntegrationScreen as d } from "@refactor-circus/atrium";
-import { UAlert as f, UBadge as p, UButton as ee, UEmpty as te, UForm as ne, UFormField as m, UInput as re, ULink as ie, UPageHeader as ae, UTable as oe } from "@refactor-circus/atrium/ui";
+import { AtriumIntegrationScreen as d, AtriumPageHeader as f } from "@refactor-circus/atrium";
+import { UAlert as p, UBadge as ee, UButton as te, UEmpty as ne, UForm as m, UFormField as re, UInput as ie, ULink as ae, UTable as oe } from "@refactor-circus/atrium/ui";
 import { Fragment as h, computed as g, createBlock as _, createCommentVNode as v, createElementBlock as y, createElementVNode as b, createTextVNode as x, createVNode as S, defineComponent as C, openBlock as w, reactive as T, ref as E, renderList as se, toDisplayString as D, unref as O, watch as k, withCtx as A } from "vue";
 import { useI18n as j } from "vue-i18n";
 import { useRoute as M, useRouter as ce } from "vue-router";
@@ -124,9 +124,9 @@ var N = {
 			}) && (U.value = t ?? z("roster.organizations.danger.purge_queued"), await Y());
 		}
 		return (a, o) => {
-			let s = ee, c = ae, l = re, u = m, g = ne, C = f, T = te, E = ie, k = p, j = oe, M = d;
+			let s = te, c = f, l = ie, u = re, g = m, C = p, T = ne, E = ae, k = ee, j = oe, M = d;
 			return w(), y("div", N, [S(c, { title: O(z)("roster.organizations.title") }, {
-				links: A(() => [S(s, {
+				default: A(() => [S(s, {
 					to: "/roster/transfers",
 					variant: "outline",
 					icon: "i-lucide-arrow-up-down",
@@ -258,7 +258,6 @@ var N = {
 								key: 2,
 								data: O(X),
 								columns: O(pe),
-								class: "text-sm",
 								"data-testid": "roster-organizations-table"
 							}, {
 								"name-cell": A(({ row: { original: e } }) => [b("span", { "data-testid": `roster-organization-row-${e.slug}` }, [
