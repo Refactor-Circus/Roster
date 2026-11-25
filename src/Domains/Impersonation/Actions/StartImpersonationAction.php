@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Impersonation\Actions;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
 use RefactorCircus\Roster\Domains\Impersonation\Data\StartedImpersonation;
 use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Events\ImpersonationStartedActionEvent;
@@ -16,7 +18,6 @@ use RefactorCircus\Roster\Domains\Impersonation\Events\ImpersonationStartingActi
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
 use RefactorCircus\Roster\Support\Concerns\ResolvesScopes;
 use RefactorCircus\Roster\Support\Users;
 
@@ -34,7 +35,9 @@ final class StartImpersonationAction
      *
      * The link only works in a browser signed in as `$actor`. Nobody can
      * impersonate themselves, an inactive user, a super-admin (unless they
-     * are one), or anyone holding a permission they lack.
+     * are one), or anyone holding an ability they lack. When the bound
+     * permissions cannot list either user's abilities, only a super-admin
+     * may impersonate.
      */
     public function execute(Model $user, StartImpersonationData $data, Model $actor): StartedImpersonation
     {
@@ -84,14 +87,24 @@ final class StartImpersonationAction
             $fail('not_a_member');
         }
 
-        if ($this->permissions->isSuperAdmin($user) && ! $this->permissions->isSuperAdmin($actor)) {
+        $target = $user instanceof Authenticatable ? $user : null;
+        $impersonator = $actor instanceof Authenticatable ? $actor : null;
+        $superAdmin = $this->permissions->isSuperAdmin($impersonator);
+
+        if ($this->permissions->isSuperAdmin($target) && ! $superAdmin) {
             $fail('impersonate_super');
         }
 
-        // Acting as someone must never hand you powers you do not have.
-        $missing = array_diff($this->permissions->for($user, $organization), $this->permissions->for($actor, $organization));
+        if ($superAdmin) {
+            return;
+        }
 
-        if ($missing !== [] && ! $this->permissions->isSuperAdmin($actor)) {
+        // Acting as someone must never hand you powers you do not have; an
+        // implementation that cannot list them refuses rather than guesses.
+        $theirs = $this->permissions->abilities($target, $organization);
+        $mine = $this->permissions->abilities($impersonator, $organization);
+
+        if ($theirs === null || $mine === null || array_diff($theirs, $mine) !== []) {
             $fail('impersonate_escalation');
         }
     }

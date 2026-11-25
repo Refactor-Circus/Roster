@@ -82,6 +82,7 @@ it('lets a throwing requirement propagate: sign-in fails closed', function (): v
 });
 
 it('gives super-admins null before any requirement is asked', function (): void {
+    withRoleStore();
     $boss = user(['email' => 'boss@acme.test']);
     grant($boss, 'super-admin');
 
@@ -93,6 +94,7 @@ it('gives super-admins null before any requirement is asked', function (): void 
 });
 
 it('gives super-admins null even when a requirement claims their email', function (): void {
+    withRoleStore();
     $boss = user(['email' => 'boss@acme.test']);
     grant($boss, 'super-admin');
     user(['email' => 'ada@acme.test']);

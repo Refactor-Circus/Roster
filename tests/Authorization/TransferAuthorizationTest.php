@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
+require_once __DIR__.'/fixtures.php';
+
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
-use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ConfirmImportAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartExportAction;
 use RefactorCircus\Roster\Domains\Transfer\Actions\StartImportAction;
@@ -41,23 +41,10 @@ it('lets an organization admin import members there, but not elsewhere', functio
         ->assertForbidden();
 });
 
-it('refuses roles the importer cannot assign', function (): void {
-    $custom = RoleModel::factory()->create(['scope' => 'organization', 'slug' => 'auditor']);
-    $custom->permissions()->sync(PermissionModel::query()->where('name', 'roster.audit.view')->pluck('id'));
-    $lead = user();
-    app(AddMemberAction::class)->execute($this->acme, new AddMemberData(user: $lead->getRouteKey()));
-    RoleAssignmentModel::query()->create(['role_id' => roleWith(['roster.members.manage', 'roster.members.view'], 'organization')->id, 'user_id' => $lead->getKey(), 'organization_id' => $this->acme->id]);
-
-    $transfer = app(StartImportAction::class)->execute(new StartImportData(type: TransferType::ImportMembers, organization: 'acme', content: "email,role\nnew@acme.test,auditor"), $lead);
-
-    expect($transfer->rows()[0]['action'])->toBe('error')
-        ->and($transfer->rows()[0]['reasons'][0])->toContain('cannot assign the auditor role');
-});
-
 it('turns rows outside the organization\'s domains into errors without invitation rights', function (): void {
     $manager = user();
     app(AddMemberAction::class)->execute($this->acme, new AddMemberData(user: $manager->getRouteKey()));
-    RoleAssignmentModel::query()->create(['role_id' => roleWith(['roster.members.manage'], 'organization')->id, 'user_id' => $manager->getKey(), 'organization_id' => $this->acme->id]);
+    grant($manager, roleGranting(['roster.members.manage'], 'organization'), $this->acme);
 
     $transfer = app(StartImportAction::class)->execute(new StartImportData(type: TransferType::ImportMembers, organization: 'acme', content: "email\nfriend@example.com"), $manager);
 
@@ -67,7 +54,7 @@ it('turns rows outside the organization\'s domains into errors without invitatio
 it('checks the confirmer\'s permission again at confirm', function (): void {
     $transfer = app(StartImportAction::class)->execute(new StartImportData(type: TransferType::ImportMembers, organization: 'acme', content: "email\nnew@acme.test"), $this->admin);
 
-    RoleAssignmentModel::query()->where('user_id', $this->admin->getKey())->delete();
+    app(Roles::class)->revoke($this->admin, $this->acme);
 
     expect(fn () => app(ConfirmImportAction::class)->execute($transfer, $this->admin))->toThrow(ValidationException::class);
     expect($transfer->refresh()->status)->toBe(TransferStatus::AwaitingConfirmation)

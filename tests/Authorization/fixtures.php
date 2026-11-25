@@ -6,9 +6,6 @@ use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
-use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
@@ -17,8 +14,9 @@ use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 
 /**
  * One of everything, for exercising every route and tool: an organization
- * `acme` with team `ops`, a member `target`, a pending invitation, an app
- * permission `invoices.edit`, and a custom role assigned to the target.
+ * `acme` with team `ops`, a member `target` holding the `member` role there,
+ * a pending invitation, an impersonation, a link and an import awaiting
+ * confirmation.
  *
  * @return array<string, mixed>
  */
@@ -27,13 +25,11 @@ function authorizationWorld(): array
     $acme = organization(attributes: ['name' => 'Acme']);
     $target = user(['email' => 'target@example.com']);
     app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $target->getRouteKey()));
+    grant($target, 'member', $acme);
     $ops = app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'));
     app(AddTeamMemberAction::class)->execute($ops, new AddTeamMemberData(user: $target->getRouteKey()));
 
     $invitation = InvitationModel::factory()->create(['organization_id' => $acme->id, 'email' => 'new@example.com']);
-    PermissionModel::query()->create(['name' => 'invoices.edit']);
-    $role = RoleModel::factory()->create(['scope' => 'global', 'slug' => 'custom']);
-    $assignment = RoleAssignmentModel::query()->create(['role_id' => $role->id, 'user_id' => $target->getKey()]);
 
     $impersonation = ImpersonationModel::factory()->create(['impersonator_id' => user()->getKey(), 'user_id' => $target->getKey()]);
 
@@ -46,7 +42,7 @@ function authorizationWorld(): array
         'requested_by' => user()->getKey(),
     ]);
 
-    return compact('acme', 'target', 'ops', 'invitation', 'role', 'assignment', 'impersonation', 'transfer');
+    return compact('acme', 'target', 'ops', 'invitation', 'impersonation', 'transfer');
 }
 
 /**
@@ -82,6 +78,8 @@ function apiRoutes(): array
         'users.reject' => ['POST', 'roster.users.reject', $user, []],
         'users.context.update' => ['PUT', 'roster.users.context.update', $user, ['organization' => 'acme']],
         'users.domain-join' => ['POST', 'roster.users.domain-join', $user, []],
+        'stats.users' => ['GET', 'roster.stats.users', $none, []],
+        'search.users' => ['GET', 'roster.search.users', $none, ['q' => 'target']],
         'organizations.index' => ['GET', 'roster.organizations.index', $none, []],
         'organizations.store' => ['POST', 'roster.organizations.store', $none, ['name' => 'New', 'owner' => 1]],
         'organizations.show' => ['GET', 'roster.organizations.show', $org, []],
@@ -94,6 +92,8 @@ function apiRoutes(): array
         'organizations.sync-many' => ['POST', 'roster.organizations.sync-many', $none, ['records' => [['source' => 'erp', 'external_id' => 'C-3', 'name' => 'Globex']]]],
         'organizations.links.update' => ['PUT', 'roster.organizations.links.update', fn (): array => ['acme', 'crm'], ['external_id' => 'X-1']],
         'organizations.links.destroy' => ['DELETE', 'roster.organizations.links.destroy', fn (): array => ['acme', 'erp'], []],
+        'stats.organizations' => ['GET', 'roster.stats.organizations', $none, []],
+        'search.organizations' => ['GET', 'roster.search.organizations', $none, ['q' => 'acme']],
         'members.index' => ['GET', 'roster.organizations.members.index', $org, []],
         'members.store' => ['POST', 'roster.organizations.members.store', $org, ['user' => 1]],
         'members.destroy' => ['DELETE', 'roster.organizations.members.destroy', fn (array $w): array => ['acme', $w['target']->getRouteKey()], []],
@@ -107,19 +107,6 @@ function apiRoutes(): array
         'invitations.index' => ['GET', 'roster.organizations.invitations.index', $org, []],
         'invitations.store' => ['POST', 'roster.organizations.invitations.store', $org, ['email' => 'x@example.com']],
         'invitations.revoke' => ['DELETE', 'roster.organizations.invitations.revoke', fn (array $w): array => ['acme', $w['invitation']->id], []],
-        'permissions.index' => ['GET', 'roster.permissions.index', $none, []],
-        'permissions.store' => ['POST', 'roster.permissions.store', $none, ['name' => 'reports.view']],
-        'permissions.update' => ['PATCH', 'roster.permissions.update', fn (): array => ['invoices.edit'], ['description' => 'x']],
-        'permissions.destroy' => ['DELETE', 'roster.permissions.destroy', fn (): array => ['invoices.edit'], []],
-        'roles.index' => ['GET', 'roster.roles.index', $none, []],
-        'roles.store' => ['POST', 'roster.roles.store', $none, ['name' => 'R', 'scope' => 'global']],
-        'roles.show' => ['GET', 'roster.roles.show', fn (array $w): array => [$w['role']->id], []],
-        'roles.update' => ['PATCH', 'roster.roles.update', fn (array $w): array => [$w['role']->id], ['name' => 'R2']],
-        'roles.destroy' => ['DELETE', 'roster.roles.destroy', fn (array $w): array => [$w['role']->id], []],
-        'users.roles.index' => ['GET', 'roster.users.roles.index', $user, []],
-        'users.roles.store' => ['POST', 'roster.users.roles.store', $user, ['role' => 'x']],
-        'users.roles.destroy' => ['DELETE', 'roster.users.roles.destroy', fn (array $w): array => [$w['target']->getRouteKey(), $w['assignment']->id], []],
-        'users.permissions' => ['GET', 'roster.users.permissions', $user, []],
         'users.impersonate' => ['POST', 'roster.users.impersonate', $user, ['reason' => 'Ticket 1']],
         'impersonations.index' => ['GET', 'roster.impersonations.index', $none, []],
         'impersonations.destroy' => ['DELETE', 'roster.impersonations.destroy', fn (array $w): array => [$w['impersonation']->id], []],

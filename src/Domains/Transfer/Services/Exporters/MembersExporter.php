@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace RefactorCircus\Roster\Domains\Transfer\Services\Exporters;
 
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Support\Users;
@@ -16,7 +16,10 @@ use RuntimeException;
 
 final class MembersExporter implements Exporter
 {
-    public function __construct(private readonly Users $users) {}
+    public function __construct(
+        private readonly Users $users,
+        private readonly Roles $roles,
+    ) {}
 
     public function headers(): array
     {
@@ -35,17 +38,8 @@ final class MembersExporter implements Exporter
             ->limit($limit)
             ->get();
 
-        // Every member's organization roles for the chunk, in one query.
-        $roles = RoleAssignmentModel::query()
-            ->where('organization_id', $organization->getKey())
-            ->whereIn('user_id', $memberships->pluck('user_id')->all())
-            ->with('role')
-            ->get()
-            ->groupBy(fn (RoleAssignmentModel $assignment): string => (string) $assignment->user_id)
-            ->map(fn (Collection $assignments): string => $assignments->map(fn (RoleAssignmentModel $assignment): string => (string) $assignment->role?->slug)->sort()->implode(';'));
-
         return $memberships
-            ->map(function (MembershipModel $membership) use ($organization, $roles): array {
+            ->map(function (MembershipModel $membership) use ($organization): array {
                 $user = $membership->user;
 
                 return [
@@ -56,7 +50,8 @@ final class MembersExporter implements Exporter
                         $user instanceof Model ? ($this->users->profileIfExists($user)->display_name ?? null) : null,
                         $user instanceof Model ? $this->users->status($user)->value : null,
                         $membership->teams->map(fn (TeamModel $team): string => $team->slug)->sort()->implode(';'),
-                        $roles->get((string) $membership->user_id, ''),
+                        // The organization roles the bound role store holds for them.
+                        $user instanceof Authenticatable ? implode(';', $this->roles->of($user, $organization)) : '',
                         $user instanceof Model && $organization->isOwnedBy($user),
                         $membership->source,
                         $membership->created_at?->toIso8601String(),

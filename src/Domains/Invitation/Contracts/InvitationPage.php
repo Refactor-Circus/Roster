@@ -9,9 +9,9 @@ use Illuminate\Http\Request;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
 
 /**
- * The page an invitation email links to. Bound to the plain page by default
- * and to the Atrium page while Atrium is installed; an application may bind
- * its own.
+ * The page an invitation email links to. Bound to the plain page by default;
+ * an application may bind its own, or send the email's link elsewhere with
+ * `roster.invitations.accept_url`.
  */
 interface InvitationPage
 {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use RefactorCircus\Roster\Domains\Organization\Http\Controllers\MemberController;
 use RefactorCircus\Roster\Domains\Organization\Http\Controllers\OrganizationController;
+use RefactorCircus\Roster\Domains\Organization\Http\Controllers\OrganizationDirectoryController;
 use RefactorCircus\Roster\Domains\Organization\Http\Controllers\OrganizationSyncController;
 use RefactorCircus\Roster\Domains\Organization\Http\Controllers\UserContextController;
 use RefactorCircus\Roster\Http\Controllers\TrashController;
@@ -30,3 +31,7 @@ Route::post('organizations/{organization}/transfer', [OrganizationController::cl
 Route::get('organizations/{organization}/members', [MemberController::class, 'index'])->name('organizations.members.index');
 Route::post('organizations/{organization}/members', [MemberController::class, 'store'])->name('organizations.members.store');
 Route::delete('organizations/{organization}/members/{user}', [MemberController::class, 'destroy'])->name('organizations.members.destroy');
+
+// Outside `organizations/`, so neither segment can be mistaken for a slug.
+Route::get('stats/organizations', [OrganizationDirectoryController::class, 'stats'])->name('stats.organizations');
+Route::get('search/organizations', [OrganizationDirectoryController::class, 'search'])->name('search.organizations');

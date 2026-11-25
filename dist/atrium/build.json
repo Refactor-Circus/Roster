@@ -1,0 +1,13 @@
+{
+  "key": "roster",
+  "shared_api": "1.0",
+  "root": "../../atrium",
+  "inputs": [
+    "src",
+    "../client/src",
+    "package.json",
+    "vite.config.ts",
+    "pnpm-lock.yaml"
+  ],
+  "hash": "8957169a0ceec8f1d3527c4a7aef11d7d7163ff352d47ffd4b000ac8104ffc69"
+}

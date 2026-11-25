@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster\Domains\Transfer\Http\Requests;
 
 use Illuminate\Validation\Rule;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Transfer\Actions\ShowImportTemplateAction;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Http\Request;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 use Symfony\Component\HttpFoundation\Response;
 
 /**

@@ -1,5 +1,5 @@
 ---
-description: "Roster requests authorize through its permission Authorizer: ability(), scope() and self() on AuthorizesWithRoster, never allows()/allowsEach(); {prefix}.{verb} goes to the Gate policy of the model registered for the prefix in Resources (core policies from roster.policies; package resources register their own policies), which answers with Authorizer::permits(); same check on HTTP, MCP and Atrium; guest 401 vs 403"
+description: "Roster requests authorize through its Authorizer, which asks Keystone's Permissions contract: ability(), scope() and self() on AuthorizesWithRoster, never allows()/allowsEach(); {prefix}.{verb} goes to the Gate policy of the model registered for the prefix in Resources (core policies from roster.policies; package resources register their own policies), which answers with Authorizer::permits(); same check on HTTP and MCP; guest 401 vs 403"
 tags:
   - http
   - mcp
@@ -13,7 +13,7 @@ reviewed_hash: 051a33575df9
 ---
 # Authorization
 
-Every Roster request, HTTP or MCP, authorizes in `authorize()` through Roster's permission `Authorizer`, never in the controller or tool. The request names the permission it needs; it never asks a policy itself.
+Every Roster request, HTTP or MCP, authorizes in `authorize()` through Roster's `Authorizer` (`Support\Authorization\Authorizer`), never in the controller or tool. The request names the ability it needs; it never asks a policy itself. Roster owns no roles or permissions: the Authorizer asks Keystone's `Permissions` contract, whichever implementation is bound (a role store, or Keystone's Gate fallback).
 
 ## Policies
 
@@ -38,7 +38,7 @@ class TeamMemberPolicy extends Policy
 - `Http\Request` and `Mcp\Request` use `Support\Concerns\AuthorizesWithRoster`, which supplies `authorize()`. Concrete requests do not override `authorize()` and never call `allows()`, `allowsEach()` or the Gate. They declare:
   - `ability()`: the permission the action needs, `roster.{resource}.{verb}`. Required.
   - `scope()`: the `OrganizationModel` or `TeamModel` the permission is checked in; `null` (the default) for global. Organization request bases already return `organization()`.
-  - `self()`: the user the request is about, when everyone may do it to themselves (switching their own context, listing their own role assignments or transfers).
+  - `self()`: the user the request is about, when everyone may do it to themselves (switching their own context, listing their own transfers).
 
 ```php
 final class UpdateTeamRequest extends TeamRequest
@@ -55,20 +55,21 @@ final class UpdateTeamRequest extends TeamRequest
 }
 ```
 
-- A list asked without a scope of its own returns `true` from `acrossOrganizations()`. A user holding the permission only in some organizations then passes, and `persist()` hands `$this->organizations()` (null for no limit) to the action, so they see only what falls within those.
+- A list or search asked without a scope of its own returns `true` from `acrossOrganizations()`. A user holding the permission only in some organizations then passes, and `persist()` hands `$this->organizations()` (null for no limit) to the action, so they see only what falls within those (`SearchOrganizationsRequest` does this for `GET search/organizations`).
+- A request whose token is its only credential is the one kind that overrides `authorize()`: `InvitationResponseRequest` (accept and decline, as the signed-in invitee) and `LookUpInvitationRequest` (the public invitation lookup, logged in `docs/agent/standards-feedback.md` with what stops its tokens being guessed). A new one is a deviation to log the same way.
 - Resolve route-bound or slug-bound models through the shared request helpers, so `scope()` and `persist()` use one resolution ([[request-persist]], [[mcp-model-binding]]).
 
 ## How the Authorizer answers
 
-- Resources live in the `Domains\Permission\Services\Resources` singleton (prefix => model). `Authorizer::RESOURCES` lists only the six core resources (`users`, `organizations`, `members`, `teams`, `invitations`, `roles`), registered as `roster.{resource}` by `PermissionServiceProvider::register()` through the `@internal` `rosterResource()`; other packages use `resource()` from their providers' `boot()`, which refuses `roster.*`. Permissions are added the same way through `PermissionCatalogue` (`permission()` / `@internal` `rosterPermission()`).
+- Resources live in the `Support\Authorization\Resources` singleton (prefix => model). `Authorizer::RESOURCES` lists only the five core resources (`users`, `organizations`, `members`, `teams`, `invitations`), registered as `roster.{resource}` by `RosterServiceProvider::register()` through the `@internal` `rosterResource()`; other packages use `resource()` from their providers' `boot()`, which refuses `roster.*`. Abilities are declared in Keystone's `Abilities` registry (`define()`), Roster's by `RosterAbilities::define()` in `RosterServiceProvider::boot()`.
 - `Authorizer::check($actor, $permission, $scope, $self)` refuses permissions blocked while impersonating, then sends `{prefix}.{verb}` to the Gate policy of the model registered for the prefix (everything before the last dot) as `[ModelClass, $scope, $self]`. An unregistered prefix has no policy and is denied. A `roster.*` resource with no policy answers with `permits()`; a package resource with no policy throws `InvalidArgumentException` naming it.
-- Answers are remembered for the request and dropped whenever `Permissions` forgets anything or a resource is registered (`Resources::generation()`).
-- The same check guards every surface: HTTP and MCP requests through `AuthorizesWithRoster`, Atrium screens through `ScreenAccess` and `@rosterCan('roster.…', $scope, $self)`. Hide a control the user may not use with `@rosterCan`.
+- `Authorizer::permits()` is the impersonation block, the self rule, then `Permissions::allows($actor, $ability, $scope)`; the organization owner rule is `OrganizationModel::grantsByItself()` (Keystone's `Scope`), outside `OrganizationModel::GLOBAL_ONLY_ABILITIES`. The Authorizer asks the bound contract every time; it remembers only the policy per ability (until `Resources::generation()` changes) and, per request, the organizations each actor owns and the parents of records.
+- The same check guards both of Roster's surfaces: HTTP and MCP requests, through `AuthorizesWithRoster`. Roster renders no screens, so it has no Blade directive or view helper for permissions; a frontend learns what a user may do from the API (a 403) or from the role store, and the host's own Blade uses `@can`, which reaches the same check through the Gate.
 - `roster.authorization` (default `true`) turns the check on. Set to `false`, every check passes and the route middleware is the only guard.
 
 ## Middleware and responses
 
-- The route middleware runs first; the request's permission check is the per-operation decision on top of it.
+- The route middleware runs first; the request's ability check is the per-operation decision on top of it.
 - A refused guest gets 401, a refused signed-in user 403 (Keystone's request base).
 
 ## Enforcement

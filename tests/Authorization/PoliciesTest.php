@@ -8,11 +8,11 @@ use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Organization\Mcp\Tools\UpdateOrganizationTool;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationDomainModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\CreateTeamData;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Domains\User\Models\UserModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 use RefactorCircus\Roster\Tests\Fixtures\Policies\FrozenOrganizationPolicy;
 use RefactorCircus\Roster\Tests\Fixtures\Policies\OpenPolicy;
 
@@ -94,6 +94,7 @@ it('answers the application\'s own checks on records', function (): void {
     $acme = organization($owner, ['name' => 'Acme', 'domains' => ['acme.test']]);
     $member = user();
     app(AddMemberAction::class)->execute($acme, new AddMemberData(user: $member->getRouteKey()));
+    grant($member, 'member', $acme);
     $ops = app(CreateTeamAction::class)->execute($acme, new CreateTeamData(name: 'Ops'));
     $domain = OrganizationDomainModel::query()->sole();
 

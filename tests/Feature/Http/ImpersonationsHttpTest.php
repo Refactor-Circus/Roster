@@ -7,6 +7,10 @@ use RefactorCircus\Roster\Domains\Impersonation\Mcp\Tools\StartImpersonationTool
 use RefactorCircus\Roster\Domains\Impersonation\Mcp\Tools\StopImpersonationTool;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 
+// Impersonating compares what both users may do, which only a role store can
+// list: without one only a super-admin may impersonate.
+beforeEach(fn () => withRoleStore());
+
 it('starts over HTTP, returning the link once', function (): void {
     $admin = user();
     $ada = user();

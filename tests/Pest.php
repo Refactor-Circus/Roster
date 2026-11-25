@@ -2,28 +2,25 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Str;
 use Laravel\Mcp\Server\Testing\TestResponse;
 use Laravel\Mcp\Server\Tool;
-use RefactorCircus\Atrium\Testing\ResetsScreenExtensions;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions as PermissionsContract;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
+use RefactorCircus\Keystone\Testing\FakeRoles;
 use RefactorCircus\Keystone\Testing\McpTools;
 use RefactorCircus\Keystone\Testing\Parity;
+use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
+use RefactorCircus\Roster\Domains\Invitation\Services\InvitationTokens;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\RosterServer;
-use RefactorCircus\Roster\Tests\AtriumFeaturesTestCase;
-use RefactorCircus\Roster\Tests\AtriumUnavailableTestCase;
 use RefactorCircus\Roster\Tests\AuthorizationTestCase;
-use RefactorCircus\Roster\Tests\BrowserTestCase;
 use RefactorCircus\Roster\Tests\CortexTestCase;
 use RefactorCircus\Roster\Tests\DefaultsTestCase;
 use RefactorCircus\Roster\Tests\KeenTestCase;
-use RefactorCircus\Roster\Tests\PennantPlusTestCase;
 use RefactorCircus\Roster\Tests\RenamedTablesTestCase;
 use RefactorCircus\Roster\Tests\TestCase;
 use RefactorCircus\Roster\Tests\TraitlessTestCase;
@@ -32,35 +29,15 @@ use RefactorCircus\Roster\Tests\UlidTestCase;
 use Workbench\App\Models\User;
 use Workbench\Database\Factories\UserFactory;
 
-// pest-plugin-browser removes its output directories with @rmdir() when it
-// boots. A missing directory raises a (suppressed) warning that failOnWarning
-// turns into a failed run, even with every test passing, so make sure each
-// one it removes exists; empty directories remove cleanly.
-foreach (['Traces', 'Screenshots', 'Screenshots/Sliders', 'Screenshots/ImageDiffView'] as $directory) {
-    if (! is_dir(__DIR__.'/Browser/'.$directory)) {
-        @mkdir(__DIR__.'/Browser/'.$directory, recursive: true);
-    }
-}
-
 uses(TestCase::class)->in('Feature');
 uses(AuthorizationTestCase::class)->in('Authorization');
-
-// Screen extensions live on Atrium's app-lifetime registry: whatever a test
-// registers is gone after it. Atrium is optional, so only while it is installed.
-if (trait_exists(ResetsScreenExtensions::class)) {
-    uses(ResetsScreenExtensions::class)->in('Feature', 'Authorization');
-}
 uses(CortexTestCase::class)->in('Cortex');
-uses(BrowserTestCase::class)->in('Browser');
 uses(DefaultsTestCase::class)->in('Defaults');
 uses(TraitlessTestCase::class)->in('Modes/Traitless');
 uses(UlidTestCase::class)->in('Modes/Ulid');
 uses(TestCase::class)->in('Modes/Owned');
-uses(AtriumFeaturesTestCase::class)->in('Modes/AtriumFeatures');
 uses(KeenTestCase::class)->in('Modes/Keen');
-uses(PennantPlusTestCase::class)->in('Modes/PennantPlus');
 uses(TransfersUnavailableTestCase::class)->in('Modes/TransfersUnavailable');
-uses(AtriumUnavailableTestCase::class)->in('Modes/AtriumUnavailable');
 uses(RenamedTablesTestCase::class)->in('Modes/RenamedTables');
 
 /**
@@ -82,33 +59,62 @@ function user(array $attributes = []): User
 }
 
 /**
- * Give a user a role by slug: global, in an organization, or on a team.
+ * Bind Keystone's fakes as the role store, with the default roles a role
+ * store seeds from Roster's declared abilities, for a test that needs roles
+ * outside tests/Authorization (which always has them). Roster itself runs on
+ * Keystone's Gate fallback otherwise.
  */
-function grant(User $user, string $slug, ?OrganizationModel $organization = null, ?TeamModel $team = null): void
+function withRoleStore(): FakeRoles
 {
-    $role = RoleModel::query()->where('slug', $slug)->firstOrFail();
-
-    RoleAssignmentModel::query()->create([
-        'role_id' => $role->getKey(),
-        'user_id' => $user->getKey(),
-        'organization_id' => $organization?->getKey() ?? $team?->organization_id,
-        'team_id' => $team?->getKey(),
-    ]);
-
-    app(Permissions::class)->flush();
+    return AuthorizationTestCase::installRoleStore();
 }
 
 /**
- * A global role holding exactly the given permissions.
- *
- * @param  array<int, string>  $permissions
+ * The bound role store, which a test installs with `withRoleStore()`.
  */
-function roleWith(array $permissions, string $scope = 'global'): RoleModel
+function roleStore(): FakeRoles
 {
-    $role = RoleModel::factory()->create(['scope' => $scope]);
-    $role->permissions()->sync(PermissionModel::query()->whereIn('name', $permissions)->pluck('id'));
+    $roles = app(Roles::class);
 
-    return $role;
+    if (! $roles instanceof FakeRoles) {
+        throw new LogicException('No role store is bound: call withRoleStore() first.');
+    }
+
+    return $roles;
+}
+
+/**
+ * Give a user a role by slug, from the bound role store: global, in an
+ * organization, or on a team.
+ */
+function grant(User $user, string $slug, ?OrganizationModel $organization = null, ?TeamModel $team = null): void
+{
+    if (! roleStore()->assign($user, $slug, $team ?? $organization)) {
+        throw new LogicException("The role [{$slug}] is not defined for that scope.");
+    }
+
+    app(PermissionsContract::class)->forget($user);
+}
+
+/**
+ * A new role in the bound role store granting exactly the given abilities,
+ * held globally, in an organization or on a team. Returns its slug, for
+ * `grant()`.
+ *
+ * @param  list<string>  $abilities
+ * @param  'global'|'organization'|'team'  $scope
+ */
+function roleGranting(array $abilities, string $scope = 'global'): string
+{
+    $slug = 'role-'.Str::lower(Str::random(8));
+
+    roleStore()->define($slug, $abilities, match ($scope) {
+        'organization' => OrganizationModel::class,
+        'team' => TeamModel::class,
+        default => null,
+    });
+
+    return $slug;
 }
 
 function organization(?User $owner = null, array $attributes = []): OrganizationModel
@@ -117,24 +123,53 @@ function organization(?User $owner = null, array $attributes = []): Organization
 }
 
 /**
+ * A pending invitation into the organization, onto the given teams, stored
+ * as CreateInvitationAction stores one: by its token's hash only. Returns the
+ * plain token, which only the invitation email carries.
+ *
+ * @param  array<int, TeamModel>  $teams
+ * @param  array<string, mixed>  $attributes
+ */
+function invitationToken(OrganizationModel $organization, array $teams = [], array $attributes = []): string
+{
+    $token = InvitationTokens::generate();
+
+    InvitationModel::factory()->create($attributes + [
+        'organization_id' => $organization->getKey(),
+        'token_hash' => InvitationTokens::hash($token),
+        'teams' => array_map(fn (TeamModel $team): mixed => $team->getKey(), $teams),
+    ]);
+
+    return $token;
+}
+
+/**
  * Actions missing from a surface, keyed by surface.
  *
- * Every use case must be reachable from the HTTP API, MCP and a UI. The UI
- * surface is the Atrium dashboard plus Roster's user-facing web pages
- * (accepting an invitation is self-service, not an admin screen). An Action
- * counts as reachable when its class name appears in that surface's request
- * or controller classes.
+ * Every use case must be reachable from the HTTP API and MCP. An Action
+ * counts as reachable when its class name appears in that surface's
+ * request classes.
  *
  * @return array<string, array<int, string>>
  */
 const PARITY_EXCEPTIONS = [
     // Using the one-time link swaps a browser session; it has no API or
-    // MCP meaning. Start, list and stop are on every surface.
+    // MCP meaning. Start, list and stop are on both surfaces.
     'EnterImpersonationAction' => ['http', 'mcp'],
-    // Machine-to-machine sync from an ERP or CRM. In Atrium the same results
-    // come from the organization CSV import (bulk) and the link form.
-    'SyncOrganizationAction' => ['ui'],
-    'SyncOrganizationsAction' => ['ui'],
+    // The public invitation lookup is for the page a guest opens from the
+    // email link, served over HTTP by token alone. An MCP tool acts as a
+    // signed-in user, who has no use for it; offering it there would only
+    // add another way to probe tokens.
+    'LookUpInvitationAction' => ['mcp'],
+    // A typeahead for UIs: answers a handful of names as a user types.
+    // Agents find users with list-users-tool, whose `search` matches
+    // anywhere in the name, email or display name and pages through all of
+    // them.
+    'SearchUsersAction' => ['mcp'],
+    // A typeahead for UIs, as SearchUsersAction is. Agents find
+    // organizations with list-organizations-tool, whose `search` matches
+    // anywhere in the name or slug and pages through all of them.
+    'SearchOrganizationsAction' => ['mcp'],
 ];
 
 function parityGaps(): array
@@ -144,10 +179,5 @@ function parityGaps(): array
     return Parity::gaps($root.'/Domains/*/Actions/*.php', [
         'http' => $root.'/Domains/*/Http/Requests/*.php',
         'mcp' => $root.'/Domains/*/Mcp/Requests/*.php',
-        'ui' => [
-            $root.'/Atrium/Http/Controllers/*.php',
-            $root.'/Domains/*/Http/Controllers/*WebController.php',
-            $root.'/Domains/*/Http/Controllers/TransferFileController.php',
-        ],
     ], PARITY_EXCEPTIONS);
 }

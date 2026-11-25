@@ -10,11 +10,6 @@ use RefactorCircus\Keystone\Packages\Package;
 use RefactorCircus\Keystone\Packages\PackageRegistry;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\StartImpersonationAction;
 use RefactorCircus\Roster\Domains\Impersonation\Data\StartImpersonationData;
-use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
-use RefactorCircus\Roster\Domains\Role\Actions\UpdateRoleAction;
-use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
-use RefactorCircus\Roster\Domains\Role\Data\UpdateRoleData;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\Transfer\Services\TransferContext;
@@ -33,6 +28,12 @@ function keenEntry(string $action): AuditEntryModel
 {
     return AuditEntryModel::query()->where('action', $action)->latest('id')->firstOrFail();
 }
+
+// Roles (super-admin, and roles granting roster.audit.view) come from a role
+// store; Keystone's fakes stand in for one.
+beforeEach(function (): void {
+    withRoleStore();
+});
 
 it('records a suspension with the user as subject, the organization as scope and the impersonator', function (): void {
     $admin = user(['name' => 'Admin']);
@@ -64,25 +65,7 @@ it('records a suspension with the user as subject, the organization as scope and
     expect(keenEntry('impersonation.started')->subject_label)->toBe('Ada');
 });
 
-it('records a role assignment about the user, with the role in the diff', function (): void {
-    $ada = user(['name' => 'Ada']);
-    $acme = organization($ada, ['name' => 'Acme']);
-    $admin = RoleModel::query()->where('slug', 'admin')->sole();
-
-    app(AssignRoleAction::class)->execute($ada, new AssignRoleData(role: $admin->id, organization: $acme->slug));
-
-    $entry = keenEntry('role.assigned');
-
-    expect($entry->subject_label)->toBe('Ada')
-        ->and($entry->scope_id)->toBe((string) $acme->getKey());
-});
-
-it('diffs a role\'s permissions and a user\'s profile', function (): void {
-    $role = roleWith(['roster.users.view']);
-    app(UpdateRoleAction::class)->execute($role, new UpdateRoleData(permissions: ['roster.users.view', 'roster.users.update']));
-
-    expect(keenEntry('role.updated')->changes['permissions'])->toBe([['roster.users.view'], ['roster.users.update', 'roster.users.view']]);
-
+it('diffs a user\'s profile', function (): void {
     $ada = user(['name' => 'Ada']);
     app(UpdateProfileAction::class)->execute($ada, new UpdateProfileData(displayName: 'Countess'));
 
@@ -192,7 +175,7 @@ it('serves Roster\'s history once Keen is installed, behind roster.audit.view', 
     $this->actingAs(user())->getJson(route('roster.history.index'))->assertForbidden();
 
     $auditor = user();
-    grant($auditor, roleWith(['roster.audit.view'])->slug);
+    grant($auditor, roleGranting(['roster.audit.view']));
 
     expect(Gate::forUser($auditor)->allows(History::ABILITY, ['roster']))->toBeTrue()
         ->and(Gate::forUser($grace)->allows(History::ABILITY, ['roster']))->toBeFalse();
@@ -207,6 +190,6 @@ it('offers the history tool once Keen is installed, behind roster.audit.view', f
     $this->actingAs($viewer = user());
     mcpTool(ListRosterHistoryTool::class)->assertHasErrors(['Unauthorized.']);
 
-    grant($viewer, roleWith(['roster.audit.view'])->slug);
+    grant($viewer, roleGranting(['roster.audit.view']));
     mcpTool(ListRosterHistoryTool::class)->assertOk()->assertSee('user.suspended');
 });

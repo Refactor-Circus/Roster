@@ -3,7 +3,6 @@
 namespace Workbench\Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
 use RefactorCircus\Roster\Domains\Invitation\Actions\CreateInvitationAction;
 use RefactorCircus\Roster\Domains\Invitation\Data\CreateInvitationData;
@@ -11,14 +10,6 @@ use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\CreateOrganizationAction;
 use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
 use RefactorCircus\Roster\Domains\Organization\Data\CreateOrganizationData;
-use RefactorCircus\Roster\Domains\Permission\Actions\CreatePermissionAction;
-use RefactorCircus\Roster\Domains\Permission\Data\CreatePermissionData;
-use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
-use RefactorCircus\Roster\Domains\Role\Actions\CreateRoleAction;
-use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
-use RefactorCircus\Roster\Domains\Role\Data\CreateRoleData;
-use RefactorCircus\Roster\Domains\Role\Enums\RoleScope;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
@@ -44,7 +35,6 @@ class DatabaseSeeder extends Seeder
         Notification::fake();
 
         $admin = UserFactory::new()->create(['name' => 'Admin', 'email' => 'admin@example.com']);
-        Artisan::call('roster:grant-super-admin', ['email' => 'admin@example.com']);
 
         $ada = UserFactory::new()->create(['name' => 'Ada Lovelace', 'email' => 'ada@acme.test']);
         $grace = UserFactory::new()->create(['name' => 'Grace Hopper', 'email' => 'grace@acme.test']);
@@ -62,21 +52,8 @@ class DatabaseSeeder extends Seeder
         app(CreateTeamAction::class)->execute($globex, new CreateTeamData(name: 'Research'));
 
         app(AddTeamMemberAction::class)->execute($engineering, new AddTeamMemberData(user: $grace->getRouteKey()));
-        app(AssignRoleAction::class)->execute($grace, new AssignRoleData(
-            role: RoleModel::query()->where('slug', 'lead')->value('id'),
-            organization: $acme->slug,
-            team: $engineering->slug,
-        ));
 
         app(CreateInvitationAction::class)->execute($acme, new CreateInvitationData(email: 'new.hire@acme.test', teams: ['support']), $ada);
-
-        app(CreatePermissionAction::class)->execute(new CreatePermissionData(name: 'invoices.edit', description: 'Edit invoices.'));
-        $billing = app(CreateRoleAction::class)->execute(new CreateRoleData(
-            name: 'Billing',
-            scope: RoleScope::Organization,
-            permissions: ['invoices.edit', 'roster.members.view'],
-        ));
-        app(AssignRoleAction::class)->execute($grace, new AssignRoleData(role: $billing->id, organization: $acme->slug));
 
         app(SuspendUserAction::class)->execute($eve, new SuspendUserData(reason: 'Demo: a suspended account.'));
 

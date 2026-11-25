@@ -5,14 +5,10 @@ declare(strict_types=1);
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Gate;
+use RefactorCircus\Keystone\Authorization\Abilities;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
-use RefactorCircus\Roster\Domains\Permission\Services\PermissionCatalogue;
-use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Permission\Services\Resources;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
+use RefactorCircus\Roster\Support\Authorization\Resources;
 use RefactorCircus\Roster\Support\Policies\Policy;
 use Workbench\App\Models\User;
 
@@ -45,15 +41,15 @@ final class ExampleWidgetPolicy extends Policy
 }
 
 /**
- * The registration lines of the README's resource and catalogue examples,
+ * The registration lines of the README's resource and ability examples,
  * exactly as they are written there, and run below.
  */
 const EXTENDING_ROSTER_CALLS = [
     "app(Resources::class)->resource('acme.widgets', WidgetModel::class);",
     'Gate::policy(WidgetModel::class, WidgetPolicy::class);',
-    'app(PermissionCatalogue::class)',
-    "->permission('acme.widgets.view', 'See widgets.', ['admin', 'member'])",
-    "->permission('acme.widgets.approve', 'Approve widgets.', ['admin']);",
+    'app(Abilities::class)',
+    "->define('acme.widgets.view', 'See widgets.', ['admin', 'member'])",
+    "->define('acme.widgets.approve', 'Approve widgets.', ['admin']);",
 ];
 
 /**
@@ -65,43 +61,20 @@ function registerReadmeExamples(): void
     app(Resources::class)->resource('acme.widgets', ExampleWidgetModel::class);
     Gate::policy(ExampleWidgetModel::class, ExampleWidgetPolicy::class);
 
-    app(PermissionCatalogue::class)
-        ->permission('acme.widgets.view', 'See widgets.', ['admin', 'member'])
-        ->permission('acme.widgets.approve', 'Approve widgets.', ['admin']);
+    app(Abilities::class)
+        ->define('acme.widgets.view', 'See widgets.', ['admin', 'member'])
+        ->define('acme.widgets.approve', 'Approve widgets.', ['admin']);
 }
 
 /**
- * The shared built-in role with this slug.
- */
-function sharedRole(string $slug): ?RoleModel
-{
-    return RoleModel::query()->whereNull('organization_id')->where('slug', $slug)->first();
-}
-
-/**
- * The permission names a role holds.
- *
- * @return array<int, string>
- */
-function rolePermissions(?RoleModel $role): array
-{
-    return $role?->permissions()->orderBy('name')->pluck('name')->map(strval(...))->all() ?? [];
-}
-
-/**
- * A user holding `acme.widgets.approve` in an organization.
+ * A user holding `acme.widgets.approve` in an organization, through the
+ * role store.
  */
 function exampleApprover(OrganizationModel $organization): User
 {
     $user = user();
 
-    RoleAssignmentModel::query()->create([
-        'role_id' => roleWith(['acme.widgets.approve'], 'organization')->id,
-        'user_id' => $user->getKey(),
-        'organization_id' => $organization->getKey(),
-    ]);
-
-    app(Permissions::class)->flush();
+    grant($user, roleGranting(['acme.widgets.approve'], 'organization'), $organization);
 
     return $user;
 }
@@ -124,9 +97,9 @@ it('runs the registration lines the README shows', function (): void {
     }
 });
 
-it('registers the README resource, and its permissions resolve through its policy', function (): void {
+it('registers the README resource, and its abilities resolve through its policy', function (): void {
+    withRoleStore();
     registerReadmeExamples();
-    $this->artisan('roster:sync-permissions')->assertSuccessful();
 
     $acme = organization(attributes: ['name' => 'Acme']);
     $globex = organization(attributes: ['name' => 'Globex']);
@@ -141,31 +114,24 @@ it('registers the README resource, and its permissions resolve through its polic
         ->and(exampleApprover($globex)->can('approve', $widget))->toBeFalse();
 });
 
-it('registers the README permissions, creating them without touching existing built-in roles', function (): void {
-    $before = rolePermissions(sharedRole('admin'));
-
+it('defines the README abilities in Keystone\'s registry, with the default roles they go to', function (): void {
     registerReadmeExamples();
 
-    expect(app(PermissionCatalogue::class)->has('acme.widgets.view'))->toBeTrue()
-        ->and(app(PermissionCatalogue::class)->grantedTo('admin'))->toContain('acme.widgets.view', 'acme.widgets.approve')
-        ->and(app(PermissionCatalogue::class)->grantedTo('member'))->toContain('acme.widgets.view')
-        ->not->toContain('acme.widgets.approve');
+    $abilities = app(Abilities::class)->all();
 
-    // Registered after the role tables migrated, as in an existing app.
-    $this->artisan('roster:sync-permissions')->assertSuccessful();
-
-    expect(PermissionModel::query()->whereIn('name', ['acme.widgets.approve', 'acme.widgets.view'])->where('system', true)->count())->toBe(2)
-        ->and(rolePermissions(sharedRole('admin')))->toBe($before);
+    expect(app(Abilities::class)->has('acme.widgets.view'))->toBeTrue()
+        ->and($abilities['acme.widgets.view'])->toBe(['description' => 'See widgets.', 'grantTo' => ['admin', 'member']])
+        ->and($abilities['acme.widgets.approve'])->toBe(['description' => 'Approve widgets.', 'grantTo' => ['admin']]);
 });
 
-it('grants the README permissions to the built-in roles a sync creates', function (): void {
-    sharedRole('admin')?->delete();
-    sharedRole('member')?->delete();
-
+it('lets the host Gate decide the README abilities without a role store', function (): void {
     registerReadmeExamples();
-    $this->artisan('roster:sync-permissions')->assertSuccessful();
+    $acme = organization(attributes: ['name' => 'Acme']);
+    $widget = new ExampleWidgetModel(['organization_id' => $acme->getKey()]);
+    $approver = user(['email' => 'approver@example.com']);
+    Gate::define('acme.widgets.approve', fn (User $user): bool => $user->email === 'approver@example.com');
 
-    expect(rolePermissions(sharedRole('admin')))->toContain('acme.widgets.view', 'acme.widgets.approve')
-        ->and(rolePermissions(sharedRole('member')))->toContain('acme.widgets.view')
-        ->not->toContain('acme.widgets.approve');
+    expect($approver->can('approve', $widget))->toBeTrue()
+        ->and(user()->can('approve', $widget))->toBeFalse()
+        ->and($acme->owner->can('approve', $widget))->toBeTrue();
 });

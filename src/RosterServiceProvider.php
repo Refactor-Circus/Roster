@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace RefactorCircus\Roster;
 
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Auth\Access\Gate as GateContract;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -15,16 +17,28 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use RefactorCircus\Keystone\Audit\AuditHooks;
 use RefactorCircus\Keystone\Audit\History;
+use RefactorCircus\Keystone\Authorization\Abilities;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
+use RefactorCircus\Keystone\Contracts\ReadActionEvent;
 use RefactorCircus\Keystone\Packages\Package;
 use RefactorCircus\Keystone\Support\PackageServiceProvider;
 use RefactorCircus\Keystone\Support\Surface;
-use RefactorCircus\Roster\Atrium\AtriumServiceProvider;
 use RefactorCircus\Roster\Console\Commands\PurgeDeletedCommand;
 use RefactorCircus\Roster\Domains\DomainServiceProvider;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
+use RefactorCircus\Roster\Domains\Impersonation\Services\ImpersonationContext;
+use RefactorCircus\Roster\Domains\Organization\Events\OrganizationDeletedEvent;
+use RefactorCircus\Roster\Domains\Organization\Events\OrganizationForceDeletedEvent;
+use RefactorCircus\Roster\Domains\Organization\Events\OrganizationRestoredEvent;
+use RefactorCircus\Roster\Domains\Organization\Events\OrganizationSavedEvent;
+use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
+use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
 use RefactorCircus\Roster\Mcp\RosterServer;
 use RefactorCircus\Roster\Support\Audit;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
+use RefactorCircus\Roster\Support\Authorization\ImpersonationAwarePermissions;
+use RefactorCircus\Roster\Support\Authorization\Resources;
+use RefactorCircus\Roster\Support\Authorization\RosterAbilities;
 use RefactorCircus\Roster\Support\SignInRequirements;
 use RefactorCircus\Roster\Support\Users;
 
@@ -36,19 +50,14 @@ use RefactorCircus\Roster\Support\Users;
  *
  * Roster describes itself to refactor-circus/keystone in `definition()`, so the shared
  * base classes find its config, routes and MCP server by namespace.
- *
- * Atrium is optional: Roster's Atrium seam (Atrium\AtriumServiceProvider)
- * is registered only while Atrium is installed.
  */
 class RosterServiceProvider extends PackageServiceProvider
 {
     /**
-     * Skip the Atrium seam as if Atrium were not installed. For Roster's own
-     * tests of the Atrium-free install, which still have Atrium autoloadable.
-     *
-     * @internal
+     * The finished events that can change a user's memberships or their
+     * current organization or team.
      */
-    public static bool $withoutAtrium = false;
+    private const string CHANGES_CONTEXT = '/^RefactorCircus\\\\Roster\\\\Domains\\\\(Organization|Team|Invitation|User)\\\\Events\\\\/';
 
     /**
      * Roster checks every call by default: `roster.authorization` is on
@@ -80,13 +89,9 @@ class RosterServiceProvider extends PackageServiceProvider
         // boot(); Roster, which takes them, is rebuilt per request.
         $this->app->singleton(SignInRequirements::class);
 
-        $this->app->register(DomainServiceProvider::class);
+        $this->registerAuthorization();
 
-        // After the domains, so the seam's bindings replace their plain defaults.
-        // A string, so nothing here loads Atrium when it is not installed.
-        if (! self::$withoutAtrium && class_exists('RefactorCircus\Atrium\Atrium')) {
-            $this->app->register(AtriumServiceProvider::class);
-        }
+        $this->app->register(DomainServiceProvider::class);
 
         $this->registerSurfaces();
     }
@@ -102,18 +107,50 @@ class RosterServiceProvider extends PackageServiceProvider
         // Core models' policies, from `roster.policies`: Roster's own checks ask
         // them. Package resources register their own policies.
         $this->registerPolicies();
+
+        // The abilities Roster checks, for a role store to list and grant.
+        RosterAbilities::define($this->app->make(Abilities::class));
+
+        $this->registerGate();
+
         $this->registerRateLimiter();
         $this->registerNotFoundResponses();
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'roster');
 
         // The cached user counts per status go stale with any change Roster
-        // makes to a user.
+        // makes to a user; reads (lists, shows, searches, stats - every one
+        // a ReadActionEvent) leave them.
         Event::listen(ActionFinishedEvent::class, function (ActionFinishedEvent $event): void {
-            if (str_starts_with($event::class, 'RefactorCircus\\Roster\\Domains\\User\\Events\\') && ! str_ends_with($event::class, 'ListedActionEvent') && ! str_ends_with($event::class, 'ShownActionEvent')) {
+            if (str_starts_with($event::class, 'RefactorCircus\\Roster\\Domains\\User\\Events\\') && ! $event instanceof ReadActionEvent) {
                 Cache::forget(Users::STATUS_COUNTS_CACHE);
             }
         });
+
+        // A user's current organization and team are remembered for the
+        // request; anything that changes memberships or context (switching,
+        // joining, leaving, deleting) forgets them, so later reads see the
+        // change. Lists, shows and other packages' actions leave them alone.
+        Event::listen(ActionFinishedEvent::class, function (ActionFinishedEvent $event): void {
+            if (preg_match(self::CHANGES_CONTEXT, $event::class) !== 1 || preg_match('/(Listed|Shown)ActionEvent$/', $event::class) === 1) {
+                return;
+            }
+
+            if ($this->app->resolved(Roster::class)) {
+                $this->app->make(Roster::class)->forget();
+            }
+        });
+
+        // Ownership and the organizations the Authorizer found for records
+        // go stale with any organization write, through an Action or not.
+        Event::listen(
+            [OrganizationSavedEvent::class, OrganizationDeletedEvent::class, OrganizationRestoredEvent::class, OrganizationForceDeletedEvent::class],
+            function (): void {
+                if ($this->app->resolved(Authorizer::class)) {
+                    $this->app->make(Authorizer::class)->forget();
+                }
+            },
+        );
 
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'roster');
 
@@ -161,6 +198,101 @@ class RosterServiceProvider extends PackageServiceProvider
     }
 
     /**
+     * How Roster checks access: the resources whose policies answer each
+     * ability (code state, with Roster's core resources there before any
+     * boot()), the Authorizer, and the impersonation block around whichever
+     * Keystone `Permissions` is bound. `extend()` keeps the block when a role
+     * store binds its own implementation later.
+     */
+    private function registerAuthorization(): void
+    {
+        $this->app->singleton(Resources::class, function (): Resources {
+            $resources = new Resources;
+
+            foreach (Authorizer::RESOURCES as $resource => $model) {
+                $resources->rosterResource('roster.'.$resource, $model);
+            }
+
+            return $resources;
+        });
+
+        // Scoped, so a long-lived worker (Octane, queues) never keeps one
+        // request's resolved policies and parents.
+        $this->app->scoped(Authorizer::class);
+
+        $this->app->extend(Permissions::class, fn (Permissions $permissions, Application $app): Permissions => $permissions instanceof ImpersonationAwarePermissions
+            ? $permissions
+            : new ImpersonationAwarePermissions($permissions, $app));
+    }
+
+    /**
+     * Roster's place in Laravel's Gate, so `$user->can()` and `@can` work
+     * with its abilities: impersonation-blocked abilities are refused whoever
+     * asks, and the `roster.*` abilities Keystone's `Abilities` knows are
+     * answered through the bound `Permissions`, in the scope the arguments
+     * name or else the user's current team or organization. Super-admins and
+     * everything else are the bound implementation's and the app's to decide.
+     */
+    private function registerGate(): void
+    {
+        $this->app->make(GateContract::class)->before(function (mixed $user, string $ability, array $arguments): ?bool {
+            if (! $user instanceof Model || ! $user instanceof Authenticatable) {
+                return null;
+            }
+
+            // Refused while impersonating, whoever is really at the keyboard.
+            if ($this->app->make(ImpersonationContext::class)->isBlocked($ability)) {
+                return false;
+            }
+
+            if (! str_starts_with($ability, 'roster.') || ! $this->app->make(Abilities::class)->has($ability)) {
+                return null;
+            }
+
+            $scope = $this->scopeFrom($arguments) ?? $this->contextScope($user);
+
+            // Null rather than false: the app's own gates and policies still
+            // get their say when the user lacks the ability.
+            return $this->app->make(Permissions::class)->allows($user, $ability, $scope) ? true : null;
+        });
+    }
+
+    /**
+     * The scope a Gate check without an explicit organization or team uses:
+     * the user's current team, else their current organization.
+     */
+    private function contextScope(Model $user): OrganizationModel|TeamModel|null
+    {
+        $roster = $this->app->make(Roster::class);
+
+        return $roster->team($user) ?? $roster->organization($user);
+    }
+
+    /**
+     * The organization or team a Gate check is about.
+     *
+     * @param  array<int|string, mixed>  $arguments
+     */
+    private function scopeFrom(array $arguments): OrganizationModel|TeamModel|null
+    {
+        foreach ($arguments as $argument) {
+            if ($argument instanceof OrganizationModel || $argument instanceof TeamModel) {
+                return $argument;
+            }
+
+            if ($argument instanceof Model && method_exists($argument, 'organization')) {
+                $organization = $this->app->make(Authorizer::class)->parentOf($argument, 'organization');
+
+                if ($organization instanceof OrganizationModel) {
+                    return $organization;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Roster's routes outside its JSON API: the signed pages a person opens
      * from an email. The shared surface is scoped, so name them each time it
      * is resolved.
@@ -200,6 +332,11 @@ class RosterServiceProvider extends PackageServiceProvider
     /**
      * The `roster` limiter behind `throttle:roster`: per user, or per IP for
      * guests. A null `roster.rate_limit.per_minute` turns it off.
+     *
+     * The `roster-invitation-lookup` limiter behind the public invitation
+     * lookup: per IP, valid token or not, so tokens cannot be guessed at
+     * speed. A null `roster.rate_limit.invitation_lookups_per_minute` turns
+     * it off.
      */
     private function registerRateLimiter(): void
     {
@@ -213,6 +350,16 @@ class RosterServiceProvider extends PackageServiceProvider
             $user = $request->user();
 
             return Limit::perMinute((int) $perMinute)->by($user instanceof Model ? 'user:'.$user->getKey() : 'ip:'.$request->ip());
+        });
+
+        RateLimiter::for('roster-invitation-lookup', function (Request $request): Limit {
+            $perMinute = $this->app->make(Repository::class)->get('roster.rate_limit.invitation_lookups_per_minute', 10);
+
+            if (! is_numeric($perMinute)) {
+                return Limit::none();
+            }
+
+            return Limit::perMinute((int) $perMinute)->by('ip:'.$request->ip());
         });
     }
 }

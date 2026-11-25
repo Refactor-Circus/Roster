@@ -26,9 +26,7 @@ function toolArguments(): array
         ->reject(fn (string $tool): bool => in_array($tool, [AcceptInvitationTool::class, DeclineInvitationTool::class, ListRosterHistoryTool::class], true))
         ->mapWithKeys(fn (string $tool): array => [$tool => match (class_basename($tool)) {
             'ShowUserTool', 'UpdateUserTool', 'DeleteUserTool', 'UpdateProfileTool', 'SuspendUserTool', 'DeactivateUserTool',
-            'ReactivateUserTool', 'ApproveUserTool', 'RejectUserTool', 'RestoreUserTool', 'PurgeUserTool', 'SwitchContextTool', 'JoinByDomainTool', 'ListRoleAssignmentsTool', 'AssignRoleTool',
-            'ListUserPermissionsTool' => $user,
-            'RevokeRoleTool' => fn (array $w): array => $user($w) + ['assignment' => $w['assignment']->id],
+            'ReactivateUserTool', 'ApproveUserTool', 'RejectUserTool', 'RestoreUserTool', 'PurgeUserTool', 'SwitchContextTool', 'JoinByDomainTool' => $user,
             'ShowOrganizationTool', 'UpdateOrganizationTool', 'DeleteOrganizationTool', 'RestoreOrganizationTool', 'PurgeOrganizationTool', 'TransferOwnershipTool', 'ListMembersTool',
             'AddMemberTool', 'ListTeamsTool', 'CreateTeamTool', 'ListInvitationsTool', 'CreateInvitationTool' => $org,
             'RemoveMemberTool' => fn (array $w): array => $org() + $user($w),
@@ -39,8 +37,6 @@ function toolArguments(): array
             'RevokeInvitationTool' => fn (array $w): array => $org() + ['invitation' => $w['invitation']->id],
             'ShowTeamTool', 'UpdateTeamTool', 'DeleteTeamTool', 'AddTeamMemberTool' => $team,
             'RemoveTeamMemberTool' => fn (array $w): array => $team() + $user($w),
-            'ShowRoleTool', 'UpdateRoleTool', 'DeleteRoleTool' => fn (array $w): array => ['role' => $w['role']->id],
-            'UpdatePermissionTool', 'DeletePermissionTool' => fn (): array => ['name' => 'invoices.edit'],
             'StopImpersonationTool' => fn (array $w): array => ['impersonation' => $w['impersonation']->id],
             'StartImpersonationTool' => fn (array $w): array => $user($w) + ['reason' => 'Ticket 1'],
             'ShowImportTemplateTool' => fn (): array => ['type' => 'import_users'],

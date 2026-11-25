@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use RefactorCircus\Roster\Atrium\Features\RosterSupportFeature;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
 use RefactorCircus\Roster\Domains\Impersonation\Policies\ImpersonationPolicy;
 use RefactorCircus\Roster\Domains\Invitation\Models\InvitationModel;
@@ -16,12 +15,6 @@ use RefactorCircus\Roster\Domains\Organization\Policies\MembershipPolicy;
 use RefactorCircus\Roster\Domains\Organization\Policies\OrganizationDomainPolicy;
 use RefactorCircus\Roster\Domains\Organization\Policies\OrganizationLinkPolicy;
 use RefactorCircus\Roster\Domains\Organization\Policies\OrganizationPolicy;
-use RefactorCircus\Roster\Domains\Permission\Models\PermissionModel;
-use RefactorCircus\Roster\Domains\Permission\Policies\PermissionPolicy;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleModel;
-use RefactorCircus\Roster\Domains\Role\Policies\RoleAssignmentPolicy;
-use RefactorCircus\Roster\Domains\Role\Policies\RolePolicy;
 use RefactorCircus\Roster\Domains\Team\Enums\TeamStatus;
 use RefactorCircus\Roster\Domains\Team\Models\TeamMemberModel;
 use RefactorCircus\Roster\Domains\Team\Models\TeamModel;
@@ -71,6 +64,10 @@ return [
     |           waiting for approval.
     | approvals.notify_user:
     |           Email people when they're approved or rejected.
+    | approvals.review_url:
+    |           The button in the approvers' email, e.g. a user page in your
+    |           admin UI. `{user}` is replaced with the waiting user's route
+    |           key. Null sends the email without a button.
     |
     */
 
@@ -86,6 +83,7 @@ return [
         'approvals' => [
             'notify_approvers' => true,
             'notify_user' => true,
+            'review_url' => null,
         ],
     ],
 
@@ -94,42 +92,28 @@ return [
     | Authorization
     |--------------------------------------------------------------------------
     |
-    | authorization: When true (the default), every Roster API route, MCP
-    |                tool and Atrium screen requires a signed-in user holding
-    |                the Action's permission. SECURITY: setting it to false
+    | Roster checks named permissions (`roster.users.view`, ...) through
+    | Keystone's authorization contract. A role store, when one is installed,
+    | decides who holds them; without one, your app's Gate abilities and
+    | policies do. An organization's owner holds every organization
+    | permission in it.
+    |
+    | authorization: When true (the default), every Roster API route and MCP
+    |                tool requires a signed-in user holding the Action's
+    |                permission. SECURITY: setting it to false
     |                makes the route middleware the only check - anyone who
     |                can reach the API could then manage every user.
-    | super_admins:  Emails always treated as super-admins (every permission
-    |                passes). Honoured only once the email is verified, and
-    |                only on user models implementing MustVerifyEmail; prefer
-    |                `php artisan roster:grant-super-admin {email}`.
     | roles.default_member:
-    |                Slug of the organization role every new member gets.
-    |                Null to give new members no role.
-    | permission_cache.ttl:
-    |                Seconds to keep the permission catalogue and each user's
-    |                role grants in the cache store between requests, so a
-    |                request's first permission check skips two queries. 0
-    |                (the default) keeps them per request only. Roster's own
-    |                Actions and model writes clear them; after writing roles,
-    |                assignments or permissions some other way, call
-    |                `Permissions::forgetCache()`.
-    | permission_cache.store:
-    |                The cache store to use; null for the default store.
+    |                Slug of the organization role every new member gets from
+    |                the role store. Null, or a role the store does not have,
+    |                gives new members no role.
     |
     */
 
     'authorization' => true,
 
-    'super_admins' => [],
-
     'roles' => [
         'default_member' => 'member',
-    ],
-
-    'permission_cache' => [
-        'ttl' => 0,
-        'store' => null,
     ],
 
     /*
@@ -139,8 +123,8 @@ return [
     |
     | Roster keeps no audit log of its own. With refactor-circus/keen
     | installed, Keen records every change Roster makes, and Roster shows the
-    | history on its Atrium pages, its `GET /roster/history` route and its
-    | history MCP tool. Without Keen none of that exists.
+    | history on its `GET /roster/history` route and its history MCP tool.
+    | Without Keen none of that exists.
     |
     | enabled: Set to false to keep Roster out of the audit log even while
     |          Keen is installed: Keen records nothing of Roster's, and Roster
@@ -183,11 +167,12 @@ return [
     | link_minutes:     How long the one-time link stays valid.
     | blocked:          Permissions (and app abilities) refused while
     |                   impersonating, even to super-admins. `*` matches any
-    |                   suffix, e.g. 'billing.*'. SECURITY: keep account- and
+    |                   text, e.g. 'billing.*'; '*.roles.manage' and
+    |                   '*.roles.assign' block role management in whichever
+    |                   role store is installed. SECURITY: keep account- and
     |                   access-changing abilities here.
     | redirect:         Where entering impersonation lands.
-    | return_to:        Where "return to my account" lands; null for the
-    |                   user's Atrium page.
+    | return_to:        Where "return to my account" lands; null for `/`.
     | middleware_group: The route middleware group Roster adds its
     |                   `roster.impersonation` middleware to (which ends
     |                   expired or revoked sessions). Null to add it yourself.
@@ -200,8 +185,8 @@ return [
         'blocked' => [
             'roster.users.impersonate',
             'roster.users.delete',
-            'roster.roles.manage',
-            'roster.roles.assign',
+            '*.roles.manage',
+            '*.roles.assign',
         ],
         'redirect' => '/',
         'return_to' => null,
@@ -307,6 +292,21 @@ return [
     |                     the user (only a signed-in user whose email matches
     |                     the invitation can accept it), so keep `auth` - or
     |                     your guard's equivalent - in the list.
+    | lookup_middleware:  Wraps the public invitation lookup,
+    |                     `GET {routes.prefix}/invitations/{token}`
+    |                     (`roster.invitations.lookup`), which shows the
+    |                     invited email, organization name, team names and
+    |                     expiry to whoever holds the token - for a page of
+    |                     your own that a guest opens from the email. It is
+    |                     registered only while `routes.enabled` is true, and
+    |                     never with `routes.middleware`.
+    |                     SECURITY: it is public on purpose - the token is the
+    |                     only credential - so do not add authentication. Keep
+    |                     the `throttle:roster-invitation-lookup` limiter (see
+    |                     Rate Limiting): it is what stops tokens being
+    |                     guessed. Answers are never cached, and every unusable
+    |                     token gets the same 404. The token sits in the URL,
+    |                     so keep these paths out of your access logs.
     |
     */
 
@@ -315,6 +315,7 @@ return [
         'redirect' => '/',
         'accept_url' => null,
         'middleware' => ['web', 'auth'],
+        'lookup_middleware' => ['api', 'throttle:roster-invitation-lookup'],
     ],
 
     /*
@@ -327,6 +328,10 @@ return [
     | SECURITY: each route checks the caller's Roster permissions (see
     | Authorization above), but it needs an authenticated user to check: add
     | authentication middleware (e.g. `auth:sanctum`) before enabling it.
+    |
+    | The public invitation lookup follows `enabled` and `prefix`, but not
+    | `middleware`: it has its own `invitations.lookup_middleware`, because
+    | the guest opening an invitation link is not signed in yet.
     |
     */
 
@@ -341,14 +346,24 @@ return [
     | Rate Limiting
     |--------------------------------------------------------------------------
     |
-    | The `throttle:roster` limiter in the default API and MCP middleware:
-    | requests per minute, per signed-in user (or per IP for guests). Null
-    | turns the limiter off; you can also drop it from the middleware lists.
+    | per_minute:      The `throttle:roster` limiter in the default API and
+    |                  MCP middleware: requests per minute, per signed-in
+    |                  user (or per IP for guests).
+    | invitation_lookups_per_minute:
+    |                  The `throttle:roster-invitation-lookup` limiter in the
+    |                  default `invitations.lookup_middleware`: public
+    |                  invitation lookups per minute, per IP, whether the
+    |                  tokens are valid or not. SECURITY: it is what stops
+    |                  invitation tokens being guessed; keep it low.
+    |
+    | Null turns a limiter off; you can also drop it from the middleware
+    | lists.
     |
     */
 
     'rate_limit' => [
         'per_minute' => 120,
+        'invitation_lookups_per_minute' => 10,
     ],
 
     /*
@@ -385,7 +400,7 @@ return [
     |
     | When refactor-circus/cortex is installed, the MCP server is registered with it, so
     | its instructions can be overridden, and the tools join its registry,
-    | so Cortex agents can manage users, organizations and roles. Agents act
+    | so Cortex agents can manage users, organizations and teams. Agents act
     | as the signed-in user: Roster's permission checks apply, and a run
     | with no signed-in user is refused. Set `tools` to a list of tool
     | names, such as ['list-users-tool', 'show-user-tool'], to offer only
@@ -401,33 +416,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Atrium
-    |--------------------------------------------------------------------------
-    |
-    | features: Features that must all be on for Roster to appear in
-    |           Atrium at all - its navigation, widgets, search, and pages
-    |           (which answer 404 otherwise). Atrium asks its feature
-    |           resolver, so Pennant (through refactor-circus/pennantplus) or any other
-    |           flag system decides.
-    |
-    |           RosterSupportFeature is on until its global value is set, and
-    |           only its global value counts. Swap in a subclass to change
-    |           that, or your own feature names. Feature classes that do not
-    |           exist (without refactor-circus/pennantplus) are skipped, so nothing is
-    |           checked until Pennant is installed. Empty always shows Roster.
-    |
-    | Individual pages are still shown per Roster permission.
-    |
-    */
-
-    'atrium' => [
-        'features' => [
-            RosterSupportFeature::class,
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Policies
     |--------------------------------------------------------------------------
     |
@@ -435,13 +423,13 @@ return [
     | of your own (extending the bundled one, or not) to change who may do
     | what; the bundled policies answer with Roster's permissions.
     |
-    | Every check on Roster's JSON API, MCP tools and Atrium screens goes
-    | through these: permission `roster.{resource}.{verb}` asks the policy of
-    | the resource's model, by the camel-cased verb (`roster.users.manage-status`
-    | asks UserPolicy::manageStatus()), with the model's class, the
+    | Every check on Roster's JSON API and MCP tools goes through these:
+    | permission `roster.{resource}.{verb}` asks the policy of the resource's
+    | model, by the camel-cased verb (`roster.users.manage-status` asks
+    | UserPolicy::manageStatus()), with the model's class, the
     | organization or team the call is about, and the user it is about when
     | everyone may do it to themselves. Resources: users (UserModel),
-    | organizations, members (MembershipModel), teams, invitations and roles.
+    | organizations, members (MembershipModel), teams and invitations.
     | The other policies answer your own `$user->can('view', $record)` checks.
     |
     | Package resources register their own policies; add an entry here to
@@ -465,9 +453,6 @@ return [
         TeamModel::class => TeamPolicy::class,
         TeamMemberModel::class => TeamMemberPolicy::class,
         InvitationModel::class => InvitationPolicy::class,
-        RoleModel::class => RolePolicy::class,
-        PermissionModel::class => PermissionPolicy::class,
-        RoleAssignmentModel::class => RoleAssignmentPolicy::class,
         ImpersonationModel::class => ImpersonationPolicy::class,
         TransferModel::class => TransferPolicy::class,
         TransferRowModel::class => TransferRowPolicy::class,
@@ -497,10 +482,6 @@ return [
         'teams' => 'roster_teams',
         'team_members' => 'roster_team_members',
         'invitations' => 'roster_invitations',
-        'permissions' => 'roster_permissions',
-        'roles' => 'roster_roles',
-        'permission_role' => 'roster_permission_role',
-        'role_assignments' => 'roster_role_assignments',
         'impersonations' => 'roster_impersonations',
         'transfers' => 'roster_transfers',
         'transfer_rows' => 'roster_transfer_rows',

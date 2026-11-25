@@ -96,27 +96,6 @@ it('purges records deleted longer ago than the retention period', function (): v
     expect(OrganizationModel::onlyTrashed()->count())->toBe(0);
 });
 
-it('restores and purges from atrium, and lists deleted records', function (): void {
-    $this->actingAs($admin = user());
-    $pat = user(['name' => 'Pat Gone', 'email' => 'pat@example.com']);
-    $globex = organization(attributes: ['name' => 'Globex']);
-
-    $this->delete(route('atrium.roster.users.destroy', $pat->getRouteKey()), ['confirm' => '1']);
-    $this->delete(route('atrium.roster.organizations.destroy', 'globex'), ['confirm' => '1']);
-
-    $this->get(route('atrium.roster.users.index', ['trashed' => 'only']))->assertOk()->assertSee('Pat Gone')->assertSee('data-testid="restore-user"', false);
-    $this->get(route('atrium.roster.organizations.index', ['trashed' => 'only']))->assertOk()->assertSee('Globex')->assertSee('data-testid="restore-organization"', false);
-    $this->get(route('atrium.roster.users.show', $pat->getRouteKey()))->assertOk()->assertSee('data-testid="deleted-banner"', false)->assertSee('Delete permanently');
-    $this->get(route('atrium.roster.organizations.show', 'globex'))->assertOk()->assertSee('data-testid="deleted-banner"', false);
-
-    $this->post(route('atrium.roster.users.restore', $pat->getRouteKey()))->assertRedirect();
-    expect($pat->fresh()->trashed())->toBeFalse();
-
-    $this->delete(route('atrium.roster.organizations.purge', 'globex'))->assertSessionHasErrors('confirm');
-    $this->delete(route('atrium.roster.organizations.purge', 'globex'), ['confirm' => '1'])->assertRedirect();
-    expect(OrganizationModel::withTrashed()->where('slug', 'globex')->exists())->toBeFalse();
-});
-
 it('purges every deleted organization past the first page of a thousand', function (): void {
     $deleted = now()->subDays(60);
 

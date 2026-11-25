@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use RefactorCircus\Keystone\Contracts\ActionFinishedEvent;
+use RefactorCircus\Keystone\Contracts\ReadActionEvent;
 
 /**
  * A user has been shown.
  */
-final class UserShownActionEvent implements ActionFinishedEvent
+final class UserShownActionEvent implements ActionFinishedEvent, ReadActionEvent
 {
     use Dispatchable;
     use SerializesModels;

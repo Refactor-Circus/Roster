@@ -6,7 +6,6 @@ env:
 
 providers:
   - Laravel\Mcp\Server\McpServiceProvider
-  - RefactorCircus\Atrium\AtriumServiceProvider
   - RefactorCircus\Roster\RosterServiceProvider
   - Workbench\App\Providers\WorkbenchServiceProvider
 
@@ -17,15 +16,12 @@ migrations:
   - vendor/refactor-circus/cortex/database/migrations
   # refactor-circus/impex (dev dependency, auto-discovered) runs CSV imports and exports.
   - vendor/refactor-circus/impex/database/migrations
-  # refactor-circus/pennantplus (dev dependency, auto-discovered) decides RosterSupportFeature
-  # through Pennant, whose features table lives here.
-  - vendor/laravel/pennant/database/migrations
 
 seeders:
   - Workbench\Database\Seeders\DatabaseSeeder
 
 workbench:
-  start: '/atrium'
+  start: '/'
   user: admin@example.com
   install: true
   health: false
@@ -43,9 +39,6 @@ workbench:
     - migrate-fresh
   assets:
     - laravel-assets
-    # Atrium's stylesheet and scripts, republished on every build so the
-    # dashboard always matches the installed Atrium.
-    - atrium-assets
   sync:
     - from: storage
       to: workbench/storage

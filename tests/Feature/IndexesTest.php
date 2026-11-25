@@ -10,7 +10,6 @@ it('indexes the columns Roster looks up by', function (string $table, string $co
 })->with([
     ['organizations', 'name'],
     ['organization_domains', 'organization_id'],
-    ['roles', 'organization_id'],
     ['profiles', 'current_organization_id'],
     ['profiles', 'current_team_id'],
     ['impersonations', 'organization_id'],
@@ -20,4 +19,4 @@ it('indexes the columns Roster looks up by', function (string $table, string $co
 
 it('indexes the organization-scoped lists in page order', function (string $table): void {
     expect(Schema::hasIndex(Tables::name($table), ['organization_id', 'created_at', 'id']))->toBeTrue();
-})->with(['memberships', 'role_assignments', 'invitations']);
+})->with(['memberships', 'invitations']);

@@ -12,7 +12,6 @@ use Illuminate\Routing\Router;
 use RefactorCircus\Keystone\Support\ServiceProvider;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Role\Models\RoleAssignmentModel;
 use RefactorCircus\Roster\Domains\User\Http\Middleware\EnsureUserIsActive;
 use RefactorCircus\Roster\Domains\User\Listeners\ApplyRegistrationStatus;
 use RefactorCircus\Roster\Domains\User\Models\ProfileModel;
@@ -53,11 +52,6 @@ class UserServiceProvider extends ServiceProvider
         $model::resolveRelationUsing(
             'rosterMemberships',
             fn (Model $user) => $user->hasMany(MembershipModel::class, 'user_id'),
-        );
-
-        $model::resolveRelationUsing(
-            'rosterRoleAssignments',
-            fn (Model $user) => $user->hasMany(RoleAssignmentModel::class, 'user_id'),
         );
 
         $model::resolveRelationUsing(

@@ -7,7 +7,6 @@ namespace RefactorCircus\Roster\Domains\Impersonation\Http\Controllers;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use RefactorCircus\Roster\Domains\Impersonation\Actions\EnterImpersonationAction;
 use RefactorCircus\Roster\Domains\Impersonation\Data\EnterImpersonationData;
 use RefactorCircus\Roster\Domains\Impersonation\Models\ImpersonationModel;
@@ -36,23 +35,18 @@ final class ImpersonationWebController
 
     public function leave(Request $request): RedirectResponse
     {
-        $impersonation = $this->impersonator->leave($request, ImpersonationModel::ENDED_STOPPED);
+        $this->impersonator->leave($request, ImpersonationModel::ENDED_STOPPED);
 
-        return redirect($this->returnTo($impersonation))->with('status', __('roster::roster.impersonation_left'));
+        return redirect($this->returnTo())->with('status', __('roster::roster.impersonation_left'));
     }
 
-    private function returnTo(?ImpersonationModel $impersonation): string
+    /**
+     * `roster.impersonation.return_to`, or the site's root when it is not set.
+     */
+    private function returnTo(): string
     {
         $configured = config('roster.impersonation.return_to');
 
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
-        }
-
-        $user = $impersonation?->user;
-
-        return $user instanceof Model && Route::has('atrium.roster.users.show')
-            ? route('atrium.roster.users.show', $user->getRouteKey())
-            : '/';
+        return is_string($configured) && $configured !== '' ? $configured : '/';
     }
 }

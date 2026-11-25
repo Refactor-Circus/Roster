@@ -3,9 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
-use RefactorCircus\Roster\Atrium\RosterPlugin;
+use RefactorCircus\Keystone\Testing\FakeRoles;
 use RefactorCircus\Roster\Domains\Organization\Actions\AddMemberAction;
-use RefactorCircus\Roster\Domains\Organization\Actions\RemoveMemberAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SwitchContextAction;
 use RefactorCircus\Roster\Domains\Organization\Actions\SyncOrganizationsAction;
 use RefactorCircus\Roster\Domains\Organization\Data\AddMemberData;
@@ -13,10 +12,6 @@ use RefactorCircus\Roster\Domains\Organization\Data\SwitchContextData;
 use RefactorCircus\Roster\Domains\Organization\Data\SyncOrganizationsData;
 use RefactorCircus\Roster\Domains\Organization\Models\MembershipModel;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
-use RefactorCircus\Roster\Domains\Permission\Services\Permissions;
-use RefactorCircus\Roster\Domains\Role\Actions\AssignRoleAction;
-use RefactorCircus\Roster\Domains\Role\Data\AssignRoleData;
 use RefactorCircus\Roster\Domains\Team\Actions\AddTeamMemberAction;
 use RefactorCircus\Roster\Domains\Team\Actions\CreateTeamAction;
 use RefactorCircus\Roster\Domains\Team\Data\AddTeamMemberData;
@@ -29,7 +24,9 @@ use RefactorCircus\Roster\Domains\Transfer\Data\StartImportData;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Models\TransferModel;
 use RefactorCircus\Roster\Domains\User\Actions\CreateUserAction;
+use RefactorCircus\Roster\Domains\User\Actions\ShowUserStatsAction;
 use RefactorCircus\Roster\Domains\User\Data\CreateUserData;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 use RefactorCircus\Roster\Support\CaseInsensitive;
 use RefactorCircus\Roster\Support\Users;
 use Workbench\App\Models\User;
@@ -91,6 +88,8 @@ it('resolves Gate checks without a scope once per request', function (): void {
 
 it('answers every permission in every organization from one load per user', function (int $organizations): void {
     config()->set('roster.authorization', true);
+    // An in-memory role store: its own reads are its cost, not Roster's.
+    withRoleStore();
     $admin = user();
 
     foreach (range(1, $organizations) as $i) {
@@ -102,7 +101,7 @@ it('answers every permission in every organization from one load per user', func
     $count = queries(function () use ($admin, $scopes): void {
         $authorizer = app(Authorizer::class);
 
-        foreach (['roster.members.view', 'roster.teams.manage', 'roster.roles.view', 'roster.invitations.manage'] as $permission) {
+        foreach (['roster.members.view', 'roster.teams.manage', 'roster.teams.view', 'roster.invitations.manage'] as $permission) {
             $authorizer->organizationsWith($admin, $permission);
 
             foreach ($scopes as $scope) {
@@ -111,7 +110,7 @@ it('answers every permission in every organization from one load per user', func
         }
     });
 
-    // Permission names, the user's assignments, super-admin and owned organizations.
+    // The organizations the user owns, once, however many checks.
     expect($count)->toBeLessThanOrEqual(4);
 })->with([2, 10]);
 
@@ -121,13 +120,6 @@ it('lists users with context in a fixed number of queries', function (int $size)
 
     expect(queries(fn () => $this->getJson(route('roster.users.index', ['per_page' => 100]))->assertOk()))->toBeLessThanOrEqual(8);
 })->with([5, 30]);
-
-it('renders each organization tab in a fixed number of queries', function (string $tab): void {
-    [$owner] = crowd(30);
-    $this->actingAs($owner);
-
-    expect(queries(fn () => $this->get(route('atrium.roster.organizations.show', ['acme', 'tab' => $tab]))->assertOk()))->toBeLessThanOrEqual(16);
-})->with(['members', 'teams', 'invitations', 'roles', 'activity', 'settings']);
 
 it('lists transfers in a fixed number of queries', function (int $size): void {
     $owner = user();
@@ -140,7 +132,13 @@ it('lists transfers in a fixed number of queries', function (int $size): void {
 it('exports members in a fixed number of queries per chunk', function (int $size): void {
     [$owner] = crowd($size);
 
-    expect(queries(fn () => app(StartExportAction::class)->execute(new StartExportData(type: TransferType::ExportMembers, organization: 'acme'), $owner)))->toBeLessThanOrEqual(55);
+    expect(queries(function () use ($owner): void {
+        // The roles column asks the bound role store once per member
+        // (Keystone's `Roles` has no batch read); that cost is the store's, so
+        // an in-memory store keeps this budget to Roster's own queries.
+        FakeRoles::install();
+        app(StartExportAction::class)->execute(new StartExportData(type: TransferType::ExportMembers, organization: 'acme'), $owner);
+    }))->toBeLessThanOrEqual(55);
 })->with([5, 30]);
 
 it('previews imports with at most a couple of queries per row', function (): void {
@@ -190,38 +188,6 @@ it('finds a user by email with one indexed lookup, and by other casing after it'
         ->and(queries(fn () => $users->findManyByEmail(array_map(fn (int $i): string => "u{$i}@example.com", range(1, 50)))))->toBe(2);
 });
 
-it('remembers permissions between requests when the permission cache is on', function (): void {
-    config()->set('roster.permission_cache.ttl', 60);
-    crowd(1);
-    $member = User::query()->where('email', 'm1@acme.test')->firstOrFail();
-    $check = fn (): int => queries(fn () => $member->fresh()->can('roster.members.view'));
-
-    $cold = $check();
-    $warm = $check();
-
-    expect($warm)->toBeLessThan($cold);
-
-    // A role change reaches the next request at once.
-    $role = roleWith(['roster.users.view']);
-    app(AssignRoleAction::class)->execute($member, new AssignRoleData(role: (string) $role->id));
-    app()->forgetScopedInstances();
-
-    expect($member->fresh()->can('roster.users.view'))->toBeTrue();
-});
-
-it('keeps the permission names when one user\'s access changes', function (): void {
-    [$owner, $acme] = crowd(2);
-    $member = User::query()->where('email', 'm1@acme.test')->firstOrFail();
-    app()->forgetScopedInstances();
-    $permissions = app(Permissions::class);
-    $permissions->for($owner, $acme);
-
-    app(RemoveMemberAction::class)->execute($acme, $member);
-
-    // The owner's answers and the permission names survive; only the member's go.
-    expect(queries(fn () => $permissions->for($owner, $acme)))->toBe(0);
-});
-
 it('answers a repeated authorization check from memory', function (): void {
     [$owner, $acme] = crowd(1);
 
@@ -249,13 +215,6 @@ it('shows a team in a fixed number of queries, with at most its first members', 
         ->toBeLessThanOrEqual(10);
 })->with([3, 30]);
 
-it('renders a team page in a fixed number of queries', function (int $size): void {
-    [$owner] = crowd($size);
-    $this->actingAs($owner);
-
-    expect(queries(fn () => $this->get(route('atrium.roster.teams.show', ['acme', 'ops']))->assertOk()))->toBeLessThanOrEqual(18);
-})->with([3, 30]);
-
 it('previews member imports without a query per row', function (): void {
     [$owner] = crowd(20);
     $csv = fn (int $rows): string => "email,name,teams\n".implode("\n", array_map(fn (int $i): string => ($i <= 20 ? "m{$i}" : "new{$i}")."@acme.test,Person {$i},ops", range(1, $rows)));
@@ -281,17 +240,17 @@ it('previews user and organization imports with no lookups per row', function (T
     'organizations' => [TransferType::ImportOrganizations, fn (int $i): string => "erp,C-{$i},Org {$i},,,,owner@acme.test", 1],
 ]);
 
-it('caches the user-status widget counts until a user changes', function (): void {
+it('caches the user status counts until a user changes', function (): void {
     user();
-    $widget = collect(app(RosterPlugin::class)->widgets())->firstOrFail(fn ($definition): bool => $definition->key === 'roster.user-status');
+    $stats = fn (): array => app(ShowUserStatsAction::class)->execute();
 
-    $widget->resolveData();
+    $stats();
 
-    expect(queries(fn () => $widget->resolveData()))->toBe(0);
+    expect(queries($stats))->toBe(0);
 
     app(CreateUserAction::class)->execute(new CreateUserData(name: 'Ada', email: 'ada@example.com'));
 
-    expect($widget->resolveData()['counts']['active'])->toBe(2);
+    expect($stats()['by_status']['active'])->toBe(2);
 });
 
 it('compares lower(column) on PostgreSQL, where an expression index can serve it', function (): void {

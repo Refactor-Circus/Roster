@@ -40,7 +40,7 @@ final class PurgeOrganizationAction
     }
 
     /**
-     * Purge it in the background, as the API, MCP and Atrium do: it is
+     * Purge it in the background, as the API and MCP do: it is
      * checked now, so a refusal still answers the caller, and removed by a
      * queued PurgeOrganizationJob once the request's transaction commits.
      * Its events fire when the job runs.

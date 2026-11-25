@@ -14,7 +14,6 @@ use LogicException;
 use RefactorCircus\Impex\Domains\Batch\Models\BatchModel;
 use RefactorCircus\Impex\Impex;
 use RefactorCircus\Roster\Domains\Organization\Models\OrganizationModel;
-use RefactorCircus\Roster\Domains\Permission\Services\Authorizer;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferStatus;
 use RefactorCircus\Roster\Domains\Transfer\Enums\TransferType;
 use RefactorCircus\Roster\Domains\Transfer\Exceptions\TransfersUnavailableException;
@@ -28,6 +27,7 @@ use RefactorCircus\Roster\Domains\Transfer\Services\Planners\OrganizationsPlanne
 use RefactorCircus\Roster\Domains\Transfer\Services\Planners\Planner;
 use RefactorCircus\Roster\Domains\Transfer\Services\Planners\TeamsPlanner;
 use RefactorCircus\Roster\Domains\Transfer\Services\Planners\UsersPlanner;
+use RefactorCircus\Roster\Support\Authorization\Authorizer;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**

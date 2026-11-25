@@ -6,13 +6,17 @@ namespace RefactorCircus\Roster\Tests;
 
 use Illuminate\Foundation\Testing\DatabaseTransactionsManager;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Gate;
 use Laravel\Mcp\Server\McpServiceProvider;
+use LogicException;
 use Orchestra\Testbench\TestCase as Orchestra;
-use RefactorCircus\Atrium\AtriumServiceProvider;
 use RefactorCircus\Impex\ImpexServiceProvider;
-use RefactorCircus\Roster\Atrium\RosterPlugin;
+use RefactorCircus\Keystone\Authorization\Contracts\Permissions;
+use RefactorCircus\Keystone\Authorization\Contracts\Roles;
+use RefactorCircus\Keystone\Authorization\GatePermissions;
+use RefactorCircus\Keystone\Authorization\NullRoles;
 use RefactorCircus\Roster\RosterServiceProvider;
+use RefactorCircus\Roster\Support\Authorization\ImpersonationAwarePermissions;
+use ReflectionProperty;
 use Workbench\App\Models\User;
 
 use function Orchestra\Testbench\default_migration_path;
@@ -20,31 +24,28 @@ use function Orchestra\Testbench\default_migration_path;
 abstract class TestCase extends Orchestra
 {
     /**
-     * Whether to open Atrium to everyone, as surface tests need. Atrium
-     * denies everything outside `local` until its gate is defined.
-     */
-    protected bool $openAtrium = true;
-
-    /**
-     * Whether the test runs inside a rolled-back transaction on a database
-     * migrated once per process (see defineDatabaseMigrations). Browser
-     * tests talk to a real server, so they migrate per test instead.
-     */
-    protected bool $transactional = true;
-
-    /**
      * The test-case classes whose database this process has migrated.
      *
      * @var array<string, true>
      */
     private static array $migrated = [];
 
+    /**
+     * Roster runs on Keystone's defaults unless a test binds a role store
+     * (`withRoleStore()`, tests/Authorization): nothing in Roster or its
+     * workbench may bind `Permissions` or `Roles` itself.
+     */
     protected function setUp(): void
     {
         parent::setUp();
 
-        if ($this->openAtrium) {
-            Gate::define('viewAtrium', fn (): bool => true);
+        $permissions = $this->app->make(Permissions::class);
+        $bound = $permissions instanceof ImpersonationAwarePermissions
+            ? (new ReflectionProperty($permissions, 'permissions'))->getValue($permissions)
+            : $permissions;
+
+        if (! $bound instanceof GatePermissions || ! $this->app->make(Roles::class) instanceof NullRoles) {
+            throw new LogicException('Roster tests start on Keystone\'s GatePermissions and NullRoles; got '.get_debug_type($bound).' and '.get_debug_type($this->app->make(Roles::class)).'.');
         }
     }
 
@@ -55,7 +56,6 @@ abstract class TestCase extends Orchestra
     {
         return [
             McpServiceProvider::class,
-            AtriumServiceProvider::class,
             ImpexServiceProvider::class,
             RosterServiceProvider::class,
         ];
@@ -63,9 +63,10 @@ abstract class TestCase extends Orchestra
 
     protected function defineEnvironment($app): void
     {
-        // refactor-circus/cortex is a dev dependency, so Atrium discovers its plugin here
-        // without its migrations; its navigation would query missing tables.
-        $app['config']->set('atrium.disabled', ['cortex']);
+        // Impex and Cortex are dev dependencies; their own dashboard
+        // registration is no part of Roster, so it stays off here.
+        $app['config']->set('impex.ui.enabled', false);
+        $app['config']->set('cortex.ui.enabled', false);
 
         $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
         $app['config']->set('database.default', 'testing');
@@ -79,26 +80,21 @@ abstract class TestCase extends Orchestra
         $app['config']->set('roster.routes.enabled', true);
         // Surface tests cover behaviour; tests/Authorization turns it back on.
         $app['config']->set('roster.authorization', false);
-        // Discovery reads vendor/composer/installed.json, which never lists
-        // the package under test, so register the plugin the way an app would.
-        $app['config']->set('atrium.plugins', [RosterPlugin::class]);
         // Impex runs drive inline on the sync queue, so a CSV import or
         // export completes (or parks on its confirmation) within the call.
         $app['config']->set('queue.default', 'sync');
         $app['config']->set('filesystems.disks.local.root', sys_get_temp_dir().'/roster-tests-'.getmypid());
 
-        if ($this->transactional) {
-            $file = $this->databaseFile();
+        $file = $this->databaseFile();
 
-            if (! is_file($file)) {
-                touch($file);
-            }
-
-            $app['config']->set('database.connections.testing.database', $file);
-            // Throwaway data: skip fsyncs and keep the rollback journal in memory.
-            $app['config']->set('database.connections.testing.synchronous', 'off');
-            $app['config']->set('database.connections.testing.journal_mode', 'memory');
+        if (! is_file($file)) {
+            touch($file);
         }
+
+        $app['config']->set('database.connections.testing.database', $file);
+        // Throwaway data: skip fsyncs and keep the rollback journal in memory.
+        $app['config']->set('database.connections.testing.synchronous', 'off');
+        $app['config']->set('database.connections.testing.journal_mode', 'memory');
     }
 
     /**
@@ -108,18 +104,6 @@ abstract class TestCase extends Orchestra
      */
     protected function defineDatabaseMigrations(): void
     {
-        if (! $this->transactional) {
-            $this->loadLaravelMigrations();
-
-            foreach (array_slice($this->migrationPaths(), 1) as $path) {
-                $this->loadMigrationsFrom($path);
-            }
-
-            $this->afterMigrating();
-
-            return;
-        }
-
         if (! isset(self::$migrated[$this->schemaKey()])) {
             Artisan::call('migrate:fresh', ['--path' => $this->migrationPaths(), '--realpath' => true]);
             $this->afterMigrating();

@@ -191,9 +191,8 @@ it('reads a stored scim membership as scim, with no enum case, while nothing reg
         ->and((new MemberResource($membership))->resolve()['source'])->toBe('scim');
 });
 
-it('lists an unregistered scim member through the API, MCP and the members tab', function (): void {
-    $owner = user();
-    $organization = organization($owner);
+it('lists an unregistered scim member through the API and MCP', function (): void {
+    $organization = organization(user());
     storedMembership($organization, user(['name' => 'Okta Provisioned', 'email' => 'okta@acme.test']), 'scim');
 
     $sources = collect($this->getJson(route('roster.organizations.members.index', $organization->slug))->assertOk()->json('data'))->pluck('source')->sort()->values()->all();
@@ -201,12 +200,6 @@ it('lists an unregistered scim member through the API, MCP and the members tab',
     expect($sources)->toBe(['direct', 'scim']);
 
     mcpTool(ListMembersTool::class, ['organization' => $organization->slug])->assertOk()->assertSee('scim');
-
-    $this->actingAs($owner)
-        ->get(route('atrium.roster.organizations.show', [$organization, 'tab' => 'members']))
-        ->assertOk()
-        ->assertSee('Okta Provisioned')
-        ->assertSeeInOrder(['Okta Provisioned', 'scim']);
 });
 
 it('keeps an unregistered scim source through filtering, a team change and an import', function (): void {

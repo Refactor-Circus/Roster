@@ -33,8 +33,8 @@ it('answers missing records without naming model classes', function (string $nam
     'user' => ['roster.users.show', [999]],
     'organization' => ['roster.organizations.show', ['missing']],
     'team' => ['roster.organizations.teams.show', ['missing', 'ops']],
-    'role' => ['roster.roles.show', ['01JAAAAAAAAAAAAAAAAAAAAAAA']],
-    'permission' => ['roster.permissions.update', ['missing.permission'], 'PATCH'],
+    'transfer' => ['roster.transfers.show', ['01JAAAAAAAAAAAAAAAAAAAAAAA']],
+    'impersonation' => ['roster.impersonations.destroy', ['01JAAAAAAAAAAAAAAAAAAAAAAA'], 'DELETE'],
 ]);
 
 it('leaves 404s outside roster alone', function (): void {

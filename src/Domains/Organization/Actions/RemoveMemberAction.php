@@ -31,9 +31,10 @@ final class RemoveMemberAction
         MemberRemovingActionEvent::dispatch($organization, $user);
 
         DB::transaction(function () use ($organization, $user, $membership): void {
+            // Before the seats go: the roles on each team they sat on go too.
+            $this->revokeRoles($user, $organization);
             $membership->teams()->detach();
             $membership->delete();
-            $this->revokeRoles($user, $organization);
             $this->forgetContext($user, $organization);
         });
 

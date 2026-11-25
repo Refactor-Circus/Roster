@@ -1,0 +1,117 @@
+{
+  "roster": {
+    "users": {
+      "title": "Users",
+      "user": "User",
+      "new": "New user",
+      "import_export": "Import & export",
+      "empty": "No users found.",
+      "none": "—",
+      "deleted": "Deleted",
+      "save": "Save",
+      "approve": "Approve",
+      "restore": "Restore",
+      "purge": "Delete permanently",
+      "tabs": {
+        "active": "Active",
+        "deleted": "Deleted"
+      },
+      "filters": {
+        "search": "Search",
+        "all_statuses": "All statuses",
+        "filter": "Filter",
+        "clear": "Clear"
+      },
+      "fields": {
+        "name": "Name",
+        "email": "Email",
+        "password": "Password",
+        "reason": "Reason",
+        "status": "Status",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "statuses": {
+        "active": "Active",
+        "pending": "Pending approval",
+        "suspended": "Suspended",
+        "deactivated": "Deactivated"
+      },
+      "state": {
+        "not_found": "This user was not found.",
+        "load_failed": "Roster could not be loaded.",
+        "action_forbidden": "You may not do that."
+      },
+      "pager": {
+        "previous": "Previous",
+        "next": "Next",
+        "page": "Page {current} of {last}"
+      },
+      "create": {
+        "password_hint": "Leave blank to set a random password.",
+        "initial_status": "Initial status",
+        "submit": "Create"
+      },
+      "account": {
+        "title": "Account",
+        "password_hint": "Leave blank to keep the current password."
+      },
+      "profile": {
+        "title": "Profile",
+        "display_name": "Display name",
+        "avatar_url": "Avatar URL",
+        "timezone": "Time zone",
+        "locale": "Locale",
+        "bio": "Bio"
+      },
+      "approval": {
+        "title": "Awaiting approval",
+        "hint": "This account waits for an approver before it can sign in.",
+        "reject": "Reject"
+      },
+      "status": {
+        "title": "Status",
+        "change_to": "Change status to",
+        "reason_hint": "Shown to the user and kept in the history.",
+        "update": "Update status"
+      },
+      "memberships": {
+        "title": "Memberships",
+        "none": "Not a member of any organization.",
+        "current": "Current",
+        "organization": "Organization",
+        "team": "Team",
+        "no_team": "No team",
+        "switch": "Switch",
+        "domain_join": "Run domain join",
+        "joined": "Domain join finished: {count} organization(s) joined."
+      },
+      "impersonate": {
+        "title": "Impersonate",
+        "reason_hint": "Why you need to act as this user. It is kept with the impersonation.",
+        "start": "Impersonate",
+        "unsafe_link": "Roster answered with a link Atrium will not follow."
+      },
+      "danger": {
+        "title": "Danger zone",
+        "delete": "Delete user",
+        "delete_warning": "Deleting removes the user's access. Where users are soft-deleted, the user can be restored.",
+        "confirm_delete": "Delete this user?",
+        "confirm_purge": "Delete this user permanently? This cannot be undone.",
+        "deleted": "This user was deleted.",
+        "deleted_hint": "Restore the user, or delete them permanently.",
+        "purge_warning": "Deleting permanently removes the user and everything Roster keeps about them."
+      }
+    },
+    "impersonations": {
+      "title": "Impersonations",
+      "empty": "No impersonations.",
+      "impersonator": "Impersonator",
+      "user": "User",
+      "active": "Active",
+      "ended": "Ended",
+      "link_issued": "Link issued",
+      "stop": "End"
+    }
+  }
+}

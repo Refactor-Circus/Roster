@@ -59,7 +59,6 @@ it('lets users view themselves and edit their own profile and context', function
     $this->getJson(route('roster.users.show', $target->getRouteKey()))->assertOk();
     $this->patchJson(route('roster.users.profile.update', $target->getRouteKey()), ['bio' => 'Me'])->assertOk();
     $this->putJson(route('roster.users.context.update', $target->getRouteKey()), ['organization' => 'acme'])->assertOk();
-    $this->getJson(route('roster.users.permissions', $target->getRouteKey()))->assertOk();
 
     // But not other account fields, nor anyone else.
     $this->patchJson(route('roster.users.update', $target->getRouteKey()), ['name' => 'x'])->assertForbidden();
@@ -82,7 +81,8 @@ it('scopes organization permissions to that organization', function (): void {
 it('lets a team lead manage their team only', function (): void {
     $world = authorizationWorld();
     $lead = $world['target'];
-    grant($lead, 'lead', team: $world['ops']);
+    // A team role, as a role store that keeps one (a team lead) defines it.
+    grant($lead, roleGranting(['roster.teams.view', 'roster.teams.manage'], 'team'), team: $world['ops']);
     $this->actingAs($lead);
 
     $this->patchJson(route('roster.organizations.teams.update', ['acme', 'ops']), ['name' => 'Ops 2'])->assertOk();

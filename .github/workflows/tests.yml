@@ -58,6 +58,85 @@ jobs:
       - name: Type Coverage
         run: composer test:types
 
+  # The TypeScript client must be generated from the committed openapi.json
+  # and type-check; tests/Feature/OpenApiTest.php checks openapi.json itself.
+  client:
+    runs-on: ubuntu-latest
+
+    name: TypeScript client
+
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate
+        run: npm run generate
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: No uncommitted changes
+        run: git diff --exit-code client/
+        working-directory: .
+
+  # The Atrium module (atrium/) must type-check, pass its suite and build to
+  # exactly the committed dist/atrium; tests/Feature/FrontendModuleTest.php
+  # checks the build hash without Node.
+  ui:
+    runs-on: ubuntu-latest
+
+    name: Atrium module
+
+    defaults:
+      run:
+        working-directory: atrium
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: atrium/package.json
+
+      - name: Setup Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: atrium/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: No uncommitted changes
+        run: git diff --exit-code -- dist/atrium
+        working-directory: .
+
   tests:
     runs-on: ${{ matrix.os }}
 
@@ -113,53 +192,4 @@ jobs:
 
       - name: Test Suite (Windows)
         if: runner.os == 'Windows'
-        # Bare `pest` would pick up the Browser suite, which needs Playwright.
-        # That is installed and run by the browser-tests workflow instead.
-        run: vendor/bin/pest --exclude-testsuite=Browser
-
-  # Roster without refactor-circus/atrium: the in-suite AtriumUnavailable mode
-  # with Atrium's classes really absent, so any reference to them outside
-  # src/Atrium fails here. Cortex and Impex require Atrium, so they go too;
-  # Keen and PennantPlus only have it as a dev dependency and stay.
-  without-atrium:
-    runs-on: ubuntu-latest
-
-    name: Without Atrium
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
-        with:
-          php-version: 8.5
-          extensions: dom, curl, libxml, mbstring, zip, fileinfo, sqlite, pdo_sqlite, bcmath, intl, sockets
-          ini-values: error_reporting=E_ALL
-          tools: composer:v2
-          coverage: none
-
-      - name: Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer downloads
-        uses: actions/cache@v6
-        with:
-          path: ${{ steps.composer-cache.outputs.dir }}
-          key: composer-without-atrium-${{ hashFiles('composer.json') }}
-          restore-keys: composer-without-atrium-
-
-      # No scripts: testbench.yaml lists Atrium's provider, so package
-      # discovery would fail without it. The tests register their own.
-      - name: Install dependencies without Atrium
-        run: |
-          composer remove --dev --no-update refactor-circus/atrium refactor-circus/cortex refactor-circus/impex
-          composer update --prefer-dist --no-interaction --no-progress --no-scripts
-
-      - name: Atrium is not installed
-        run: |
-          php -r "require 'vendor/autoload.php'; exit(class_exists('RefactorCircus\\Atrium\\Atrium') ? 1 : 0);"
-
-      - name: Test Suite
-        run: vendor/bin/pest tests/Modes/AtriumUnavailable
+        run: vendor/bin/pest

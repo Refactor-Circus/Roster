@@ -62,6 +62,7 @@ it('passes when no requirement is registered', function (): void {
 });
 
 it('passes a super-admin the requirement would claim', function (): void {
+    withRoleStore();
     grant(user(['email' => 'boss@acme.test']), 'super-admin');
     Roster::requireSignIn(new DomainSignInRequirement);
 
